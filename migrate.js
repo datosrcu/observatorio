@@ -126,8 +126,8 @@ async function migrate() {
         for (const doc of configSnap.docs) {
             const data = doc.data();
             await connection.execute(
-                'INSERT IGNORE INTO config_sistema (id, config_key, config_value) VALUES (?, ?, ?)',
-                [doc.id, doc.id, JSON.stringify(data)]
+                'INSERT IGNORE INTO config_sistema (config_key, config_value) VALUES (?, ?)',
+                [doc.id, JSON.stringify(data)]
             );
         }
 
