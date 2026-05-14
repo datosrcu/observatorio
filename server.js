@@ -21,6 +21,11 @@ try {
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Servir archivos estáticos desde la raíz
+app.use(express.static(path.join(__dirname)));
+app.use(express.json()); // Asegurar que pueda leer JSON en el body
+app.use(cors());
+
 // Middleware para verificar el Token de Firebase
 const verifyToken = async (req, res, next) => {
     const idToken = req.headers.authorization?.split('Bearer ')[1];
@@ -608,9 +613,19 @@ app.get('/api/contactos', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// Manejar todas las rutas para SPA (opcional, por si usas rutas de JS)
+// Ruta principal: Cargar el Observatorio por defecto
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'observatorio-gestion.html'));
+});
+
+// Ruta para el Admin
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// Manejar todas las rutas para SPA: Redirigir al Observatorio si no existe el archivo
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'observatorio-gestion.html'));
 });
 
 app.listen(PORT, () => {
