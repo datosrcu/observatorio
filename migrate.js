@@ -24,9 +24,9 @@ async function migrate() {
     let connection;
     try {
         connection = await getDbConnection();
-        console.log('--- Iniciando Migración Corregida ---');
+        console.log('--- Iniciando Migración Total ---');
 
-        // 1. MIGRAR CATEGORÍAS
+        // 1. CATEGORÍAS
         console.log('Migrando Categorías...');
         const catSnap = await dbFirestore.collection('categories').get();
         for (const doc of catSnap.docs) {
@@ -37,7 +37,7 @@ async function migrate() {
             );
         }
 
-        // 2. MIGRAR TABLEROS
+        // 2. TABLEROS
         console.log('Migrando Tableros...');
         const boardSnap = await dbFirestore.collection('buttons').get();
         for (const doc of boardSnap.docs) {
@@ -53,7 +53,7 @@ async function migrate() {
             );
         }
 
-        // 3. MIGRAR PERFILES DE USUARIO
+        // 3. USUARIOS
         console.log('Migrando Usuarios...');
         const userSnap = await dbFirestore.collection('users').get();
         for (const doc of userSnap.docs) {
@@ -64,7 +64,7 @@ async function migrate() {
             );
         }
 
-        // 4. MIGRAR SOLICITUDES DE ACCESO
+        // 4. SOLICITUDES DE ACCESO
         console.log('Migrando Solicitudes de Acceso...');
         const reqSnap = await dbFirestore.collection('access_requests').get();
         for (const doc of reqSnap.docs) {
@@ -75,7 +75,7 @@ async function migrate() {
             );
         }
 
-        // 5. MIGRAR FEEDBACK
+        // 5. FEEDBACK
         console.log('Migrando Feedback...');
         const feedSnap = await dbFirestore.collection('feedback').get();
         for (const doc of feedSnap.docs) {
@@ -86,7 +86,29 @@ async function migrate() {
             );
         }
 
-        // 6. MIGRAR RCE
+        // 6. MENSAJES DE CONTACTO
+        console.log('Migrando Contactos...');
+        const contactSnap = await dbFirestore.collection('contacts').get();
+        for (const doc of contactSnap.docs) {
+            const data = doc.data();
+            await connection.execute(
+                'INSERT IGNORE INTO mensajes_contacto (name, email, reason, message, type, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                [data.name || 'Anónimo', data.email || '', data.reason || 'Consulta', data.message || '', data.type || 'general', data.createdAt?.toDate ? data.createdAt.toDate() : new Date()]
+            );
+        }
+
+        // 7. PRODUCTOS ESTADÍSTICOS
+        console.log('Migrando Productos Estadísticos...');
+        const prodSnap = await dbFirestore.collection('stats_products').get();
+        for (const doc of prodSnap.docs) {
+            const data = doc.data();
+            await connection.execute(
+                'INSERT IGNORE INTO productos_estadisticos (id, title, description, category, created_at) VALUES (?, ?, ?, ?, ?)',
+                [doc.id, data.title || '', data.description || '', data.category || '', data.createdAt?.toDate ? data.createdAt.toDate() : new Date()]
+            );
+        }
+
+        // 8. RCE
         console.log('Migrando RCE...');
         const rceSnap = await dbFirestore.collection('consent_logs').get();
         for (const doc of rceSnap.docs) {
@@ -95,6 +117,17 @@ async function migrate() {
             await connection.execute(
                 'INSERT IGNORE INTO rce_consentimientos (user_uid, user_email, user_name, dni, ip_address, terms_version, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)',
                 [data.user_uid || '', data.user_email || '', data.user_name || '', data.dni || '', data.ip || '', data.version || '', date]
+            );
+        }
+
+        // 9. CONFIGURACIÓN
+        console.log('Migrando Configuración...');
+        const configSnap = await dbFirestore.collection('config').get();
+        for (const doc of configSnap.docs) {
+            const data = doc.data();
+            await connection.execute(
+                'INSERT IGNORE INTO config_sistema (id, config_key, config_value) VALUES (?, ?, ?)',
+                [doc.id, doc.id, JSON.stringify(data)]
             );
         }
 
