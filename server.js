@@ -531,6 +531,84 @@ app.get('/api/config/terms-version', async (req, res) => {
     }
 });
 
+// --- ENDPOINTS ADMINISTRATIVOS (MYSQL) ---
+
+// --- FEEDBACK ---
+app.get('/api/feedback', async (req, res) => {
+    try {
+        const connection = await getDbConnection();
+        const [rows] = await connection.execute('SELECT * FROM feedback_web ORDER BY created_at DESC');
+        await connection.end();
+        res.json(rows);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// --- PRODUCTOS ESTADÍSTICOS / PEDIDOS ---
+app.get('/api/productos-estadisticos', async (req, res) => {
+    try {
+        const connection = await getDbConnection();
+        const [rows] = await connection.execute('SELECT * FROM productos_estadisticos ORDER BY created_at DESC');
+        await connection.end();
+        res.json(rows);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/productos-estadisticos/:id/status', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    try {
+        const connection = await getDbConnection();
+        await connection.execute('UPDATE productos_estadisticos SET status = ? WHERE id = ?', [status, id]);
+        await connection.end();
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// --- LOGS DE ACTIVIDAD ---
+app.get('/api/logs', async (req, res) => {
+    try {
+        const connection = await getDbConnection();
+        const [rows] = await connection.execute('SELECT * FROM logs_actividad ORDER BY created_at DESC LIMIT 500');
+        await connection.end();
+        res.json(rows);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// --- RCE / CONSENTIMIENTOS (LISTADO) ---
+app.get('/api/rce-all', async (req, res) => {
+    try {
+        const connection = await getDbConnection();
+        const [rows] = await connection.execute('SELECT * FROM rce_consentimientos ORDER BY timestamp DESC');
+        await connection.end();
+        res.json(rows);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// --- CONFIGURACIÓN GENÉRICA ---
+app.post('/api/config/:key', async (req, res) => {
+    const { key } = req.params;
+    const { value } = req.body;
+    try {
+        const connection = await getDbConnection();
+        await connection.execute(
+            'INSERT INTO config_sistema (config_key, config_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE config_value = ?',
+            [key, value, value]
+        );
+        await connection.end();
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// --- CONTACTOS ---
+app.get('/api/contactos', async (req, res) => {
+    try {
+        const connection = await getDbConnection();
+        const [rows] = await connection.execute('SELECT * FROM mensajes_contacto ORDER BY created_at DESC');
+        await connection.end();
+        res.json(rows);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
 // Manejar todas las rutas para SPA (opcional, por si usas rutas de JS)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));

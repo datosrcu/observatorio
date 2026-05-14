@@ -1407,23 +1407,24 @@ async function deleteDocReq(collectionName, id) {
 
 // --- USER TRACKING LOGIC ---
 async function loadUserTracking() {
-    console.log("Loading user tracking logs...");
+    console.log("Loading user tracking logs from MySQL...");
     try {
-        const snapshot = await getDocs(collection(db, "user_tracking"));
-        allTrackingFetched = [];
-        snapshot.forEach(doc => {
-            allTrackingFetched.push({ id: doc.id, ...doc.data() });
-        });
+        const data = await callApi('/api/logs', 'GET');
+        allTrackingFetched = data.map(log => ({
+            id: log.id,
+            userEmail: log.user_uid, // Usamos el UID como email por ahora si no tenemos el join
+            userName: '', 
+            buttonName: log.action,
+            hasAccess: log.action.includes('Acceso'),
+            timestamp: log.created_at
+        }));
 
         // Ordenar por timestamp descending
         allTrackingFetched.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         renderTrackingTable();
     } catch (error) {
-        console.error("Error loading user tracking:", error);
-        if (trackingTbody) {
-            trackingTbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-red-500">Error: ${error.message}. Revisá los permisos de Firestore.</td></tr>`;
-        }
+        console.error("Error loading user tracking from MySQL:", error);
     }
 }
 
@@ -1473,30 +1474,38 @@ function renderTrackingTable() {
     });
 }
 // --- SOLICITUDES ESTADÍSTICAS (PEDIDOS) ---
-
 async function loadStatisticalRequests() {
-    console.log("Loading statistical requests...");
+    console.log("Loading statistical requests from MySQL...");
     try {
-        const snapshot = await getDocs(collection(db, "statistical_requests"));
-        statisticalRequests = [];
-        snapshot.forEach(doc => {
-            statisticalRequests.push({ id: doc.id, ...doc.data() });
-        });
-
-        // Ordenar por fecha descending (suponiendo que existe createdAt)
-        statisticalRequests.sort((a, b) => {
-            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-            return dateB - dateA;
-        });
+        const data = await callApi('/api/productos-estadisticos', 'GET');
+        statisticalRequests = data.map(r => ({
+            id: r.id,
+            clientName: r.client_name,
+            clientArea: r.area,
+            clientPosition: r.client_position,
+            clientEmail: r.client_email,
+            clientPhone: r.client_phone,
+            requestTitle: r.title,
+            description: r.description,
+            status: r.status.charAt(0).toUpperCase() + r.status.slice(1).replace('_', ' '),
+            createdAt: { toDate: () => new Date(r.created_at) },
+            jurisdictions: typeof r.jurisdictions === 'string' ? JSON.parse(r.jurisdictions) : r.jurisdictions,
+            productTypes: typeof r.product_types === 'string' ? JSON.parse(r.product_types) : r.product_types,
+            formats: typeof r.formats === 'string' ? JSON.parse(r.formats) : r.formats,
+            periodicity: r.periodicity,
+            dueDate: r.due_date,
+            hasTechContact: r.has_tech_contact ? 'si' : 'no',
+            techContactName: r.tech_contact_name,
+            techContactEmail: r.tech_contact_email,
+            techContactPhone: r.tech_contact_phone,
+            additionalInfo: r.additional_info,
+            attachments: typeof r.attachment_urls === 'string' ? JSON.parse(r.attachment_urls) : r.attachment_urls
+        }));
 
         updateStatisticalSummary();
         renderStatisticalRequests();
     } catch (error) {
-        console.error("Error loading statistical requests:", error);
-        if (pedidosTableBody) {
-            pedidosTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-red-500">Error cargando pedidos.</td></tr>`;
-        }
+        console.error("Error loading statistical requests from MySQL:", error);
     }
 }
 
@@ -1583,17 +1592,16 @@ function getStatusBadgeClass(status) {
 // Global functions for events
 window.updateRequestStatus = async (id, newStatus) => {
     try {
-        await updateDoc(doc(db, "statistical_requests", id), {
-            status: newStatus,
-            updatedAt: serverTimestamp()
-        });
+        const mysqlStatus = newStatus.toLowerCase().replace(' ', '_');
+        await callApi(`/api/productos-estadisticos/${id}/status`, 'POST', { status: mysqlStatus });
+        
         // Local update
         const req = statisticalRequests.find(r => r.id === id);
         if (req) req.status = newStatus;
         updateStatisticalSummary();
         renderStatisticalRequests();
     } catch (error) {
-        console.error("Error updating status:", error);
+        console.error("Error updating status in MySQL:", error);
         alert("Error al actualizar el estado.");
     }
 };
@@ -1652,18 +1660,21 @@ filterReqStatus?.addEventListener('change', (e) => {
 // --- FEEDBACK LOGIC ---
 async function loadFeedback() {
     try {
-        const querySnapshot = await getDocs(collection(db, "feedback"));
-        const allFeedback = [];
-        querySnapshot.forEach((doc) => {
-            allFeedback.push({ id: doc.id, ...doc.data() });
-        });
+        const data = await callApi('/api/feedback', 'GET');
+        const allFeedback = data.map(fb => ({
+            id: fb.id,
+            name: fb.name_provided || 'Anónimo',
+            email: fb.email_provided,
+            comment: fb.comment,
+            timestamp: fb.created_at
+        }));
 
         // Sort by date desc
         allFeedback.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         renderFeedbackTable(allFeedback);
     } catch (error) {
-        console.error("Error loading feedback:", error);
+        console.error("Error loading feedback from MySQL:", error);
     }
 }
 
@@ -1790,27 +1801,22 @@ async function checkBackgroundNotifications() {
 
 // --- CONTACTS LOGIC ---
 async function loadContacts() {
-    console.log("Loading contacts from Firestore...");
+    console.log("Loading contacts from MySQL...");
     try {
-        const snapshot = await getDocs(collection(db, "contacts"));
-        allContactsFetched = [];
-        snapshot.forEach(doc => {
-            allContactsFetched.push({ id: doc.id, ...doc.data() });
-        });
-        
-        console.log(`Fetched ${allContactsFetched.length} contacts.`);
-        
-        // Sort by date desc (handle both ISO strings and Firestore Timestamps)
-        allContactsFetched.sort((a, b) => {
-            const dateA = a.createdAt?.seconds ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-            const dateB = b.createdAt?.seconds ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-            return dateB - dateA;
-        });
+        const data = await callApi('/api/contactos', 'GET');
+        allContactsFetched = data.map(c => ({
+            id: c.id,
+            name: c.name,
+            email: c.email,
+            reason: c.reason,
+            message: c.message,
+            type: c.type,
+            createdAt: c.created_at
+        }));
         
         renderContactsTable();
     } catch (error) {
-        console.error("Error loading contacts:", error);
-        if (contactoTbody) contactoTbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-red-500">Error cargando reportes: ${error.message}</td></tr>`;
+        console.error("Error loading contacts from MySQL:", error);
     }
 }
 
@@ -1899,14 +1905,12 @@ function renderContactsTable() {
 // --- T&C Version Management ---
 async function loadTCConfig() {
     try {
-        const snap = await getDoc(doc(db, "config", "terms"));
-        if (snap.exists()) {
-            globalTermsVersion = snap.data().currentVersion;
-            const input = document.getElementById('config-tc-version');
-            if (input) input.value = globalTermsVersion;
-        }
+        const data = await callApi('/api/config/terms-version', 'GET');
+        globalTermsVersion = data.version;
+        const input = document.getElementById('config-tc-version');
+        if (input) input.value = globalTermsVersion;
     } catch (e) {
-        console.error("Error loading TC config:", e);
+        console.error("Error loading TC config from MySQL:", e);
     }
 }
 
@@ -1921,15 +1925,15 @@ document.getElementById('save-tc-version')?.addEventListener('click', async () =
         btn.disabled = true;
         btn.textContent = "...";
         
-        await setDoc(doc(db, "config", "terms"), { currentVersion: newVersion }, { merge: true });
+        await callApi(`/api/config/terms_version`, 'POST', { value: newVersion });
         globalTermsVersion = newVersion;
-        alert("Versión de T&C actualizada correctamente.");
+        alert("Versión de T&C actualizada correctamente en MySQL.");
         
         btn.disabled = false;
         btn.textContent = "Activar";
     } catch (e) {
-        console.error("Critical error saving TC Version:", e);
-        alert(`Error al guardar versión: ${e.code || e.message}`);
+        console.error("Error saving TC Version to MySQL:", e);
+        alert(`Error al guardar versión.`);
     }
 });
 
@@ -1941,16 +1945,24 @@ async function loadRCE() {
     rceTbody.innerHTML = '<tr><td colspan="5" class="py-12 text-center text-gray-400">Cargando registros...</td></tr>';
 
     try {
-        const snap = await getDocs(collection(db, "consent_logs"));
-        allRCEFetched = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const data = await callApi('/api/rce-all', 'GET');
+        allRCEFetched = data.map(log => ({
+            id: log.id,
+            userName: log.user_name,
+            userEmail: log.user_email,
+            dni: log.dni,
+            timestamp: log.timestamp,
+            ip: log.ip_address,
+            version: log.terms_version
+        }));
         
         // Sort by timestamp desc
         allRCEFetched.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
         
         renderRCE();
     } catch (e) {
-        console.error(e);
-        rceTbody.innerHTML = '<tr><td colspan="5" class="py-12 text-center text-red-400">Error al cargar RCE</td></tr>';
+        console.error("Error loading RCE from MySQL:", e);
+        rceTbody.innerHTML = '<tr><td colspan="5" class="py-12 text-center text-red-400">Error al cargar RCE desde MySQL</td></tr>';
     }
 }
 

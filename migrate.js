@@ -24,9 +24,9 @@ async function migrate() {
     let connection;
     try {
         connection = await getDbConnection();
-        console.log('--- Iniciando Migración TOTAL (10 Tablas) ---');
+        console.log('--- Iniciando Migración Definitiva ---');
 
-        // 1. CATEGORÍAS
+        // 1. CATEGORÍAS (ID es PK)
         console.log('Migrando Categorías...');
         const catSnap = await dbFirestore.collection('categories').get();
         for (const doc of catSnap.docs) {
@@ -37,7 +37,7 @@ async function migrate() {
             );
         }
 
-        // 2. TABLEROS
+        // 2. TABLEROS (ID es PK)
         console.log('Migrando Tableros...');
         const boardSnap = await dbFirestore.collection('buttons').get();
         for (const doc of boardSnap.docs) {
@@ -53,40 +53,37 @@ async function migrate() {
             );
         }
 
-        // 3. USUARIOS
-        console.log('Migrando Usuarios...');
-        const userSnap = await dbFirestore.collection('users').get();
-        for (const doc of userSnap.docs) {
+        // 3. PRODUCTOS ESTADÍSTICOS (Pedidos)
+        console.log('Migrando Pedidos Estadísticos...');
+        const prodSnap = await dbFirestore.collection('statistical_requests').get();
+        for (const doc of prodSnap.docs) {
             const data = doc.data();
             await connection.execute(
-                'INSERT IGNORE INTO usuarios_perfiles (uid, email, full_name, dni, sector_group, organization_type, organization_name) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [doc.id, data.email || '', data.displayName || data.full_name || '', data.dni || '', data.sector || '', data.orgType || '', data.orgName || '']
+                'INSERT IGNORE INTO productos_estadisticos (user_uid, client_name, client_email, client_phone, client_position, jurisdictions, area, product_types, title, periodicity, due_date, description, formats, has_tech_contact, tech_contact_name, tech_contact_email, tech_contact_phone, additional_info, attachment_urls, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                    data.user_uid || '', data.clientName || '', data.clientEmail || '', data.clientPhone || '', data.clientPosition || '',
+                    JSON.stringify(data.jurisdictions || []), data.clientArea || '', JSON.stringify(data.productTypes || []),
+                    data.requestTitle || '', data.periodicity || '', data.dueDate || '', data.description || '',
+                    JSON.stringify(data.formats || []), data.hasTechContact === 'si', data.techContactName || '',
+                    data.techContactEmail || '', data.techContactPhone || '', data.additionalInfo || '',
+                    JSON.stringify(data.attachments || []), (data.status || 'pendiente').toLowerCase().replace(' ', '_'),
+                    data.createdAt?.toDate ? data.createdAt.toDate() : new Date()
+                ]
             );
         }
 
-        // 4. SOLICITUDES DE ACCESO
-        console.log('Migrando Solicitudes de Acceso...');
-        const reqSnap = await dbFirestore.collection('access_requests').get();
-        for (const doc of reqSnap.docs) {
-            const data = doc.data();
-            await connection.execute(
-                'INSERT IGNORE INTO solicitudes_acceso (user_uid, dashboard_name, reason, status, created_at) VALUES (?, ?, ?, ?, ?)',
-                [data.user_uid || doc.id, data.dashboard_name || '', data.reason || '', data.status || 'pendiente', data.timestamp?.toDate ? data.timestamp.toDate() : new Date()]
-            );
-        }
-
-        // 5. FEEDBACK
+        // 4. FEEDBACK
         console.log('Migrando Feedback...');
         const feedSnap = await dbFirestore.collection('feedback').get();
         for (const doc of feedSnap.docs) {
             const data = doc.data();
             await connection.execute(
-                'INSERT IGNORE INTO feedback_web (user_uid, is_useful, comment, email_provided, created_at) VALUES (?, ?, ?, ?, ?)',
-                [data.user_uid || '', data.rating > 3, data.comment || '', data.user_email || '', data.timestamp?.toDate ? data.timestamp.toDate() : new Date()]
+                'INSERT IGNORE INTO feedback_web (user_uid, is_useful, comment, name_provided, email_provided, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                [data.user_uid || '', data.rating > 3, data.comment || '', data.name || '', data.email || '', data.timestamp?.toDate ? data.timestamp.toDate() : new Date()]
             );
         }
 
-        // 6. CONTACTOS
+        // 5. CONTACTOS
         console.log('Migrando Contactos...');
         const contactSnap = await dbFirestore.collection('contacts').get();
         for (const doc of contactSnap.docs) {
@@ -97,18 +94,7 @@ async function migrate() {
             );
         }
 
-        // 7. PRODUCTOS ESTADÍSTICOS
-        console.log('Migrando Productos Estadísticos...');
-        const prodSnap = await dbFirestore.collection('stats_products').get();
-        for (const doc of prodSnap.docs) {
-            const data = doc.data();
-            await connection.execute(
-                'INSERT IGNORE INTO productos_estadisticos (id, title, description, category, created_at) VALUES (?, ?, ?, ?, ?)',
-                [doc.id, data.title || '', data.description || '', data.category || '', data.createdAt?.toDate ? data.createdAt.toDate() : new Date()]
-            );
-        }
-
-        // 8. RCE
+        // 6. RCE
         console.log('Migrando RCE...');
         const rceSnap = await dbFirestore.collection('consent_logs').get();
         for (const doc of rceSnap.docs) {
@@ -120,19 +106,8 @@ async function migrate() {
             );
         }
 
-        // 9. CONFIGURACIÓN
-        console.log('Migrando Configuración...');
-        const configSnap = await dbFirestore.collection('config').get();
-        for (const doc of configSnap.docs) {
-            const data = doc.data();
-            await connection.execute(
-                'INSERT IGNORE INTO config_sistema (config_key, config_value) VALUES (?, ?)',
-                [doc.id, JSON.stringify(data)]
-            );
-        }
-
-        // 10. LOGS DE ACTIVIDAD
-        console.log('Migrando Logs de Actividad (Este puede tardar)...');
+        // 7. LOGS DE ACTIVIDAD
+        console.log('Migrando Logs de Actividad...');
         const logsSnap = await dbFirestore.collection('activity_logs').get();
         for (const doc of logsSnap.docs) {
             const data = doc.data();
@@ -142,7 +117,7 @@ async function migrate() {
             );
         }
 
-        console.log('--- Migración TOTAL Completada con Éxito ---');
+        console.log('--- Migración Completada con Éxito ---');
     } catch (error) {
         console.error('Error durante la migración:', error);
     } finally {
