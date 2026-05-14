@@ -11,26 +11,22 @@ const dbFirestore = admin.firestore();
 
 // 2. Configuración de MySQL
 const getDbConnection = async () => {
-    if (process.env.DATABASE_URL) {
-        return await mysql.createConnection(process.env.DATABASE_URL);
-    } else {
-        return await mysql.createConnection({
-            host: process.env.DB_HOST || 'localhost',
-            user: process.env.DB_USER,
-            password: process.env.DB_PASS,
-            database: process.env.DB_NAME,
-            port: 3306
-        });
-    }
+    return await mysql.createConnection({
+        host: process.env.DB_HOST || 'localhost',
+        user: process.env.DB_USER,
+        password: process.env.DB_PASS,
+        database: process.env.DB_NAME,
+        port: 3306
+    });
 };
 
 async function migrate() {
     let connection;
     try {
         connection = await getDbConnection();
-        console.log('--- Iniciando Migración ---');
+        console.log('--- Iniciando Migración Completa ---');
 
-        // MIGRAR CATEGORÍAS
+        // 1. MIGRAR CATEGORÍAS
         console.log('Migrando Categorías...');
         const catSnap = await dbFirestore.collection('categories').get();
         for (const doc of catSnap.docs) {
@@ -41,7 +37,7 @@ async function migrate() {
             );
         }
 
-        // MIGRAR TABLEROS
+        // 2. MIGRAR TABLEROS
         console.log('Migrando Tableros...');
         const boardSnap = await dbFirestore.collection('buttons').get();
         for (const doc of boardSnap.docs) {
@@ -57,19 +53,51 @@ async function migrate() {
             );
         }
 
-        // MIGRAR CONTACTOS
-        console.log('Migrando Contactos...');
-        const contactSnap = await dbFirestore.collection('contacts').get();
-        for (const doc of contactSnap.docs) {
+        // 3. MIGRAR PERFILES DE USUARIO
+        console.log('Migrando Usuarios...');
+        const userSnap = await dbFirestore.collection('users').get();
+        for (const doc of userSnap.docs) {
             const data = doc.data();
-            const date = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now());
             await connection.execute(
-                'INSERT IGNORE INTO mensajes_contacto (name, email, reason, message, type, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                [data.name || 'Anónimo', data.email || '', data.reason || 'Consulta', data.message || '', data.type || 'general', date]
+                'INSERT IGNORE INTO usuarios_perfiles (uid, email, display_name, photo_url, role, last_login) VALUES (?, ?, ?, ?, ?, ?)',
+                [doc.id, data.email || '', data.displayName || '', data.photoURL || '', data.role || 'viewer', data.lastLogin?.toDate ? data.lastLogin.toDate() : null]
             );
         }
 
-        // MIGRAR RCE
+        // 4. MIGRAR SOLICITUDES DE ACCESO
+        console.log('Migrando Solicitudes de Acceso...');
+        const reqSnap = await dbFirestore.collection('access_requests').get();
+        for (const doc of reqSnap.docs) {
+            const data = doc.data();
+            await connection.execute(
+                'INSERT IGNORE INTO solicitudes_acceso (id, user_email, requested_at, status) VALUES (?, ?, ?, ?)',
+                [doc.id, data.email || '', data.timestamp?.toDate ? data.timestamp.toDate() : new Date(), data.status || 'pending']
+            );
+        }
+
+        // 5. MIGRAR FEEDBACK
+        console.log('Migrando Feedback...');
+        const feedSnap = await dbFirestore.collection('feedback').get();
+        for (const doc of feedSnap.docs) {
+            const data = doc.data();
+            await connection.execute(
+                'INSERT IGNORE INTO feedback_web (id, user_email, rating, comment, created_at) VALUES (?, ?, ?, ?, ?)',
+                [doc.id, data.userEmail || '', data.rating || 0, data.comment || '', data.timestamp?.toDate ? data.timestamp.toDate() : new Date()]
+            );
+        }
+
+        // 6. MIGRAR PRODUCTOS ESTADÍSTICOS
+        console.log('Migrando Productos Estadísticos...');
+        const prodSnap = await dbFirestore.collection('stats_products').get();
+        for (const doc of prodSnap.docs) {
+            const data = doc.data();
+            await connection.execute(
+                'INSERT IGNORE INTO productos_estadisticos (id, title, description, url, category, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                [doc.id, data.title || '', data.description || '', data.url || '', data.category || '', data.createdAt?.toDate ? data.createdAt.toDate() : new Date()]
+            );
+        }
+
+        // 7. MIGRAR RCE
         console.log('Migrando RCE...');
         const rceSnap = await dbFirestore.collection('consent_logs').get();
         for (const doc of rceSnap.docs) {
