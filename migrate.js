@@ -24,7 +24,7 @@ async function migrate() {
     let connection;
     try {
         connection = await getDbConnection();
-        console.log('--- Iniciando Migración Completa ---');
+        console.log('--- Iniciando Migración Corregida ---');
 
         // 1. MIGRAR CATEGORÍAS
         console.log('Migrando Categorías...');
@@ -59,8 +59,8 @@ async function migrate() {
         for (const doc of userSnap.docs) {
             const data = doc.data();
             await connection.execute(
-                'INSERT IGNORE INTO usuarios_perfiles (uid, email, display_name, photo_url, role, last_login) VALUES (?, ?, ?, ?, ?, ?)',
-                [doc.id, data.email || '', data.displayName || '', data.photoURL || '', data.role || 'viewer', data.lastLogin?.toDate ? data.lastLogin.toDate() : null]
+                'INSERT IGNORE INTO usuarios_perfiles (uid, email, full_name, dni, sector_group, organization_type, organization_name) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [doc.id, data.email || '', data.displayName || data.full_name || '', data.dni || '', data.sector || '', data.orgType || '', data.orgName || '']
             );
         }
 
@@ -70,8 +70,8 @@ async function migrate() {
         for (const doc of reqSnap.docs) {
             const data = doc.data();
             await connection.execute(
-                'INSERT IGNORE INTO solicitudes_acceso (id, user_email, requested_at, status) VALUES (?, ?, ?, ?)',
-                [doc.id, data.email || '', data.timestamp?.toDate ? data.timestamp.toDate() : new Date(), data.status || 'pending']
+                'INSERT IGNORE INTO solicitudes_acceso (user_uid, dashboard_name, reason, status, created_at) VALUES (?, ?, ?, ?, ?)',
+                [data.user_uid || doc.id, data.dashboard_name || '', data.reason || '', data.status || 'pendiente', data.timestamp?.toDate ? data.timestamp.toDate() : new Date()]
             );
         }
 
@@ -81,23 +81,12 @@ async function migrate() {
         for (const doc of feedSnap.docs) {
             const data = doc.data();
             await connection.execute(
-                'INSERT IGNORE INTO feedback_web (id, user_email, rating, comment, created_at) VALUES (?, ?, ?, ?, ?)',
-                [doc.id, data.userEmail || '', data.rating || 0, data.comment || '', data.timestamp?.toDate ? data.timestamp.toDate() : new Date()]
+                'INSERT IGNORE INTO feedback_web (user_uid, is_useful, comment, email_provided, created_at) VALUES (?, ?, ?, ?, ?)',
+                [data.user_uid || '', data.rating > 3, data.comment || '', data.user_email || '', data.timestamp?.toDate ? data.timestamp.toDate() : new Date()]
             );
         }
 
-        // 6. MIGRAR PRODUCTOS ESTADÍSTICOS
-        console.log('Migrando Productos Estadísticos...');
-        const prodSnap = await dbFirestore.collection('stats_products').get();
-        for (const doc of prodSnap.docs) {
-            const data = doc.data();
-            await connection.execute(
-                'INSERT IGNORE INTO productos_estadisticos (id, title, description, url, category, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                [doc.id, data.title || '', data.description || '', data.url || '', data.category || '', data.createdAt?.toDate ? data.createdAt.toDate() : new Date()]
-            );
-        }
-
-        // 7. MIGRAR RCE
+        // 6. MIGRAR RCE
         console.log('Migrando RCE...');
         const rceSnap = await dbFirestore.collection('consent_logs').get();
         for (const doc of rceSnap.docs) {
