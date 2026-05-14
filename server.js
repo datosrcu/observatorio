@@ -103,10 +103,15 @@ const initializeTables = async () => {
                 legal_file_url TEXT,
                 terms_accepted_version VARCHAR(20),
                 terms_accepted_date DATETIME,
+                last_login DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
+        // Agregar last_login si no existe en BBDDs previas
+        await connection.query(`
+            ALTER TABLE usuarios_perfiles ADD COLUMN IF NOT EXISTS last_login DATETIME
+        `).catch(() => {}); // Ignorar si ya existe
 
         // 2. Tabla de Solicitudes de Acceso
         await connection.query(`
@@ -304,6 +309,27 @@ app.get('/api/protected-test', verifyToken, (req, res) => {
 });
 
 // --- ENDPOINTS DE LA API ---
+
+// 0. Sincronizar usuario al hacer login (reemplaza Firestore)
+app.post('/api/usuarios/sync', verifyToken, async (req, res) => {
+    const { uid, email, full_name, photo_url, is_admin } = req.body;
+    try {
+        const connection = await getDbConnection();
+        await connection.execute(
+            `INSERT INTO usuarios_perfiles (uid, email, full_name, last_login)
+             VALUES (?, ?, ?, NOW())
+             ON DUPLICATE KEY UPDATE
+               full_name = COALESCE(NULLIF(?, ''), full_name),
+               last_login = NOW()`,
+            [uid, email, full_name, full_name]
+        );
+        await connection.end();
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error syncing user:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // 1. Guardar o actualizar perfil de usuario
 app.post('/api/perfil', verifyToken, async (req, res) => {

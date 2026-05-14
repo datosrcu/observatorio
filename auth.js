@@ -145,40 +145,29 @@ async function handleLogin() {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         const userEmail = user.email.toLowerCase();
-        const isAdmin = ['datos@riocuarto.gov.ar'].includes(userEmail);
+        const isAdmin = ADMIN_EMAILS.includes(userEmail);
 
-        // Check domain immediately after login popup succeeds - Relaxed for external sectors
-        // Register/Update user in the database
-            try {
-                const userRef = doc(db, "users", userEmail);
-                const userSnap = await getDoc(userRef);
-                
-                const loginData = {
+        // Registrar/Actualizar usuario en MySQL backend (no Firestore)
+        try {
+            const token = await user.getIdToken();
+            await fetch('/api/usuarios/sync', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    uid: user.uid,
                     email: userEmail,
-                    name: user.displayName || user.email.split('@')[0],
-                    photoURL: user.photoURL || '',
-                    lastLogin: new Date().toISOString()
-                };
-
-                if (!userSnap.exists()) {
-                    // New User
-                    loginData.createdAt = new Date().toISOString();
-                    loginData.profileCompleted = false;
-                    if (isAdmin) {
-                        loginData.profileCompleted = true;
-                        loginData.orgType = 'Administración';
-                        loginData.orgName = 'Municipalidad';
-                        loginData.orgRole = 'Administrador';
-                        loginData.role = 'admin';
-                    }
-                    await setDoc(userRef, loginData);
-                } else {
-                    // Existing User - Just update login time
-                    await updateDoc(userRef, { lastLogin: loginData.lastLogin });
-                }
-            } catch (e) {
-                console.warn("Could not register/update user in DB:", e);
-            }
+                    full_name: user.displayName || userEmail.split('@')[0],
+                    photo_url: user.photoURL || '',
+                    is_admin: isAdmin
+                })
+            });
+        } catch (e) {
+            // No bloquear el login si el sync falla
+            console.warn("Could not sync user to MySQL:", e);
+        }
     } catch (error) {
         console.error("Error during login:", error);
         alert("Ocurrió un error al intentar iniciar sesión. Por favor, intente nuevamente.");
