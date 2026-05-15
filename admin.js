@@ -529,11 +529,12 @@ async function loadRequests() {
 
         allRequestsFetched = rows.map(r => ({
             id: String(r.id),
-            userEmail: r.user_uid,
+            userEmail: r.user_email || r.user_uid, // Priorizar email del join
+            userName: r.user_name || '',
             buttonId: r.dashboard_name,
             buttonName: r.dashboard_name,
             reason: r.reason,
-            status: r.status,
+            status: (r.status || 'pendiente').toLowerCase(), // Normalizar a minúsculas
             expiryDate: r.admin_comment?.startsWith('Vence:') ? r.admin_comment.replace('Vence: ', '') : null,
             createdAt: r.created_at
         }));
@@ -575,8 +576,16 @@ function filterAndRenderRequests() {
     const sortFilter = document.getElementById('sort-request-expiry')?.value || 'created-desc';
 
     let filtered = allRequestsFetched.filter(req => {
-        const matchesUser = req.userEmail.toLowerCase().includes(userSearch);
-        const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
+        const matchesUser = req.userEmail.toLowerCase().includes(userSearch) || req.userName.toLowerCase().includes(userSearch);
+        
+        // Map HTML values to DB values
+        let mappedStatus = statusFilter;
+        if (statusFilter === 'pending') mappedStatus = 'pendiente';
+        if (statusFilter === 'approved') mappedStatus = 'aprobado';
+        if (statusFilter === 'rejected') mappedStatus = 'rechazado';
+        if (statusFilter === 'expired') mappedStatus = 'expirado';
+
+        const matchesStatus = statusFilter === 'all' || req.status === mappedStatus;
         return matchesUser && matchesStatus;
     });
 
@@ -629,9 +638,12 @@ function renderRequests(requests) {
 
         let statusBadge = '';
         switch (status) {
+            case 'aprobado':
             case 'approved': statusBadge = '<span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-bold text-[9px] uppercase">Aprobada</span>'; break;
+            case 'rechazado':
             case 'rejected': statusBadge = '<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-bold text-[9px] uppercase">Rechazada</span>'; break;
             case 'restricted': statusBadge = '<span class="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full font-bold text-[9px] uppercase">Restringida</span>'; break;
+            case 'expirado':
             case 'expired': statusBadge = '<span class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-bold text-[9px] uppercase">Vencido</span>'; break;
             default: statusBadge = '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold text-[9px] uppercase">Pendiente</span>';
         }
@@ -660,13 +672,13 @@ function renderRequests(requests) {
             </div>
 
             <div class="flex flex-row md:flex-col gap-2 shrink-0">
-                ${(status === 'pending' || status === 'rejected' || status === 'restricted' || status === 'expired') ? `
+                ${(status !== 'aprobado' && status !== 'approved') ? `
                 <button class="btn-approve bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg transition shadow-sm" data-id="${req.id}" data-email="${req.userEmail}" data-button="${req.buttonId}" title="Aprobar Acceso">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                 </button>
                 ` : ''}
                 
-                ${status === 'pending' ? `
+                ${(status === 'pendiente' || status === 'pending') ? `
                 <button class="btn-reject bg-white border border-orange-200 text-orange-500 hover:bg-orange-50 p-2 rounded-lg transition" data-id="${req.id}" title="Rechazar">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
@@ -1341,14 +1353,23 @@ async function loadUserTracking() {
     console.log("Loading user tracking logs from MySQL...");
     try {
         const data = await callApi('/api/logs', 'GET');
-        allTrackingFetched = data.map(log => ({
-            id: log.id,
-            userEmail: log.user_uid, // Usamos el UID como email por ahora si no tenemos el join
-            userName: '', 
-            buttonName: log.action,
-            hasAccess: log.action.includes('Acceso'),
-            timestamp: log.created_at
-        }));
+        allTrackingFetched = data.map(log => {
+            let details = {};
+            try {
+                details = typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {});
+            } catch (e) {
+                console.warn("Error parsing log details", e);
+            }
+
+            return {
+                id: log.id,
+                userEmail: log.user_email || log.user_uid,
+                userName: log.user_name || details?.userName || '',
+                buttonName: details?.buttonName || (log.action === 'view_dashboard' ? 'Dashboard' : log.action),
+                hasAccess: log.action === 'view_dashboard' || log.action.includes('Acceso'),
+                timestamp: log.created_at
+            };
+        });
 
         // Ordenar por timestamp descending
         allTrackingFetched.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -1396,9 +1417,11 @@ function renderTrackingTable() {
 
         tr.innerHTML = `
             <td class="py-3 px-4 text-xs font-mono text-gray-500">${date}</td>
-            <td class="py-3 px-4 text-xs">${log.userEmail}</td>
-            <td class="py-3 px-4 font-medium text-xs">${log.userName || 'N/A'}</td>
-            <td class="py-3 px-4 text-xs font-bold">${log.buttonName}</td>
+            <td class="py-3 px-4 text-xs">
+                <div class="font-medium">${log.userName || log.userEmail.split('@')[0]}</div>
+                <div class="text-[9px] text-gray-400">${log.userEmail}</div>
+            </td>
+            <td class="py-3 px-4 font-medium text-xs">${log.buttonName || 'N/A'}</td>
             <td class="py-3 px-4 text-right">${statusBadge}</td>
         `;
         trackingTbody.appendChild(tr);

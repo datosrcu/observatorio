@@ -404,7 +404,14 @@ app.post('/api/perfil', verifyToken, async (req, res) => {
 app.get('/api/solicitudes', verifyToken, async (_req, res) => {
     try {
         const connection = await getDbConnection();
-        const [rows] = await connection.query('SELECT * FROM solicitudes_acceso ORDER BY created_at DESC');
+        // Join with profiles to get the email and name even if user_uid is an old Firebase UID
+        const sql = `
+            SELECT s.*, u.email as user_email, u.full_name as user_name
+            FROM solicitudes_acceso s
+            LEFT JOIN usuarios_perfiles u ON s.user_uid = u.uid OR s.user_uid = u.email
+            ORDER BY s.created_at DESC
+        `;
+        const [rows] = await connection.query(sql);
         await connection.end();
         res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -557,7 +564,7 @@ app.delete('/api/tableros/:id', verifyToken, async (req, res) => {
 
 // 2. Registrar solicitud de acceso a tablero
 app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
-    const { uid } = req.user;
+    const { email: uid } = req.user; // Usar email como uid para consistencia
     const { dashboard_name, reason, reason_detail, terms_version } = req.body;
 
     try {
@@ -577,7 +584,7 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
 
 // 3. Registrar pedido de producto estadístico
 app.post('/api/pedido-estadistico', verifyToken, async (req, res) => {
-    const { uid } = req.user;
+    const { email: uid } = req.user;
     const { 
         client_name, client_email, client_phone, client_position,
         jurisdictions, area, product_types, title, periodicity,
@@ -796,17 +803,23 @@ app.post('/api/productos-estadisticos/:id/status', async (req, res) => {
 });
 
 // --- LOGS DE ACTIVIDAD ---
-app.get('/api/logs', async (req, res) => {
+app.get('/api/logs', verifyToken, async (req, res) => {
     try {
         const connection = await getDbConnection();
-        const [rows] = await connection.execute('SELECT * FROM logs_actividad ORDER BY created_at DESC LIMIT 500');
+        const sql = `
+            SELECT l.*, u.email as user_email, u.full_name as user_name
+            FROM logs_actividad l
+            LEFT JOIN usuarios_perfiles u ON l.user_uid = u.uid OR l.user_uid = u.email
+            ORDER BY l.created_at DESC LIMIT 500
+        `;
+        const [rows] = await connection.execute(sql);
         await connection.end();
         res.json(rows);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// --- RCE / CONSENTIMIENTOS (LISTADO) ---
-app.get('/api/rce-all', async (req, res) => {
+// --- RCE ALL ---
+app.get('/api/rce-all', verifyToken, async (req, res) => {
     try {
         const connection = await getDbConnection();
         const [rows] = await connection.execute('SELECT * FROM rce_consentimientos ORDER BY timestamp DESC');
@@ -816,7 +829,7 @@ app.get('/api/rce-all', async (req, res) => {
 });
 
 // --- CONFIGURACIÓN GENÉRICA ---
-app.post('/api/config/:key', async (req, res) => {
+app.post('/api/config/:key', verifyToken, async (req, res) => {
     const { key } = req.params;
     const { value } = req.body;
     try {
@@ -831,7 +844,7 @@ app.post('/api/config/:key', async (req, res) => {
 });
 
 // --- CONTACTOS ---
-app.get('/api/contactos', async (req, res) => {
+app.get('/api/contactos', verifyToken, async (req, res) => {
     try {
         const connection = await getDbConnection();
         const [rows] = await connection.execute('SELECT * FROM mensajes_contacto ORDER BY created_at DESC');
