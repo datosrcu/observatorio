@@ -153,10 +153,16 @@ async function callApi(endpoint, method = 'POST', body = null) {
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Error en la API: ${response.status}`);
+        let errorMessage = `Error en la API: ${response.status}`;
+        try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+        } catch (e) {}
+        throw new Error(errorMessage);
     }
-    return await response.json();
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : {};
 }
 
 // --- Initialization & Auth ---
@@ -739,6 +745,8 @@ async function approveRequest(requestId, email, buttonId) {
     } else {
         optRoleExpiry.classList.add('hidden');
     }
+    const targetSpan = document.getElementById('approve-user-target');
+    if (targetSpan) targetSpan.textContent = email;
 
     durationModal?.classList.remove('hidden');
     durationModal?.classList.add('flex');
