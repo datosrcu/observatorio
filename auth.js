@@ -221,61 +221,33 @@ async function loadUserPermissions(user) {
     console.log("Loading permissions for user:", userEmail);
 
     try {
-        // 1. Load categories, user doc, and T&C config in parallel
-        let catSnapshot, userDoc, configTermsSnap;
+        // 1. Load profile from MySQL (source of truth) and categories/tableros in parallel
+        let perfilData, categoriesData, boardsData;
         try {
-            [catSnapshot, userDoc] = await Promise.all([
-                getDocs(collection(db, "categories")),
-                getDoc(doc(db, "users", userEmail))
+            [perfilData, categoriesData, boardsData] = await Promise.all([
+                callApi('/api/perfil/me', 'GET'),
+                callApi('/api/categorias', 'GET'),
+                callApi('/api/tableros', 'GET')
             ]);
         } catch (e) {
             console.error("Error loading base data:", e);
             throw e;
         }
 
-        // T&C config - optional, don't let it break
-        try {
-            configTermsSnap = await getDoc(doc(db, "config", "terms"));
-        } catch (e) {
-            console.warn("Could not load T&C config (may not exist yet):", e.message);
-            configTermsSnap = null;
-        }
+        const profile = perfilData.profile;
+        const globalTermsVersion = perfilData.termsVersion || '1.2.0';
 
-        // Cache role and profile status
+        // Cache role and profile status from MySQL
         let hasProfileInfo = false;
-        let userData = null;
-        if (userDoc.exists()) {
-            userData = userDoc.data();
-            currentUserRole = userData.role || 'usuario';
-            currentUserData = userData;
-            currentUserAcceptedTCVersion = userData.acceptedTCVersion || null;
-            currentUserAcceptedTCTimestamp = userData.acceptedTCTimestamp || null;
+        if (profile) {
+            currentUserRole = profile.role || 'usuario';
+            currentUserAcceptedTCVersion = profile.terms_accepted_version || null;
+            currentUserAcceptedTCTimestamp = profile.terms_accepted_date || null;
+            currentUserData = profile;
 
-            // Fallback: user registered before these fields existed — check consent_logs
-            if (!currentUserAcceptedTCVersion) {
-                try {
-                    const rceSnap = await getDocs(query(
-                        collection(db, "consent_logs"),
-                        where("userEmail", "==", userEmail)
-                    ));
-                    let latest = null;
-                    rceSnap.forEach(d => {
-                        const data = d.data();
-                        if (!latest || new Date(data.timestamp) > new Date(latest.timestamp)) {
-                            latest = data;
-                        }
-                    });
-                    if (latest) {
-                        currentUserAcceptedTCVersion = latest.version || null;
-                        currentUserAcceptedTCTimestamp = latest.timestamp || null;
-                    }
-                } catch (e) {
-                    console.warn("RCE fallback lookup failed:", e);
-                }
-            }
-            
             const isAdmin = ['datos@riocuarto.gov.ar'].includes(userEmail);
-            hasProfileInfo = (userData.profileCompleted === true) || isAdmin;
+            const profileCompleted = !!(profile.sector_group && profile.organization_name && profile.role_position);
+            hasProfileInfo = profileCompleted || isAdmin;
         } else {
             currentUserRole = 'usuario';
         }
@@ -285,36 +257,21 @@ async function loadUserPermissions(user) {
             console.log("Profile incomplete — showing registration modal");
             registrationModal.classList.remove('hidden');
             registrationModal.classList.add('flex');
-        } else if (hasProfileInfo && userData) {
+        } else if (hasProfileInfo && profile) {
             // Check T&C Version for re-acceptance ONLY if profile is complete
-            const globalTermsVersion = (configTermsSnap && configTermsSnap.exists()) 
-                ? configTermsSnap.data().currentVersion 
-                : "1.2.0";
-            if (userData.acceptedTCVersion && userData.acceptedTCVersion !== globalTermsVersion) {
-                console.log("Re-acceptance required: user has", userData.acceptedTCVersion, "but current is", globalTermsVersion);
+            if (profile.terms_accepted_version && profile.terms_accepted_version !== globalTermsVersion) {
+                console.log("Re-acceptance required: user has", profile.terms_accepted_version, "but current is", globalTermsVersion);
                 showTCReacceptanceModal(globalTermsVersion);
-                // Don't return — still load the dashboard behind the modal
             }
         }
 
-        // 2. Load categories, boards and personal requests safely
-        let categoriesData, boardsData, requestsData;
+        // 2. Load personal requests from Firestore
+        let requestsData = [];
         try {
-            // Fetch everything from our MySQL API via callApi
-            [categoriesData, boardsData] = await Promise.all([
-                callApi('/api/categorias', 'GET'),
-                callApi('/api/tableros', 'GET')
-            ]);
-            
-            // For requests, we still use Firestore for now or we can migrate it later
-            // But let's try to keep it consistent
             const reqSnap = await getDocs(query(collection(db, "requests"), where("userEmail", "==", userEmail)));
-            requestsData = [];
             reqSnap.forEach(d => requestsData.push({ id: d.id, ...d.data() }));
-
         } catch (e) {
-            console.warn("Error loading data from MySQL API:", e.message);
-            throw e;
+            console.warn("Error loading requests:", e.message);
         }
 
         // Cache user requests

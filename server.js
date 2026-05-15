@@ -332,6 +332,27 @@ app.post('/api/usuarios/sync', verifyToken, async (req, res) => {
 });
 
 // 1. Guardar o actualizar perfil de usuario
+// Obtener perfil propio (usado por auth.js para saber si el perfil está completo)
+app.get('/api/perfil/me', verifyToken, async (req, res) => {
+    try {
+        const connection = await getDbConnection();
+        const [[profile], [configRow]] = await Promise.all([
+            connection.execute('SELECT * FROM usuarios_perfiles WHERE email = ?', [req.user.email])
+                .then(([rows]) => rows),
+            connection.query("SELECT config_value FROM config_sistema WHERE config_key = 'terms_version'")
+                .then(([rows]) => rows)
+        ]);
+        await connection.end();
+        res.json({
+            profile: profile || null,
+            termsVersion: configRow?.config_value || '1.2.0'
+        });
+    } catch (error) {
+        console.error('Error obteniendo perfil:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.post('/api/perfil', verifyToken, async (req, res) => {
     const { email: uid } = req.user; // use email as uid for readability
     const { 
