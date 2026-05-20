@@ -636,7 +636,7 @@ function renderButton(container, id, data) {
     const restrictedClass = !hasAccess ? 'opacity-75 grayscale-[0.5] border-dashed border-red-200' : '';
 
     // Check pending request
-    const pendingRequest = currentUserRequests.find(r => r.buttonId === id && r.status === 'pending');
+    const pendingRequest = currentUserRequests.find(r => r.buttonId === id && (r.status === 'pendiente' || r.status === 'pending'));
     const isUnderReview = !!pendingRequest;
 
     const lockIcon = !hasAccess

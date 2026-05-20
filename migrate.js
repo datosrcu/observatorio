@@ -145,7 +145,7 @@ async function migrate() {
         for (const docItem of reqSnap.docs) {
             const d = docItem.data();
             const statusRaw = (d.status || 'pendiente').toLowerCase().trim();
-            const validStatus = ['pendiente', 'aprobado', 'rechazado'].includes(statusRaw) ? statusRaw : 'pendiente';
+            const validStatus = ['pendiente', 'aprobado', 'rechazado', 'expirado'].includes(statusRaw) ? statusRaw : 'pendiente';
             await connection.execute(
                 `INSERT INTO solicitudes_acceso
                     (user_uid, dashboard_name, reason, reason_detail, terms_version, status, admin_comment, created_at)

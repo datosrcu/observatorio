@@ -701,7 +701,7 @@ function renderRequests(requests) {
         if (rejectBtn) {
             rejectBtn.addEventListener('click', async () => {
                 if(!confirm("¿Estás seguro que querés rechazar esta solicitud?")) return;
-                await updateRequestStatus(req.id, 'rejected');
+                await updateRequestStatus(req.id, 'rechazado');
             });
         }
 

@@ -121,11 +121,12 @@ const initializeTables = async () => {
                 reason TEXT,
                 reason_detail TEXT,
                 terms_version VARCHAR(20),
-                status ENUM('pendiente', 'aprobado', 'rechazado') DEFAULT 'pendiente',
+                status ENUM('pendiente', 'aprobado', 'rechazado', 'expirado') DEFAULT 'pendiente',
                 admin_comment TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        await connection.query("ALTER TABLE solicitudes_acceso MODIFY COLUMN status ENUM('pendiente', 'aprobado', 'rechazado', 'expirado') DEFAULT 'pendiente'").catch(() => {});
 
         // 3. Tabla de Productos Estadísticos
         await connection.query(`
