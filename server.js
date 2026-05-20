@@ -54,7 +54,7 @@ app.use(express.json());
 // Limitador de tasa (Rate Limiting) para prevenir scraping y abusos
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // Limita cada IP a 100 peticiones por ventana (cada 15 min)
+    max: 2000, // Limita cada IP a 2000 peticiones por ventana (cada 15 min) para evitar bloquear el panel de administración
     message: {
         error: 'Demasiadas peticiones desde esta IP. Por favor, intente de nuevo más tarde.',
         code: 'TOO_MANY_REQUESTS'
