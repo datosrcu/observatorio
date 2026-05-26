@@ -782,6 +782,10 @@ function openModal(title, url) {
     const isPdf = finalSrc.toLowerCase().includes('.pdf');
     if (isPdf) {
         modalIframe.removeAttribute('sandbox');
+        // Hide PDF toolbar to prevent downloading/printing natively
+        if (!finalSrc.includes('toolbar=0')) {
+            finalSrc += (finalSrc.includes('#') ? '&' : '#') + 'toolbar=0';
+        }
     }
 
     // Load iframe content
