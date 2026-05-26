@@ -7,7 +7,31 @@ const path = require('path');
 const fs = require('fs');
 const admin = require('firebase-admin');
 const { Resend } = require('resend');
+const multer = require('multer');
 require('dotenv').config();
+
+// --- MULTER: Configuración de uploads para informes ---
+const UPLOADS_DIR = path.join(__dirname, 'uploads', 'informes');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const informesStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+    filename: (_req, file, cb) => {
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1e6);
+        const ext = path.extname(file.originalname);
+        cb(null, unique + ext);
+    }
+});
+const uploadInformes = multer({
+    storage: informesStorage,
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+    fileFilter: (_req, file, cb) => {
+        const allowed = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.html', '.htm'];
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (allowed.includes(ext)) cb(null, true);
+        else cb(new Error('Tipo de archivo no permitido. Se aceptan: PDF, imágenes y HTML.'));
+    }
+});
 
 // Inicializar Resend para envío de emails
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -29,6 +53,9 @@ const PORT = process.env.PORT || 8080;
 
 // Servir archivos estáticos desde la raíz
 app.use(express.static(path.join(__dirname)));
+
+// Servir archivos de informes subidos
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.json()); // Asegurar que pueda leer JSON en el body
 app.use(cors());
 
@@ -85,6 +112,9 @@ const getDbConnection = async () => {
         port: parseInt(process.env.DB_PORT) || 3306
     });
 };
+
+// Servir archivos de informes subidos
+// (se registra después de crear app, antes de rutas)
 
 // Función para inicializar tablas automáticamente
 const initializeTables = async () => {
@@ -262,6 +292,25 @@ const initializeTables = async () => {
         await connection.query(`
             INSERT IGNORE INTO config_sistema (config_key, config_value) 
             VALUES ('terms_version', '1.2.0')
+        `);
+
+        // 11. Tabla de Informes
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS informes (
+                id VARCHAR(128) PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                categories JSON,
+                url TEXT,
+                file_path VARCHAR(500),
+                file_type ENUM('url','pdf','image','html') DEFAULT 'url',
+                period VARCHAR(100),
+                year INT,
+                enabled BOOLEAN DEFAULT TRUE,
+                sort_order INT DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
         `);
 
         console.log('Estructura de base de datos lista.');
@@ -796,6 +845,121 @@ app.post('/api/tableros', verifyToken, async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+});
+
+// ── INFORMES ───────────────────────────────────────────────────────────────
+
+// Obtener todos los informes habilitados (público)
+app.get('/api/informes', async (_req, res) => {
+    try {
+        const connection = await getDbConnection();
+        const [rows] = await connection.query('SELECT * FROM informes ORDER BY year DESC, sort_order ASC');
+        await connection.end();
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Crear informe (admin) — acepta multipart/form-data para subida de archivos
+app.post('/api/informes', verifyToken, uploadInformes.single('archivo'), async (req, res) => {
+    try {
+        const {
+            id, title, description, categories, url,
+            period, year, enabled, sort_order
+        } = req.body;
+
+        let finalUrl = url || null;
+        let filePath = null;
+        let fileType = 'url';
+
+        if (req.file) {
+            filePath = `/uploads/informes/${req.file.filename}`;
+            finalUrl = filePath;
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            if (ext === '.pdf') fileType = 'pdf';
+            else if (['.html', '.htm'].includes(ext)) fileType = 'html';
+            else fileType = 'image';
+        } else if (finalUrl) {
+            fileType = 'url';
+        }
+
+        const informeId = id || ('inf-' + Date.now());
+        const connection = await getDbConnection();
+        const sql = `
+            INSERT INTO informes (id, title, description, categories, url, file_path, file_type, period, year, enabled, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+            title=VALUES(title), description=VALUES(description), categories=VALUES(categories),
+            url=VALUES(url), file_path=VALUES(file_path), file_type=VALUES(file_type),
+            period=VALUES(period), year=VALUES(year), enabled=VALUES(enabled), sort_order=VALUES(sort_order)
+        `;
+        await connection.execute(sql, [
+            informeId, title, description || null,
+            categories || null,
+            finalUrl, filePath, fileType,
+            period || null, year ? parseInt(year) : null,
+            enabled !== undefined ? (enabled === 'true' || enabled === true ? 1 : 0) : 1,
+            sort_order ? parseInt(sort_order) : 0
+        ]);
+        await connection.end();
+        res.json({ success: true, id: informeId, url: finalUrl });
+    } catch (e) {
+        console.error('Error creating informe:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Editar informe (admin) — también acepta archivo nuevo
+app.patch('/api/informes/:id', verifyToken, uploadInformes.single('archivo'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const fields = { ...req.body };
+
+        if (req.file) {
+            fields.file_path = `/uploads/informes/${req.file.filename}`;
+            fields.url = fields.file_path;
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            if (ext === '.pdf') fields.file_type = 'pdf';
+            else if (['.html', '.htm'].includes(ext)) fields.file_type = 'html';
+            else fields.file_type = 'image';
+        }
+
+        // Remove undefined / empty keys
+        Object.keys(fields).forEach(k => { if (fields[k] === undefined || fields[k] === '') delete fields[k]; });
+
+        if (Object.keys(fields).length === 0) return res.json({ success: true });
+
+        // Coerce booleans
+        if ('enabled' in fields) fields.enabled = (fields.enabled === 'true' || fields.enabled === true) ? 1 : 0;
+        if ('year' in fields) fields.year = parseInt(fields.year) || null;
+        if ('sort_order' in fields) fields.sort_order = parseInt(fields.sort_order) || 0;
+
+        const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
+        const vals = [...Object.values(fields), id];
+
+        const connection = await getDbConnection();
+        await connection.execute(`UPDATE informes SET ${sets} WHERE id = ?`, vals);
+        await connection.end();
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Error updating informe:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Eliminar informe (admin)
+app.delete('/api/informes/:id', verifyToken, async (req, res) => {
+    try {
+        const connection = await getDbConnection();
+        // Obtener file_path para eliminar el archivo si existe
+        const [[row]] = await connection.execute('SELECT file_path FROM informes WHERE id = ?', [req.params.id]);
+        if (row && row.file_path) {
+            const absPath = path.join(__dirname, row.file_path);
+            if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
+        }
+        await connection.execute('DELETE FROM informes WHERE id = ?', [req.params.id]);
+        await connection.end();
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // 9. Registrar consentimiento RCE

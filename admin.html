@@ -162,11 +162,16 @@
                                 class="ml-2 hidden bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">New</span>
                         </button>
                         <button
-                            class="nav-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative"
+                            class="nav-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
                             data-target="tab-contacto">
                             Contacto
                             <span id="contacto-badge"
                                 class="ml-2 hidden bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">New</span>
+                        </button>
+                        <button
+                            class="nav-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                            data-target="tab-informes">
+                            📄 Informes
                         </button>
                     </nav>
                 </div>
@@ -572,6 +577,42 @@
                         </table>
                     </div>
                 </div>
+                <!-- CONTENIDO INFORMES -->
+                <div id="tab-informes" class="tab-pane hidden text-sm">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold mb-1">Gestión de Informes</h2>
+                            <p class="text-obelisco-gray text-sm">Cargá, editá y eliminá informes por categoría. Soportan URLs, embedidos de Canva y archivos PDF/imagen.</p>
+                        </div>
+                        <button id="add-informe-btn"
+                            class="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition flex items-center text-sm shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                            </svg>
+                            Nuevo Informe
+                        </button>
+                    </div>
+
+                    <div class="bg-white border text-sm border-obelisco-border rounded-xl shadow-sm overflow-hidden">
+                        <table class="w-full text-left border-collapse min-w-[700px]">
+                            <thead>
+                                <tr class="bg-obelisco-light border-b border-obelisco-border text-obelisco-gray">
+                                    <th class="py-3 px-4 font-semibold w-12">Estado</th>
+                                    <th class="py-3 px-4 font-semibold">Título del Informe</th>
+                                    <th class="py-3 px-4 font-semibold">Categorías</th>
+                                    <th class="py-3 px-4 font-semibold">Período</th>
+                                    <th class="py-3 px-4 font-semibold">Tipo</th>
+                                    <th class="py-3 px-4 font-semibold text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="informes-tbody" class="divide-y divide-obelisco-border">
+                                <tr>
+                                    <td colspan="6" class="text-center py-8 text-obelisco-gray">Cargando informes...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
             </div>
     </main>
@@ -594,6 +635,131 @@
             </button>
             <a href="observatorio-gestion.html" class="block mt-4 text-obelisco-blue text-sm hover:underline">← Volver
                 al inicio</a>
+        </div>
+    </div>
+
+    <!-- Modal Form (Informes) -->
+    <div id="informe-modal" class="fixed inset-0 hidden items-center justify-center z-[100]">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-close="informe"></div>
+        <div class="bg-white w-[580px] max-w-[95vw] rounded-xl shadow-2xl relative z-10 flex flex-col max-h-[92vh]">
+            <div class="px-6 py-4 border-b border-obelisco-border flex justify-between items-center bg-gray-50 rounded-t-xl shrink-0">
+                <h3 id="informe-modal-title" class="text-lg font-bold">Nuevo Informe</h3>
+                <button data-close="informe" class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                </button>
+            </div>
+
+            <form id="informe-form" class="p-6 overflow-y-auto space-y-4 text-sm" enctype="multipart/form-data">
+                <input type="hidden" id="informe-id">
+
+                <div class="flex items-center space-x-2 p-3 bg-teal-50 rounded-lg border border-teal-200">
+                    <input type="checkbox" id="field-informe-enabled" class="w-4 h-4 text-teal-600 rounded" checked>
+                    <label for="field-informe-enabled" class="font-medium cursor-pointer text-teal-800">Informe activo (visible en el observatorio)</label>
+                </div>
+
+                <div>
+                    <label class="block font-medium mb-1">Título del Informe <span class="text-red-500">*</span></label>
+                    <input type="text" id="field-informe-title" required
+                        class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:border-teal-500"
+                        placeholder="Ej: Informe de Gestión Enero 2025">
+                </div>
+
+                <div>
+                    <label class="block font-medium mb-1">Descripción (opcional)</label>
+                    <textarea id="field-informe-desc" rows="2"
+                        class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:border-teal-500 resize-none"
+                        placeholder="Breve descripción del contenido del informe..."></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-medium mb-1">Período</label>
+                        <input type="text" id="field-informe-period"
+                            class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:border-teal-500"
+                            placeholder="Ej: Enero 2025, Q1 2025">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Año</label>
+                        <input type="number" id="field-informe-year" min="2020" max="2099"
+                            class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:border-teal-500"
+                            placeholder="Ej: 2025">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-medium mb-1 truncate">Categorías a las que pertenece</label>
+                    <div class="border border-gray-300 rounded-lg overflow-hidden flex flex-col max-h-[180px]">
+                        <div class="p-2 bg-gray-50 border-b border-gray-200">
+                            <input type="text" id="informe-cat-search"
+                                class="w-full text-xs px-2 py-1.5 border border-gray-300 rounded outline-none focus:border-teal-500"
+                                placeholder="Buscar categoría...">
+                        </div>
+                        <div id="informe-categories-checklist" class="overflow-y-auto p-2 space-y-1 bg-white flex-grow">
+                            <p class="text-xs text-center text-gray-400 py-4">Cargando categorías...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tipo de contenido -->
+                <div>
+                    <label class="block font-medium mb-2">Tipo de contenido</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
+                            <input type="radio" name="informe-source-type" value="url" id="informe-type-url" checked class="text-teal-600">
+                            <div>
+                                <div class="font-medium text-xs">🔗 URL / Enlace web</div>
+                                <div class="text-[10px] text-gray-400">Canva, sitio web, etc.</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50">
+                            <input type="radio" name="informe-source-type" value="file" id="informe-type-file" class="text-teal-600">
+                            <div>
+                                <div class="font-medium text-xs">📄 Subir archivo</div>
+                                <div class="text-[10px] text-gray-400">PDF, imagen o HTML</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- URL input -->
+                <div id="informe-url-wrap">
+                    <label class="block font-medium mb-1">URL del informe <span class="text-red-500">*</span></label>
+                    <input type="url" id="field-informe-url"
+                        class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:border-teal-500"
+                        placeholder="https://www.canva.com/design/.../view">
+                    <p class="text-[10px] text-gray-400 mt-1">Links de Canva, Looker Studio, Google Slides, URLs HTML, etc.</p>
+                </div>
+
+                <!-- File upload -->
+                <div id="informe-file-wrap" class="hidden">
+                    <label class="block font-medium mb-1">Archivo (PDF, imagen o HTML)</label>
+                    <div class="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center hover:border-teal-400 transition relative bg-gray-50">
+                        <input type="file" id="field-informe-file" name="archivo" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.html,.htm"
+                            class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                        <svg class="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p id="informe-file-label" class="text-xs text-gray-500">Arrastrá o hacé clic (PDF, imagen o HTML — máx 50MB)</p>
+                    </div>
+                    <p id="informe-current-file" class="text-[10px] text-teal-600 mt-1 hidden"></p>
+                </div>
+
+                <div>
+                    <label class="block font-medium mb-1">Orden de visualización</label>
+                    <input type="number" id="field-informe-order" value="0" min="0"
+                        class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:border-teal-500">
+                </div>
+            </form>
+
+            <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center rounded-b-xl shrink-0">
+                <button id="delete-informe-btn" class="hidden text-red-500 hover:text-red-700 font-medium text-sm transition">Eliminar informe</button>
+                <div class="flex space-x-3 ml-auto">
+                    <button data-close="informe" class="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium text-sm">Cancelar</button>
+                    <button id="save-informe-btn" class="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg text-sm transition shadow-sm">
+                        Guardar Informe
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

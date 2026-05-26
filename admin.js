@@ -1955,3 +1955,283 @@ function renderRCE() {
         </tr>
     `).join('');
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MÓDULO INFORMES
+// ─────────────────────────────────────────────────────────────────────────────
+
+let allInformesAdmin = [];
+let editingInformeId = null;
+
+async function loadInformes() {
+    const tbody = document.getElementById('informes-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-obelisco-gray">Cargando informes...</td></tr>';
+
+    try {
+        const data = await callApi('/api/informes', 'GET');
+        allInformesAdmin = data;
+        renderInformesTable(data);
+    } catch (e) {
+        console.error('Error cargando informes admin:', e);
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-500">Error: ${e.message}</td></tr>`;
+    }
+}
+
+function renderInformesTable(informes) {
+    const tbody = document.getElementById('informes-tbody');
+    if (!tbody) return;
+
+    if (!informes || informes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-12 text-obelisco-gray italic">No hay informes creados aún. Hacé clic en "Nuevo Informe" para comenzar.</td></tr>';
+        return;
+    }
+
+    const typeLabels = { url: '🔗 URL', pdf: '📕 PDF', image: '🖼️ Imagen', html: '🌐 HTML' };
+
+    tbody.innerHTML = informes.map(inf => {
+        const cats = (() => { try { return typeof inf.categories === 'string' ? JSON.parse(inf.categories) : (Array.isArray(inf.categories) ? inf.categories : []); } catch(e) { return []; } })();
+        const catNames = cats.map(id => allCategoriesFetched?.find(c => c.id === id)?.name || id).join(', ') || '—';
+        const enabled = inf.enabled;
+
+        return `<tr class="hover:bg-gray-50 transition">
+            <td class="py-3 px-4">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${enabled ? 'bg-teal-50 text-teal-700' : 'bg-gray-100 text-gray-400'}">${enabled ? '● Activo' : '○ Inactivo'}</span>
+            </td>
+            <td class="py-3 px-4">
+                <div class="font-bold text-obelisco-dark text-sm">${inf.title}</div>
+                ${inf.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate max-w-[280px]">${inf.description}</div>` : ''}
+            </td>
+            <td class="py-3 px-4 text-xs text-gray-500">${catNames}</td>
+            <td class="py-3 px-4 text-xs">${inf.period || '—'} ${inf.year ? `<span class="text-gray-400">(${inf.year})</span>` : ''}</td>
+            <td class="py-3 px-4 text-xs">${typeLabels[inf.file_type] || '—'}</td>
+            <td class="py-3 px-4 text-right">
+                <button onclick="openInformeModal('${inf.id}')" class="text-teal-600 hover:text-teal-800 font-medium text-xs mr-3 transition">Editar</button>
+                <button onclick="deleteInforme('${inf.id}')" class="text-red-500 hover:text-red-700 font-medium text-xs transition">Eliminar</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function openInformeModal(id = null) {
+    editingInformeId = id;
+    const modal = document.getElementById('informe-modal');
+    const title = document.getElementById('informe-modal-title');
+    const deleteBtn = document.getElementById('delete-informe-btn');
+
+    // Reset form
+    document.getElementById('informe-id').value = '';
+    document.getElementById('field-informe-enabled').checked = true;
+    document.getElementById('field-informe-title').value = '';
+    document.getElementById('field-informe-desc').value = '';
+    document.getElementById('field-informe-period').value = '';
+    document.getElementById('field-informe-year').value = '';
+    document.getElementById('field-informe-url').value = '';
+    document.getElementById('field-informe-order').value = '0';
+    document.getElementById('field-informe-file').value = '';
+    document.getElementById('informe-file-label').textContent = 'Arrastrá o hacé clic (PDF, imagen o HTML — máx 50MB)';
+    const currentFileEl = document.getElementById('informe-current-file');
+    if (currentFileEl) { currentFileEl.textContent = ''; currentFileEl.classList.add('hidden'); }
+
+    // Reset source type to URL
+    document.getElementById('informe-type-url').checked = true;
+    document.getElementById('informe-url-wrap').classList.remove('hidden');
+    document.getElementById('informe-file-wrap').classList.add('hidden');
+
+    // Populate categories checklist
+    populateInformeCategories([]);
+
+    if (id) {
+        const informe = allInformesAdmin.find(i => i.id === id);
+        if (!informe) return;
+
+        title.textContent = 'Editar Informe';
+        deleteBtn.classList.remove('hidden');
+        document.getElementById('informe-id').value = informe.id;
+        document.getElementById('field-informe-enabled').checked = !!informe.enabled;
+        document.getElementById('field-informe-title').value = informe.title || '';
+        document.getElementById('field-informe-desc').value = informe.description || '';
+        document.getElementById('field-informe-period').value = informe.period || '';
+        document.getElementById('field-informe-year').value = informe.year || '';
+        document.getElementById('field-informe-order').value = informe.sort_order ?? 0;
+
+        // Set source type
+        if (informe.file_path) {
+            document.getElementById('informe-type-file').checked = true;
+            document.getElementById('informe-url-wrap').classList.add('hidden');
+            document.getElementById('informe-file-wrap').classList.remove('hidden');
+            if (currentFileEl) {
+                currentFileEl.textContent = `Archivo actual: ${informe.file_path}`;
+                currentFileEl.classList.remove('hidden');
+            }
+        } else {
+            document.getElementById('field-informe-url').value = informe.url || '';
+        }
+
+        // Load selected categories
+        const cats = (() => { try { return typeof informe.categories === 'string' ? JSON.parse(informe.categories) : (Array.isArray(informe.categories) ? informe.categories : []); } catch(e) { return []; } })();
+        populateInformeCategories(cats);
+    } else {
+        title.textContent = 'Nuevo Informe';
+        deleteBtn.classList.add('hidden');
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function populateInformeCategories(selectedIds = []) {
+    const container = document.getElementById('informe-categories-checklist');
+    if (!container) return;
+
+    const cats = allCategoriesFetched || [];
+    if (cats.length === 0) {
+        container.innerHTML = '<p class="text-xs text-center text-gray-400 py-4">No hay categorías disponibles.</p>';
+        return;
+    }
+
+    container.innerHTML = cats.map(cat => `
+        <label class="flex items-center gap-2 p-1.5 hover:bg-gray-50 rounded cursor-pointer">
+            <input type="checkbox" name="informe-cat" value="${cat.id}" ${selectedIds.includes(cat.id) ? 'checked' : ''}
+                class="w-3.5 h-3.5 text-teal-600 rounded focus:ring-teal-500">
+            <span class="text-xs">${cat.icon || ''} ${cat.name}</span>
+        </label>
+    `).join('');
+}
+
+async function saveInforme() {
+    const saveBtn = document.getElementById('save-informe-btn');
+    const title = document.getElementById('field-informe-title').value.trim();
+    if (!title) { alert('El título del informe es obligatorio.'); return; }
+
+    const sourceType = document.querySelector('input[name="informe-source-type"]:checked')?.value || 'url';
+    const urlVal = document.getElementById('field-informe-url').value.trim();
+    const fileInput = document.getElementById('field-informe-file');
+
+    if (sourceType === 'url' && !urlVal && !editingInformeId) {
+        alert('Por favor ingresá una URL para el informe.'); return;
+    }
+
+    const selectedCats = Array.from(document.querySelectorAll('input[name="informe-cat"]:checked')).map(c => c.value);
+    const informeId = document.getElementById('informe-id').value || null;
+    const enabled = document.getElementById('field-informe-enabled').checked;
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Guardando...';
+
+    try {
+        const token = await getCurrentUserToken();
+        const formData = new FormData();
+        if (informeId) formData.append('id', informeId);
+        formData.append('title', title);
+        formData.append('description', document.getElementById('field-informe-desc').value.trim());
+        formData.append('period', document.getElementById('field-informe-period').value.trim());
+        formData.append('year', document.getElementById('field-informe-year').value || '');
+        formData.append('categories', JSON.stringify(selectedCats));
+        formData.append('enabled', enabled ? 'true' : 'false');
+        formData.append('sort_order', document.getElementById('field-informe-order').value || '0');
+
+        if (sourceType === 'url') {
+            formData.append('url', urlVal);
+        } else if (fileInput.files[0]) {
+            formData.append('archivo', fileInput.files[0]);
+        }
+
+        const method = informeId ? 'PATCH' : 'POST';
+        const endpoint = informeId ? `/api/informes/${informeId}` : '/api/informes';
+
+        const response = await fetch(endpoint, {
+            method,
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Error al guardar');
+        }
+
+        closeInformeModal();
+        await loadInformes();
+    } catch (e) {
+        console.error('Error guardando informe:', e);
+        alert('Error: ' + e.message);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Guardar Informe';
+    }
+}
+
+async function deleteInforme(id) {
+    if (!confirm('¿Eliminar este informe permanentemente?')) return;
+    try {
+        await callApi(`/api/informes/${id}`, 'DELETE');
+        closeInformeModal();
+        await loadInformes();
+    } catch (e) {
+        alert('Error al eliminar: ' + e.message);
+    }
+}
+
+function closeInformeModal() {
+    const modal = document.getElementById('informe-modal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    editingInformeId = null;
+}
+
+// Helper para obtener el token del usuario actual
+async function getCurrentUserToken() {
+    const { auth } = await import('./firebase-config.js');
+    return auth.currentUser?.getIdToken();
+}
+
+// Event listeners para el módulo de informes
+document.addEventListener('DOMContentLoaded', () => {
+    // Botón nuevo informe
+    document.getElementById('add-informe-btn')?.addEventListener('click', () => openInformeModal(null));
+
+    // Guardar informe
+    document.getElementById('save-informe-btn')?.addEventListener('click', saveInforme);
+
+    // Eliminar informe
+    document.getElementById('delete-informe-btn')?.addEventListener('click', () => {
+        if (editingInformeId) deleteInforme(editingInformeId);
+    });
+
+    // Cerrar modal de informe (overlay y botones data-close="informe")
+    document.querySelectorAll('[data-close="informe"]')?.forEach(btn => {
+        btn.addEventListener('click', closeInformeModal);
+    });
+
+    // Mostrar/ocultar URL vs File según radio
+    document.querySelectorAll('input[name="informe-source-type"]')?.forEach(radio => {
+        radio.addEventListener('change', () => {
+            const isUrl = document.getElementById('informe-type-url').checked;
+            document.getElementById('informe-url-wrap').classList.toggle('hidden', !isUrl);
+            document.getElementById('informe-file-wrap').classList.toggle('hidden', isUrl);
+        });
+    });
+
+    // Actualizar label del input file
+    document.getElementById('field-informe-file')?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        const label = document.getElementById('informe-file-label');
+        if (file && label) label.textContent = `✓ ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+    });
+
+    // Búsqueda de categorías en el modal de informe
+    document.getElementById('informe-cat-search')?.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        document.querySelectorAll('#informe-categories-checklist label').forEach(label => {
+            label.style.display = label.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+});
+
+// Hook: cargar informes cuando se active la pestaña
+const _origNavTabClick = window._navTabClickBound;
+document.querySelectorAll('.nav-tab[data-target="tab-informes"]')?.forEach(btn => {
+    btn.addEventListener('click', () => {
+        setTimeout(loadInformes, 50);
+    });
+});

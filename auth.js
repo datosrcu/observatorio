@@ -13,6 +13,7 @@ const filtersContainer = document.getElementById('dashboard-filters');
 let currentFilterGroup = 'Gestores Internos';
 let allAccessibleBoards = [];
 let allCategories = [];
+let allInformes = []; // Todos los informes habilitados
 let currentUserRole = 'usuario';
 let currentUserRequests = [];
 let currentUserAcceptedTCVersion = null;
@@ -235,6 +236,27 @@ async function loadUserPermissions(user) {
             throw e;
         }
 
+        // Cargar informes en paralelo (no bloquea si falla)
+        try {
+            const informesData = await fetch('/api/informes').then(r => r.json());
+            allInformes = informesData
+                .filter(i => i.enabled)
+                .map(i => ({
+                    id: i.id,
+                    title: i.title,
+                    description: i.description || '',
+                    categories: (() => { try { const v = i.categories; return typeof v === 'string' ? JSON.parse(v) : (Array.isArray(v) ? v : []); } catch(e) { return []; } })(),
+                    url: i.url,
+                    fileType: i.file_type || 'url',
+                    period: i.period || '',
+                    year: i.year,
+                    sort_order: i.sort_order || 0
+                }));
+        } catch (e) {
+            console.warn('Error cargando informes:', e.message);
+            allInformes = [];
+        }
+
         const profile = perfilData.profile;
         const globalTermsVersion = perfilData.termsVersion || '1.2.0';
 
@@ -340,7 +362,7 @@ async function loadUserPermissions(user) {
             }
         });
 
-        console.log("Loaded (MySQL)", allCategories.length, "categories,", allAccessibleBoards.length, "boards");
+        console.log("Loaded (MySQL)", allCategories.length, "categories,", allAccessibleBoards.length, "boards,", allInformes.length, "informes");
         renderDashboard();
 
 
@@ -470,8 +492,24 @@ function renderDashboard() {
             renderedCount++;
         });
 
+        // Render informes for this category
+        const informesToRender = allInformes.filter(i => i.categories && i.categories.includes(currentSelectedCategory));
+        if (informesToRender.length > 0) {
+            if (renderedCount > 0) {
+                // Divider between tableros and informes
+                gridContainer.insertAdjacentHTML('beforeend', `
+                    <div class="col-span-full mt-2 mb-1 flex items-center gap-3">
+                        <div class="flex-grow h-px bg-gray-200"></div>
+                        <span class="text-xs font-bold text-teal-600 uppercase tracking-widest px-2 py-1 bg-teal-50 rounded-full border border-teal-200">📄 Informes</span>
+                        <div class="flex-grow h-px bg-gray-200"></div>
+                    </div>`);
+            }
+            informesToRender.forEach(informe => renderInformeCard(gridContainer, informe));
+            renderedCount += informesToRender.length;
+        }
+
         if (renderedCount === 0) {
-            gridContainer.insertAdjacentHTML('beforeend', getEmptyStateHtml(`No hay tableros públicos o no tenés permisos en "${catName}".`));
+            gridContainer.insertAdjacentHTML('beforeend', getEmptyStateHtml(`No hay tableros ni informes en "${catName}".`));
         }
 
     } else {
@@ -481,9 +519,10 @@ function renderDashboard() {
 
         let renderedCount = 0;
         catsToRender.forEach(cat => {
-            // Count accessible boards in this category
+            // Count accessible boards + informes in this category
             const accessibleInCat = allAccessibleBoards.filter(b => b.categories && b.categories.includes(cat.id)).length;
-            renderCategoryCard(gridContainer, cat, accessibleInCat);
+            const informesInCat = allInformes.filter(i => i.categories && i.categories.includes(cat.id)).length;
+            renderCategoryCard(gridContainer, cat, accessibleInCat, informesInCat);
             renderedCount++;
         });
 
@@ -516,7 +555,7 @@ function getEmptyStateHtml(msg) {
     `;
 }
 
-function renderCategoryCard(container, category, boardCount) {
+function renderCategoryCard(container, category, boardCount, informeCount = 0) {
     let hexColor = category.color || '#009DE0';
     let iconStr = category.icon || '';
     let desc = category.description || ''; // Empty if not provided
@@ -529,6 +568,11 @@ function renderCategoryCard(container, category, boardCount) {
         iconStr = `<span style="color: ${hexColor}; font-size: 1.5rem; display: flex; align-items: center; justify-content: center;" class="w-full h-full">${iconStr}</span>`;
     }
 
+    const countBadges = [];
+    if (boardCount > 0) countBadges.push(`<span class="text-xs font-medium px-2 py-1 bg-blue-50 rounded text-blue-600 border border-blue-100">${boardCount} Tablero${boardCount !== 1 ? 's' : ''}</span>`);
+    if (informeCount > 0) countBadges.push(`<span class="text-xs font-medium px-2 py-1 bg-teal-50 rounded text-teal-700 border border-teal-100">${informeCount} Informe${informeCount !== 1 ? 's' : ''}</span>`);
+    const totalCount = boardCount + informeCount;
+
     const html = `
         <div data-cat-id="${category.id}"
             class="obelisco-card category-card bg-white border border-obelisco-border rounded-xl p-6 flex flex-col h-full hover:bg-gray-50 transition drop-shadow-sm cursor-pointer border-t-4" style="border-top-color: ${hexColor}">
@@ -540,9 +584,9 @@ function renderCategoryCard(container, category, boardCount) {
             </div>
             ${desc ? `<p class="text-obelisco-gray text-sm flex-grow mb-6 line-clamp-3" title="${desc}">${desc}</p>` : '<div class="flex-grow"></div>'}
             <div class="flex justify-between items-center w-full">
-                <span class="text-xs font-medium px-2 py-1 bg-gray-100 rounded text-gray-600">${boardCount} Tableros</span>
+                <div class="flex gap-1 flex-wrap">${countBadges.join('') || `<span class="text-xs font-medium px-2 py-1 bg-gray-100 rounded text-gray-500">Sin contenido</span>`}</div>
                 <span class="text-obelisco-blue font-bold text-sm flex items-center">
-                    Ver tableros
+                    Ver contenido
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
@@ -790,6 +834,85 @@ function ogbEnsurePBIToolbar(url) {
     } catch (e) {
         return url;
     }
+}
+
+// Fix Canva /view URLs to /view?embed so they load in iframe
+function ogbFixCanvaUrl(url) {
+    try {
+        if (!url.includes('canva.com')) return url;
+        const u = new URL(url);
+        // Canva embed requires ?embed parameter
+        if (!u.searchParams.has('embed')) u.searchParams.set('embed', '');
+        return u.toString();
+    } catch (e) {
+        return url;
+    }
+}
+
+// Render a single informe card and handle click → openModal
+function renderInformeCard(container, informe) {
+    const fileTypeLabels = { pdf: 'PDF', image: 'Imagen', html: 'HTML', url: 'Enlace' };
+    const fileTypeBadge = `<span class="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">${fileTypeLabels[informe.fileType] || 'Informe'}</span>`;
+    const periodBadge = informe.period ? `<span class="text-[10px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">${informe.period}</span>` : '';
+
+    const html = `
+        <a href="#" data-informe-id="${informe.id}" data-informe-url="${informe.url || ''}" data-informe-type="${informe.fileType}"
+            class="obelisco-card informe-btn bg-white border-2 border-teal-100 rounded-xl p-5 flex flex-col h-full hover:bg-teal-50/40 hover:border-teal-300 transition drop-shadow-sm relative cursor-pointer">
+            <div class="absolute top-2 right-2">
+                <svg class="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+            <div class="flex items-center mb-3 w-full">
+                <div class="h-12 w-12 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center flex-shrink-0">
+                    <svg class="h-6 w-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <div class="ml-3 flex-grow min-w-0">
+                    <div class="flex gap-1 flex-wrap mb-1">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-teal-600">INFORME</span>
+                        ${fileTypeBadge}
+                    </div>
+                    <h3 class="text-sm font-bold text-obelisco-dark leading-snug break-words">${informe.title}</h3>
+                </div>
+            </div>
+            ${informe.description ? `<p class="text-obelisco-gray text-xs flex-grow mb-4 line-clamp-2">${informe.description}</p>` : '<div class="flex-grow"></div>'}
+            <div class="flex justify-between items-center w-full mt-auto">
+                <div class="flex gap-1">${periodBadge}</div>
+                <span class="text-teal-600 font-bold text-sm flex items-center">
+                    Ver informe
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </span>
+            </div>
+        </a>
+    `;
+
+    container.insertAdjacentHTML('beforeend', html);
+
+    const card = container.lastElementChild;
+    card.addEventListener('click', (e) => {
+        e.preventDefault();
+        openInformeModal(informe);
+    });
+}
+
+function openInformeModal(informe) {
+    if (!informe.url) {
+        alert('Este informe no tiene una URL disponible.');
+        return;
+    }
+
+    let url = informe.url;
+
+    // Apply URL fixes depending on type
+    url = ogbFixCanvaUrl(url);
+    url = ogbFixSheetUrl(url);
+    url = ogbFixLookerUrl(url);
+
+    openModal(informe.title, url);
 }
 
 function openAccessRequestForm(title, buttonId) {
