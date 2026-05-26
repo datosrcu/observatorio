@@ -2253,52 +2253,49 @@ async function getCurrentUserToken() {
     return auth.currentUser?.getIdToken();
 }
 
-// Event listeners para el módulo de informes
-document.addEventListener('DOMContentLoaded', () => {
-    // Botón nuevo informe
-    document.getElementById('add-informe-btn')?.addEventListener('click', () => openInformeModal(null));
+// Event listeners para el módulo de informes (sin DOMContentLoaded porque type="module" es diferido)
+document.getElementById('add-informe-btn')?.addEventListener('click', () => openInformeModal(null));
 
-    // Guardar informe
-    document.getElementById('save-informe-btn')?.addEventListener('click', saveInforme);
+// Guardar informe
+document.getElementById('save-informe-btn')?.addEventListener('click', saveInforme);
 
-    // Eliminar informe
-    document.getElementById('delete-informe-btn')?.addEventListener('click', () => {
-        if (editingInformeId) deleteInforme(editingInformeId);
+// Eliminar informe
+document.getElementById('delete-informe-btn')?.addEventListener('click', () => {
+    if (editingInformeId) deleteInforme(editingInformeId);
+});
+
+// Cerrar modal de informe (overlay y botones data-close="informe")
+document.querySelectorAll('[data-close="informe"]')?.forEach(btn => {
+    btn.addEventListener('click', closeInformeModal);
+});
+
+// Mostrar/ocultar URL vs File según radio
+document.querySelectorAll('input[name="informe-source-type"]')?.forEach(radio => {
+    radio.addEventListener('change', () => {
+        const isUrl = document.getElementById('informe-type-url').checked;
+        document.getElementById('informe-url-wrap').classList.toggle('hidden', !isUrl);
+        document.getElementById('informe-file-wrap').classList.toggle('hidden', isUrl);
     });
+});
 
-    // Cerrar modal de informe (overlay y botones data-close="informe")
-    document.querySelectorAll('[data-close="informe"]')?.forEach(btn => {
-        btn.addEventListener('click', closeInformeModal);
-    });
+// Actualizar label del input file
+document.getElementById('field-informe-file')?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    const label = document.getElementById('informe-file-label');
+    if (file && label) label.textContent = `✓ ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+});
 
-    // Mostrar/ocultar URL vs File según radio
-    document.querySelectorAll('input[name="informe-source-type"]')?.forEach(radio => {
-        radio.addEventListener('change', () => {
-            const isUrl = document.getElementById('informe-type-url').checked;
-            document.getElementById('informe-url-wrap').classList.toggle('hidden', !isUrl);
-            document.getElementById('informe-file-wrap').classList.toggle('hidden', isUrl);
-        });
+// Búsqueda de categorías en el modal de informe
+document.getElementById('informe-cat-search')?.addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('#informe-categories-checklist label').forEach(label => {
+        label.style.display = label.textContent.toLowerCase().includes(q) ? '' : 'none';
     });
+});
 
-    // Actualizar label del input file
-    document.getElementById('field-informe-file')?.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        const label = document.getElementById('informe-file-label');
-        if (file && label) label.textContent = `✓ ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
-    });
-
-    // Búsqueda de categorías en el modal de informe
-    document.getElementById('informe-cat-search')?.addEventListener('input', (e) => {
-        const q = e.target.value.toLowerCase();
-        document.querySelectorAll('#informe-categories-checklist label').forEach(label => {
-            label.style.display = label.textContent.toLowerCase().includes(q) ? '' : 'none';
-        });
-    });
-
-    // Búsqueda de usuarios en el modal de informe
-    document.getElementById('informe-user-search')?.addEventListener('input', (e) => {
-        renderInformeUserChecklist(e.target.value);
-    });
+// Búsqueda de usuarios en el modal de informe
+document.getElementById('informe-user-search')?.addEventListener('input', (e) => {
+    renderInformeUserChecklist(e.target.value);
 });
 
 // Hook: cargar informes cuando se active la pestaña
