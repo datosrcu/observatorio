@@ -765,6 +765,11 @@ function openModal(title, url) {
         modalIframe.removeAttribute('referrerpolicy');
     }
 
+    // Chrome's PDF viewer is disabled if the iframe has ANY sandbox attribute
+    if (finalSrc.toLowerCase().includes('.pdf')) {
+        modalIframe.removeAttribute('sandbox');
+    }
+
     // Load iframe content
     modalIframe.src = finalSrc;
 
