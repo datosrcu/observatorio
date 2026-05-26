@@ -1,4 +1,4 @@
-import { auth, storage, provider, signInWithPopup, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
+import { auth, storage, provider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
 
 // DOM Elements
 const loginBtn = document.getElementById('login-btn');
@@ -173,6 +173,16 @@ async function handleLogin() {
     } catch (error) {
         if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
             return; // Ignore if user closed the popup
+        }
+        if (error.code === 'auth/popup-blocked') {
+            console.warn("Popup blocked, falling back to redirect...");
+            // Use redirect instead of popup if the browser blocked it
+            try {
+                await signInWithRedirect(auth, provider);
+                return; // Execution stops here, page will redirect
+            } catch (redirectError) {
+                console.error("Redirect login failed:", redirectError);
+            }
         }
         console.error("Error during login:", error);
         alert("Ocurrió un error al intentar iniciar sesión: " + (error.message || error) + "\n\nIntenta de nuevo.");
