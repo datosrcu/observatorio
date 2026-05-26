@@ -1725,6 +1725,18 @@ if (registrationForm) {
                 console.warn("Audit log failed", auditErr);
             }
 
+            // Enviar email de bienvenida con T&C adjuntos
+            try {
+                await callApi('/api/enviar-bienvenida', 'POST', {
+                    full_name: registrationData.name,
+                    email: userEmail
+                });
+                console.log('[Email] Correo de bienvenida enviado exitosamente.');
+            } catch (emailErr) {
+                console.warn('[Email] No se pudo enviar el correo de bienvenida:', emailErr);
+                // No bloquear el registro si falla el envío del email
+            }
+
             registrationModal.classList.add('hidden');
             registrationModal.classList.remove('flex');
             alert('¡Perfil completado con éxito!');

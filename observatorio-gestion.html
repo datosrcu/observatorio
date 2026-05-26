@@ -220,10 +220,37 @@
                         class="flex-1 md:flex-none text-center bg-white border border-obelisco-border hover:bg-gray-50 text-obelisco-dark font-bold py-2 px-6 rounded-lg transition shadow-sm">
                         Ordenanzas Municipales
                     </a>
-                    <a href="normativas/Decretos/Resolucion-N°-64-OGRCU.pdf" target="_blank"
-                        class="flex-1 md:flex-none text-center bg-white border border-obelisco-border hover:bg-gray-50 text-obelisco-dark font-bold py-2 px-6 rounded-lg transition shadow-sm">
-                        Decretos y Resoluciones
-                    </a>
+                    <div class="relative flex-1 md:flex-none inline-block text-left" id="decretos-dropdown-container">
+                        <button id="decretos-dropdown-btn"
+                            class="w-full md:w-auto flex items-center justify-between gap-2 bg-white border border-obelisco-border hover:bg-gray-50 text-obelisco-dark font-bold py-2 px-6 rounded-lg transition shadow-sm focus:outline-none">
+                            <span>Decretos y Resoluciones</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 transition-transform duration-300" id="decretos-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <!-- Menú desplegable absoluto -->
+                        <div id="decretos-dropdown-menu"
+                            class="hidden absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden transform scale-95 opacity-0 transition-all duration-200 origin-top-right">
+                            <div class="py-1">
+                                <a href="normativas/Decretos/Resolucion-N°-64-OGRCU.pdf" target="_blank"
+                                    class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-obelisco-blue transition">
+                                    <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                    <div class="flex flex-col text-left">
+                                        <span class="font-bold text-obelisco-dark">Resolución N° 64 (OGRCU)</span>
+                                        <span class="text-[10px] text-gray-400">Normativa de creación y marco legal</span>
+                                    </div>
+                                </a>
+                                <a href="normativas/Resoluciones/RESOLUCION 73.pdf" target="_blank"
+                                    class="flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-obelisco-blue transition border-t border-gray-100">
+                                    <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                    <div class="flex flex-col text-left">
+                                        <span class="font-bold text-obelisco-dark">Resolución N° 73</span>
+                                        <span class="text-[10px] text-gray-400">Actualización y nuevas normativas</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1691,6 +1718,54 @@
 
     <script type="module" src="requests.js"></script>
     <script type="module" src="auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropdownBtn = document.getElementById('decretos-dropdown-btn');
+            const dropdownMenu = document.getElementById('decretos-dropdown-menu');
+            const chevron = document.getElementById('decretos-chevron');
+            const container = document.getElementById('decretos-dropdown-container');
+
+            if (!dropdownBtn || !dropdownMenu || !chevron) return;
+
+            function toggleDropdown() {
+                const isHidden = dropdownMenu.classList.contains('hidden');
+                if (isHidden) {
+                    // Mostrar con animación
+                    dropdownMenu.classList.remove('hidden');
+                    setTimeout(() => {
+                        dropdownMenu.classList.remove('scale-95', 'opacity-0');
+                        dropdownMenu.classList.add('scale-100', 'opacity-100');
+                    }, 10);
+                    chevron.classList.add('rotate-180');
+                } else {
+                    // Ocultar con animación
+                    dropdownMenu.classList.remove('scale-100', 'opacity-100');
+                    dropdownMenu.classList.add('scale-95', 'opacity-0');
+                    chevron.classList.remove('rotate-180');
+                    setTimeout(() => {
+                        dropdownMenu.classList.add('hidden');
+                    }, 200);
+                }
+            }
+
+            dropdownBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleDropdown();
+            });
+
+            // Cerrar si hace clic fuera
+            document.addEventListener('click', (e) => {
+                if (container && !container.contains(e.target) && !dropdownMenu.classList.contains('hidden')) {
+                    dropdownMenu.classList.remove('scale-100', 'opacity-100');
+                    dropdownMenu.classList.add('scale-95', 'opacity-0');
+                    chevron.classList.remove('rotate-180');
+                    setTimeout(() => {
+                        dropdownMenu.classList.add('hidden');
+                    }, 200);
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

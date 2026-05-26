@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bienvenida – Observatorio de Gestión Municipal RCU</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Inter+Tight:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --blue:       #0077B6;
+      --blue-light: #00B4D8;
+      --blue-pale:  #CAF0F8;
+      --blue-dark:  #023E8A;
+      --white:      #FFFFFF;
+      --gray-light: #F4F8FB;
+      --gray-mid:   #D0E8F2;
+      --gray-text:  #3A3A3A;
+      --gray-sub:   #6B7B8D;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #E8F4FA;
+      padding: 32px 16px;
+      color: var(--gray-text);
+    }
+
+    .email-wrapper {
+      max-width: 680px;
+      margin: 0 auto;
+      background: var(--white);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,119,182,0.13);
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--blue-dark);
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px 32px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .header-logo img {
+      height: 52px;
+      filter: brightness(0) invert(1);
+    }
+
+    .header-badge {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--blue-pale);
+      text-align: right;
+      line-height: 1.5;
+    }
+
+    .header-hero {
+      padding: 36px 32px 32px;
+      position: relative;
+    }
+
+    .header-hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 4px; height: 100%;
+      background: var(--blue-light);
+    }
+
+    .header-hero::after {
+      content: '';
+      position: absolute;
+      top: 0; right: -40px;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,180,216,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .header-eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--blue-light);
+      margin-bottom: 10px;
+    }
+
+    .header-title {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 38px;
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1.1;
+      margin-bottom: 12px;
+    }
+
+    .header-title span {
+      color: var(--blue-light);
+    }
+
+    .header-subtitle {
+      font-size: 15px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.72);
+      line-height: 1.6;
+    }
+
+    /* ── GREETING BAND ── */
+    .greeting-band {
+      background: var(--blue);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .greeting-band-icon {
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .greeting-band-icon svg { width: 16px; height: 16px; }
+
+    .greeting-band-text {
+      font-size: 14px;
+      color: var(--white);
+      font-weight: 400;
+    }
+
+    .greeting-band-text strong { font-weight: 700; }
+
+    /* ── BODY ── */
+    .body {
+      padding: 36px 32px 28px;
+      background: var(--white);
+    }
+
+    .salutation {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--blue-dark);
+      margin-bottom: 16px;
+    }
+
+    .intro-text {
+      font-size: 15px;
+      line-height: 1.75;
+      color: var(--gray-text);
+      margin-bottom: 24px;
+    }
+
+    /* Callout block */
+    .callout {
+      background: var(--gray-light);
+      border-left: 4px solid var(--blue);
+      border-radius: 0 6px 6px 0;
+      padding: 18px 22px;
+      margin-bottom: 28px;
+    }
+
+    .callout-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 8px;
+    }
+
+    .callout-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--gray-text);
+    }
+
+    /* Key points */
+    .points-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 14px;
+    }
+
+    .points-list {
+      list-style: none;
+      margin-bottom: 28px;
+    }
+
+    .points-list li {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--gray-mid);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .points-list li:last-child { border-bottom: none; }
+
+    .point-dot {
+      flex-shrink: 0;
+      margin-top: 6px;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--blue-light);
+    }
+
+    .point-label {
+      font-weight: 700;
+      color: var(--blue-dark);
+    }
+
+    /* CTA Button */
+    .cta-wrap {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .cta-btn {
+      display: inline-block;
+      background: var(--blue);
+      color: var(--white);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 14px 36px;
+      border-radius: 3px;
+      transition: background 0.2s;
+    }
+
+    .cta-btn:hover { background: var(--blue-dark); }
+
+    .cta-sub {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--gray-sub);
+    }
+
+    /* Adjunto TyC */
+    .attachment-note {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--gray-light);
+      border: 1px solid var(--gray-mid);
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin-bottom: 28px;
+    }
+
+    .attachment-icon {
+      flex-shrink: 0;
+      width: 36px; height: 36px;
+      background: var(--blue-dark);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .attachment-icon svg { width: 18px; height: 18px; }
+
+    .attachment-text {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--gray-text);
+    }
+
+    .attachment-text strong {
+      display: block;
+      font-weight: 700;
+      color: var(--blue-dark);
+      margin-bottom: 2px;
+    }
+
+    .closing-text {
+      font-size: 15px;
+      line-height: 1.75;
+      color: var(--gray-text);
+      margin-bottom: 6px;
+    }
+
+    /* ── SEPARATOR ── */
+    .separator {
+      height: 1px;
+      background: linear-gradient(90deg, var(--blue) 0%, var(--blue-light) 50%, transparent 100%);
+      margin: 0 32px;
+    }
+
+    /* ── FOOTER / FIRMA ── */
+    .footer {
+      padding: 28px 32px 32px;
+      background: var(--gray-light);
+    }
+
+    .firma-grid {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .firma-avatar {
+      flex-shrink: 0;
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 3px solid var(--blue);
+      background: var(--blue-dark);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .firma-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .firma-avatar svg { width: 26px; height: 26px; }
+
+    .firma-info { flex: 1; }
+
+    .firma-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--blue-dark);
+      margin-bottom: 2px;
+    }
+
+    .firma-role {
+      font-size: 13px;
+      color: var(--gray-sub);
+      margin-bottom: 8px;
+    }
+
+    .firma-dept-block {
+      background: var(--white);
+      border-left: 3px solid var(--blue);
+      padding: 8px 12px;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 12px;
+    }
+
+    .firma-dept {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--blue-dark);
+      line-height: 1.4;
+    }
+
+    .firma-org {
+      font-size: 12px;
+      color: var(--gray-sub);
+    }
+
+    /* Contact pills */
+    .contact-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--white);
+      border: 1px solid var(--gray-mid);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 12px;
+      color: var(--gray-text);
+      white-space: nowrap;
+    }
+
+    .pill svg { flex-shrink: 0; }
+
+    .pill-label { font-weight: 600; color: var(--blue-dark); }
+
+    /* Footer brand bar */
+    .footer-brand {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--gray-mid);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-brand img {
+      height: 44px;
+      opacity: 0.9;
+    }
+
+    .footer-disclaimer {
+      font-size: 11px;
+      color: var(--gray-sub);
+      line-height: 1.5;
+      text-align: right;
+    }
+
+    @media (max-width: 520px) {
+      .header-top, .header-hero, .body, .footer { padding-left: 20px; padding-right: 20px; }
+      .separator { margin: 0 20px; }
+      .header-title { font-size: 28px; }
+      .firma-grid { flex-direction: column; gap: 12px; }
+      .footer-brand { flex-direction: column; align-items: flex-start; }
+      .footer-disclaimer { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="email-wrapper">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div class="header-logo">
+        <img src="recursos/Logo DATOS Río Cuarto (2).png" alt="DATOS Río Cuarto" />
+      </div>
+      <div class="header-badge">
+        Observatorio de Gestión Municipal<br>Río Cuarto · Argentina
+      </div>
+    </div>
+
+    <div class="header-hero">
+      <div class="header-eyebrow">Gobierno de Río Cuarto &nbsp;·&nbsp; Datos Abiertos</div>
+      <div class="header-title">Bienvenido/a al<br><span>Observatorio de<br>Gestión Municipal</span></div>
+      <div class="header-subtitle">
+        Tu cuenta ha sido creada exitosamente en el<br>
+        <strong style="color:rgba(255,255,255,0.9);">Observatorio de Gestión Municipal RCU</strong>.
+      </div>
+    </div>
+  </div>
+
+  <!-- GREETING BAND -->
+  <div class="greeting-band">
+    <div class="greeting-band-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    </div>
+    <div class="greeting-band-text">
+      Para: <strong>[Nombre del destinatario]</strong>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="body">
+    <div class="salutation">Estimado/a [Nombre del destinatario],</div>
+
+    <p class="intro-text">
+      Es un placer darle la bienvenida al <strong>Observatorio de Gestión Municipal RCU</strong>.
+      Su cuenta ha sido registrada exitosamente y ya puede acceder a la plataforma para
+      explorar los datos, indicadores y estadísticas de gestión del Gobierno Municipal de Río Cuarto.
+    </p>
+
+    <div class="callout">
+      <div class="callout-label">Términos y Condiciones</div>
+      <div class="callout-text">
+        Al crear su cuenta, usted aceptó los <strong>Términos y Condiciones de uso</strong> del
+        Observatorio de Gestión Municipal. Encontrará una copia firmada de dicho documento
+        adjunta a este correo para su registro y consulta.
+      </div>
+    </div>
+
+    
+
+    <div class="cta-wrap">
+      <a href="http://observatorio.72.60.8.241.sslip.io/" class="cta-btn">
+        Acceder al Observatorio
+      </a>
+      <div class="cta-sub">observatorio.72.60.8.241.sslip.io</div>
+    </div>
+
+    <!-- Adjunto TyC -->
+    <div class="attachment-note">
+      <div class="attachment-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+      </div>
+      <div class="attachment-text">
+        <strong>Adjunto: Términos y Condiciones – OGM Río Cuarto v1</strong>
+        TyC_OGM_RioCuarto_v1_final.pdf · Documento firmado al momento del registro
+      </div>
+    </div>
+
+    <p class="closing-text">
+      Si tiene alguna consulta o necesita asistencia para comenzar a utilizar la plataforma,
+      no dude en ponerse en contacto con nosotros a través de los canales indicados más abajo.
+    </p>
+    <p class="closing-text" style="margin-top:12px;">
+      Agradecemos su confianza y esperamos que el Observatorio sea una herramienta valiosa para su trabajo.
+    </p>
+    <p class="closing-text" style="margin-top:20px; font-weight:600;">Cordialmente,</p>
+  </div>
+
+  <div class="separator"></div>
+
+  <!-- FOOTER / FIRMA -->
+  <div class="footer">
+    <div class="firma-grid">
+
+      <!-- Foto de Mónica -->
+      <div class="firma-avatar">
+        <img src="recursos/Moni.jpg" alt="Mónica Anelo" />
+      </div>
+
+      <div class="firma-info">
+        <div class="firma-name">Mónica Anelo</div>
+        <div class="firma-role">Directora</div>
+
+        <div class="firma-dept-block">
+          <div class="firma-dept">Dirección de Estadística,<br>Control de Calidad y Procesos</div>
+          <div class="firma-org">Gobierno de Río Cuarto</div>
+        </div>
+
+        <div class="contact-pills">
+          <span class="pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0077B6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.18 6.18l1.77-1.77a2 2 0 0 1 2.11-.45c.9.32 1.85.55 2.81.68a2 2 0 0 1 1.72 2.07z"/>
+            </svg>
+            <span class="pill-label">Teléfono:</span>&nbsp;0800-444-5454 (Int. 808)
+          </span>
+          <span class="pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#25D366" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span class="pill-label">WhatsApp:</span>&nbsp;+54 9 3585 70-0396
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logo pie de página -->
+    <div class="footer-brand">
+      <img src="recursos/Escudo.png" alt="Gobierno de Río Cuarto" />
+      <div class="footer-disclaimer">
+        Secretaría de Gestión y Participación Ciudadana<br>
+        Gobierno Municipal de Río Cuarto &nbsp;·&nbsp; Argentina
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

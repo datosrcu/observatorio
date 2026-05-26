@@ -4,8 +4,13 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 const admin = require('firebase-admin');
+const { Resend } = require('resend');
 require('dotenv').config();
+
+// Inicializar Resend para envío de emails
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Inicializar Firebase Admin
 try {
@@ -397,6 +402,56 @@ app.post('/api/perfil', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error al guardar perfil:', error);
         res.status(500).json({ error: 'Error al guardar en la base de datos.' });
+    }
+});
+
+// ── ENVÍO DE EMAIL DE BIENVENIDA (Resend) ──────────────────────────────────
+app.post('/api/enviar-bienvenida', verifyToken, async (req, res) => {
+    const { full_name, email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ error: 'El campo email es obligatorio.' });
+    }
+
+    const userName = full_name || email.split('@')[0];
+
+    try {
+        // 1. Leer el template HTML de bienvenida
+        const templatePath = path.join(__dirname, 'plantilla_bienvenida_ogm.html');
+        let htmlTemplate = fs.readFileSync(templatePath, 'utf-8');
+
+        // 2. Reemplazar placeholders con el nombre del usuario
+        htmlTemplate = htmlTemplate.replace(/\[Nombre del destinatario\]/g, userName);
+
+        // 3. Leer el documento de T&C para adjuntarlo
+        const termsPath = path.join(__dirname, 'normativas', 'Terminos', 'Terminos_y_Condiciones_OGM_RioCuarto_v1.htm');
+        const termsContent = fs.readFileSync(termsPath);
+
+        // 4. Enviar email con Resend
+        const { data, error } = await resend.emails.send({
+            from: process.env.RESEND_FROM_EMAIL || 'OGM Río Cuarto <onboarding@resend.dev>',
+            to: [email],
+            subject: 'Bienvenido/a al Observatorio de Gestión Municipal – RCU',
+            html: htmlTemplate,
+            attachments: [
+                {
+                    filename: 'Terminos_y_Condiciones_OGM_RioCuarto_v1.html',
+                    content: termsContent.toString('base64'),
+                    content_type: 'text/html'
+                }
+            ]
+        });
+
+        if (error) {
+            console.error('Error de Resend al enviar email:', error);
+            return res.status(500).json({ error: 'Error al enviar email de bienvenida.', details: error.message });
+        }
+
+        console.log(`Email de bienvenida enviado a ${email} (ID: ${data?.id})`);
+        res.json({ success: true, message: 'Email de bienvenida enviado.', emailId: data?.id });
+    } catch (error) {
+        console.error('Error al enviar email de bienvenida:', error);
+        res.status(500).json({ error: 'Error interno al enviar email.', details: error.message });
     }
 });
 
