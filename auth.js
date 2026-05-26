@@ -250,7 +250,7 @@ async function loadUserPermissions(user) {
                         title: i.title,
                         description: i.description || '',
                         categories: (() => { try { const v = i.categories; return typeof v === 'string' ? JSON.parse(v) : (Array.isArray(v) ? v : []); } catch(e) { return []; } })(),
-                        url: i.url,
+                        url: i.file_path || i.url,
                         fileType: i.file_type || 'url',
                         period: i.period || '',
                         year: i.year,
