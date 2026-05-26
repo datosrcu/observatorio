@@ -11,7 +11,8 @@ const multer = require('multer');
 require('dotenv').config();
 
 // --- MULTER: Configuración de uploads para informes ---
-const UPLOADS_DIR = path.join(__dirname, 'uploads', 'informes');
+const UPLOADS_PATH = process.env.UPLOADS_PATH ? path.resolve(process.env.UPLOADS_PATH) : path.join(__dirname, 'uploads');
+const UPLOADS_DIR = path.join(UPLOADS_PATH, 'informes');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const informesStorage = multer.diskStorage({
@@ -58,7 +59,7 @@ const PORT = process.env.PORT || 8080;
 app.use(express.static(path.join(__dirname)));
 
 // Servir archivos de informes subidos
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(UPLOADS_PATH));
 app.use(express.json()); // Asegurar que pueda leer JSON en el body
 app.use(cors());
 
