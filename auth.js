@@ -146,8 +146,8 @@ async function handleLogin() {
     try {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
-        const userEmail = user.email.toLowerCase();
-        const isAdmin = ADMIN_EMAILS.includes(userEmail);
+        const userEmail = (user.email || '').toLowerCase();
+        const isAdmin = userEmail ? ADMIN_EMAILS.includes(userEmail) : false;
 
         // Registrar/Actualizar usuario en MySQL backend (no Firestore)
         try {
@@ -161,7 +161,7 @@ async function handleLogin() {
                 body: JSON.stringify({
                     uid: user.uid,
                     email: userEmail,
-                    full_name: user.displayName || userEmail.split('@')[0],
+                    full_name: user.displayName || userEmail.split('@')[0] || 'Usuario',
                     photo_url: user.photoURL || '',
                     is_admin: isAdmin
                 })
@@ -171,8 +171,11 @@ async function handleLogin() {
             console.warn("Could not sync user to MySQL:", e);
         }
     } catch (error) {
+        if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+            return; // Ignore if user closed the popup
+        }
         console.error("Error during login:", error);
-        alert("Ocurrió un error al intentar iniciar sesión. Por favor, intente nuevamente.");
+        alert("Ocurrió un error al intentar iniciar sesión: " + (error.message || error) + "\n\nIntenta de nuevo.");
     }
 }
 
