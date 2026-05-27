@@ -1280,7 +1280,7 @@ function filterAndRenderBoards() {
             const fileInputEl = document.getElementById('field-board-file');
             if (fileInputEl) fileInputEl.value = '';
             const fileLabelEl = document.getElementById('board-file-label');
-            if (fileLabelEl) fileLabelEl.textContent = 'Arrastrá o hacé clic (HTML, PDF, imagen — máx 50MB)';
+            if (fileLabelEl) fileLabelEl.textContent = 'Arrastrá o hacé clic (HTML, ZIP, PDF, imagen — máx 50MB)';
             
             const currentFileEl = document.getElementById('board-current-file');
             const typeUrlEl = document.getElementById('board-type-url');
@@ -1354,7 +1354,7 @@ addBoardBtn?.addEventListener('click', () => {
     const fileInputEl = document.getElementById('field-board-file');
     if (fileInputEl) fileInputEl.value = '';
     const fileLabelEl = document.getElementById('board-file-label');
-    if (fileLabelEl) fileLabelEl.textContent = 'Arrastrá o hacé clic (HTML, PDF, imagen — máx 50MB)';
+    if (fileLabelEl) fileLabelEl.textContent = 'Arrastrá o hacé clic (HTML, ZIP, PDF, imagen — máx 50MB)';
     const currentFileEl = document.getElementById('board-current-file');
     if (currentFileEl) { currentFileEl.textContent = ''; currentFileEl.classList.add('hidden'); }
 

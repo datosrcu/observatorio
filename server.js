@@ -8,6 +8,7 @@ const fs = require('fs');
 const admin = require('firebase-admin');
 const { Resend } = require('resend');
 const multer = require('multer');
+const AdmZip = require('adm-zip');
 require('dotenv').config();
 
 // --- MULTER: Configuración de uploads para informes ---
@@ -50,10 +51,10 @@ const uploadTableros = multer({
     storage: tablerosStorage,
     limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
     fileFilter: (_req, file, cb) => {
-        const allowed = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.html', '.htm'];
+        const allowed = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.html', '.htm', '.zip'];
         const ext = path.extname(file.originalname).toLowerCase();
         if (allowed.includes(ext)) cb(null, true);
-        else cb(new Error('Tipo de archivo no permitido. Se aceptan: PDF, imágenes y HTML.'));
+        else cb(new Error('Tipo de archivo no permitido. Se aceptan: PDF, imágenes, HTML y ZIP.'));
     }
 });
 
@@ -767,8 +768,18 @@ app.delete('/api/tableros/:id', verifyToken, async (req, res) => {
         const [[row]] = await connection.execute('SELECT file_path FROM tableros WHERE id = ?', [req.params.id]);
         if (row && row.file_path) {
             const absPath = path.join(__dirname, row.file_path);
-            if (fs.existsSync(absPath)) {
-                try { fs.unlinkSync(absPath); } catch (e) { console.error('Error deleting file on board delete:', e); }
+            
+            // Si la ruta del archivo pertenece a un proyecto descomprimido en carpeta dedicada,
+            // eliminamos toda la carpeta.
+            if (row.file_path.includes('/project_')) {
+                const projectDir = path.dirname(absPath);
+                if (fs.existsSync(projectDir)) {
+                    try { fs.rmSync(projectDir, { recursive: true, force: true }); } catch (e) { console.error('Error deleting project dir on board delete:', e); }
+                }
+            } else {
+                if (fs.existsSync(absPath)) {
+                    try { fs.unlinkSync(absPath); } catch (e) { console.error('Error deleting file on board delete:', e); }
+                }
             }
         }
         await connection.execute('DELETE FROM tableros WHERE id = ?', [req.params.id]);
@@ -934,21 +945,99 @@ app.post('/api/tableros', verifyToken, uploadTableros.single('archivo'), async (
         }
 
         if (req.file) {
-            // Eliminar archivo viejo si existe
+            // Eliminar archivo o carpeta viejo si existe
             if (existing && existing.file_path) {
                 const oldPath = path.join(__dirname, existing.file_path);
-                if (fs.existsSync(oldPath)) {
-                    try { fs.unlinkSync(oldPath); } catch (e) { console.error('Error deleting old file:', e); }
+                
+                // Si la ruta previa pertenecía a un proyecto descomprimido (e.g. estaba dentro de una carpeta del proyecto)
+                // de tipo uploads/tableros/project_<id>/, borramos toda la carpeta del proyecto.
+                if (existing.file_path.includes('/project_')) {
+                    const projectDir = path.dirname(oldPath);
+                    if (fs.existsSync(projectDir)) {
+                        try { fs.rmSync(projectDir, { recursive: true, force: true }); } catch (e) { console.error('Error deleting old project dir:', e); }
+                    }
+                } else {
+                    if (fs.existsSync(oldPath)) {
+                        try { fs.unlinkSync(oldPath); } catch (e) { console.error('Error deleting old file:', e); }
+                    }
                 }
             }
-            filePath = `/uploads/tableros/${req.file.filename}`;
-            finalIframeUrl = filePath;
+
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            if (ext === '.zip') {
+                // Es un archivo ZIP, lo descomprimimos
+                const projectFolderName = `project_${safeId}`;
+                const projectExtractDir = path.join(TABLEROS_DIR, projectFolderName);
+                
+                // Asegurar que el directorio de extracción esté limpio y exista
+                if (fs.existsSync(projectExtractDir)) {
+                    fs.rmSync(projectExtractDir, { recursive: true, force: true });
+                }
+                fs.mkdirSync(projectExtractDir, { recursive: true });
+
+                try {
+                    const zip = new AdmZip(req.file.path);
+                    zip.extractAllTo(projectExtractDir, true);
+
+                    // Buscar el archivo HTML principal
+                    // Priorizamos index.html en la raíz de extracción
+                    let entrypointFile = 'index.html';
+                    const filesInRoot = fs.readdirSync(projectExtractDir);
+                    
+                    if (!filesInRoot.includes('index.html')) {
+                        // Si no hay index.html, buscar cualquier archivo HTML
+                        const htmlFile = filesInRoot.find(f => f.endsWith('.html') || f.endsWith('.htm'));
+                        if (htmlFile) {
+                            entrypointFile = htmlFile;
+                        } else {
+                            // Buscar recursivamente en subcarpetas (máximo 1 nivel de profundidad para evitar loops)
+                            let found = null;
+                            for (const f of filesInRoot) {
+                                const fullPath = path.join(projectExtractDir, f);
+                                if (fs.statSync(fullPath).isDirectory()) {
+                                    const subFiles = fs.readdirSync(fullPath);
+                                    const subHtml = subFiles.find(sf => sf.endsWith('.html') || sf.endsWith('.htm'));
+                                    if (subHtml) {
+                                        found = path.join(f, subHtml);
+                                        break;
+                                    }
+                                }
+                            }
+                            if (found) {
+                                entrypointFile = found;
+                            }
+                        }
+                    }
+
+                    filePath = `/uploads/tableros/${projectFolderName}/${entrypointFile.replace(/\\/g, '/')}`;
+                    finalIframeUrl = filePath;
+                } catch (zipErr) {
+                    console.error('Error extracting ZIP file:', zipErr);
+                    throw new Error('No se pudo procesar el archivo ZIP de manera correcta.');
+                } finally {
+                    // Eliminar el archivo .zip temporal cargado por multer para no desperdiciar espacio
+                    if (fs.existsSync(req.file.path)) {
+                        try { fs.unlinkSync(req.file.path); } catch (e) {}
+                    }
+                }
+            } else {
+                // Archivo convencional
+                filePath = `/uploads/tableros/${req.file.filename}`;
+                finalIframeUrl = filePath;
+            }
         } else if (source_type === 'url') {
             // Eliminar archivo viejo si cambia a URL
             if (existing && existing.file_path) {
                 const oldPath = path.join(__dirname, existing.file_path);
-                if (fs.existsSync(oldPath)) {
-                    try { fs.unlinkSync(oldPath); } catch (e) { console.error('Error deleting old file on source switch:', e); }
+                if (existing.file_path.includes('/project_')) {
+                    const projectDir = path.dirname(oldPath);
+                    if (fs.existsSync(projectDir)) {
+                        try { fs.rmSync(projectDir, { recursive: true, force: true }); } catch (e) { console.error('Error deleting old project dir on source switch:', e); }
+                    }
+                } else {
+                    if (fs.existsSync(oldPath)) {
+                        try { fs.unlinkSync(oldPath); } catch (e) { console.error('Error deleting old file on source switch:', e); }
+                    }
                 }
             }
             filePath = null;
