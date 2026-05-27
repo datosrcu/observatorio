@@ -513,7 +513,7 @@ function renderDashboard() {
         });
 
         // Render informes for this category
-        const informesToRender = allInformes.filter(i => i.categories && i.categories.includes(currentSelectedCategory) && i.hasAccess);
+        const informesToRender = allInformes.filter(i => i.categories && i.categories.includes(currentSelectedCategory));
         if (informesToRender.length > 0) {
             if (renderedCount > 0) {
                 // Divider between tableros and informes
@@ -541,7 +541,7 @@ function renderDashboard() {
         catsToRender.forEach(cat => {
             // Count accessible boards + informes in this category
             const accessibleInCat = allAccessibleBoards.filter(b => b.categories && b.categories.includes(cat.id)).length;
-            const informesInCat = allInformes.filter(i => i.categories && i.categories.includes(cat.id) && i.hasAccess).length;
+            const informesInCat = allInformes.filter(i => i.categories && i.categories.includes(cat.id)).length;
             renderCategoryCard(gridContainer, cat, accessibleInCat, informesInCat);
             renderedCount++;
         });
@@ -894,14 +894,25 @@ function renderInformeCard(container, informe) {
     const fileTypeBadge = `<span class="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">${fileTypeLabels[informe.fileType] || 'Informe'}</span>`;
     const periodBadge = informe.period ? `<span class="text-[10px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">${informe.period}</span>` : '';
 
+    const hasAccess = informe.hasAccess !== false; // handle old data
+    const restrictedClass = !hasAccess ? 'opacity-75 grayscale-[0.5] border-dashed border-red-200' : 'border-teal-100';
+
+    const pendingRequest = currentUserRequests.find(r => 
+        (r.buttonId === informe.id || r.buttonId === informe.title || r.buttonName === informe.title) && 
+        (r.status === 'pendiente' || r.status === 'pending')
+    );
+    const isUnderReview = !!pendingRequest;
+
+    const lockIcon = !hasAccess
+        ? (isUnderReview
+            ? '<div class="absolute top-2 right-2 text-obelisco-blue bg-blue-50 px-2 py-0.5 rounded-full text-[10px] font-bold border border-blue-200 shadow-sm">En revisión</div>'
+            : '<div class="absolute top-2 right-2 text-red-500 bg-red-50 p-1.5 rounded-full border border-red-100"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg></div>')
+        : '<div class="absolute top-2 right-2 text-green-600 bg-green-50 p-1.5 rounded-full border border-green-100 shadow-sm" title="Acceso concedido"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg></div>';
+
     const html = `
-        <a href="#" data-informe-id="${informe.id}" data-informe-url="${informe.url || ''}" data-informe-type="${informe.fileType}"
-            class="obelisco-card informe-btn bg-white border-2 border-teal-100 rounded-xl p-5 flex flex-col h-full hover:bg-teal-50/40 hover:border-teal-300 transition drop-shadow-sm relative cursor-pointer">
-            <div class="absolute top-2 right-2">
-                <svg class="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-            </div>
+        <a href="#" data-informe-id="${informe.id}" data-informe-url="${informe.url || ''}" data-informe-type="${informe.fileType}" data-access="${hasAccess}"
+            class="obelisco-card informe-btn bg-white border-2 rounded-xl p-5 flex flex-col h-full hover:bg-teal-50/40 hover:border-teal-300 transition drop-shadow-sm relative cursor-pointer ${restrictedClass}">
+            ${lockIcon}
             <div class="flex items-center mb-3 w-full">
                 <div class="h-12 w-12 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center flex-shrink-0">
                     <svg class="h-6 w-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -920,7 +931,7 @@ function renderInformeCard(container, informe) {
             <div class="flex justify-between items-center w-full mt-auto">
                 <div class="flex gap-1">${periodBadge}</div>
                 <span class="text-teal-600 font-bold text-sm flex items-center">
-                    Ver informe
+                    ${hasAccess ? 'Ver informe' : (isUnderReview ? 'Pendiente' : 'Solicitar acceso')}
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
@@ -934,7 +945,13 @@ function renderInformeCard(container, informe) {
     const card = container.lastElementChild;
     card.addEventListener('click', (e) => {
         e.preventDefault();
-        openInformeModal(informe);
+        if (hasAccess) {
+            recordUserActivity(informe.title, true);
+            openInformeModal(informe);
+        } else {
+            recordUserActivity(informe.title, false);
+            openAccessRequestForm(informe.title, informe.id);
+        }
     });
 }
 
