@@ -2080,7 +2080,13 @@ function renderInformesTable(informes) {
 
     tbody.innerHTML = informes.map(inf => {
         const cats = (() => { try { return typeof inf.categories === 'string' ? JSON.parse(inf.categories) : (Array.isArray(inf.categories) ? inf.categories : []); } catch(e) { return []; } })();
-        const catNames = cats.map(id => globalCategories?.find(c => c.id === id)?.name || id).join(', ') || '—';
+        let catNames = cats.map(id => globalCategories?.find(c => c.id === id)?.name || id).join(', ');
+        if (!catNames && inf.category_legacy) {
+            catNames = inf.category_legacy === 'Gestores Externos' ? '🌐 Gestores Externos' : inf.category_legacy;
+        }
+        if (!catNames) {
+            catNames = '—';
+        }
         const enabled = inf.enabled;
 
         return `<tr class="hover:bg-gray-50 transition">
@@ -2179,7 +2185,15 @@ function openInformeModal(id = null) {
             }
 
             // Load selected categories
-            const cats = (() => { try { return typeof informe.categories === 'string' ? JSON.parse(informe.categories) : (Array.isArray(informe.categories) ? informe.categories : []); } catch(e) { return []; } })();
+            let cats = (() => { try { return typeof informe.categories === 'string' ? JSON.parse(informe.categories) : (Array.isArray(informe.categories) ? informe.categories : []); } catch(e) { return []; } })();
+            if (cats.length === 0 && informe.category_legacy) {
+                if (informe.category_legacy === 'Gestores Externos') {
+                    cats = ['_ge_direct'];
+                } else {
+                    const matchedCat = globalCategories.find(c => c.name === informe.category_legacy);
+                    if (matchedCat) cats.push(matchedCat.id);
+                }
+            }
             populateInformeCategories(cats);
         } else {
             title.textContent = 'Nuevo Informe';
@@ -2199,18 +2213,31 @@ function populateInformeCategories(selectedIds = []) {
     if (!container) return;
 
     const cats = globalCategories || [];
+    const vIsChecked = selectedIds.includes('_ge_direct');
+    
+    // Checkbox virtual para Gestores Externos
+    let html = `
+        <label class="flex items-center gap-2 p-1.5 hover:bg-teal-50/40 border border-dashed border-teal-200 rounded cursor-pointer mb-1 ${vIsChecked ? 'bg-teal-50 border-teal-300' : ''}">
+            <input type="checkbox" name="informe-cat" value="_ge_direct" ${vIsChecked ? 'checked' : ''}
+                class="w-3.5 h-3.5 text-teal-600 rounded focus:ring-teal-500">
+            <span class="text-xs font-semibold text-teal-700">🌐 Gestores Externos <span class="text-[10px] text-gray-400 font-normal">· sin categoría específica</span></span>
+        </label>
+    `;
+
     if (cats.length === 0) {
-        container.innerHTML = '<p class="text-xs text-center text-gray-400 py-4">No hay categorías disponibles.</p>';
+        container.innerHTML = html + '<p class="text-xs text-center text-gray-400 py-4">No hay categorías disponibles.</p>';
         return;
     }
 
-    container.innerHTML = cats.map(cat => `
+    html += cats.map(cat => `
         <label class="flex items-center gap-2 p-1.5 hover:bg-gray-50 rounded cursor-pointer">
             <input type="checkbox" name="informe-cat" value="${cat.id}" ${selectedIds.includes(cat.id) ? 'checked' : ''}
                 class="w-3.5 h-3.5 text-teal-600 rounded focus:ring-teal-500">
             <span class="text-xs">${cat.icon || ''} ${cat.name}</span>
         </label>
     `).join('');
+
+    container.innerHTML = html;
 }
 
 function renderInformeUserChecklist(filterText = '') {
@@ -2275,6 +2302,9 @@ async function saveInforme() {
     }
 
     const selectedCats = Array.from(document.querySelectorAll('input[name="informe-cat"]:checked')).map(c => c.value);
+    const hasGEDirect = selectedCats.includes('_ge_direct');
+    const finalCategories = selectedCats.filter(id => id !== '_ge_direct');
+
     const informeId = document.getElementById('informe-id').value || null;
     const enabled = document.getElementById('field-informe-enabled').checked;
     const requireLogin = document.getElementById('field-informe-req-login').value === 'true';
@@ -2290,7 +2320,8 @@ async function saveInforme() {
         formData.append('description', document.getElementById('field-informe-desc').value.trim());
         formData.append('period', document.getElementById('field-informe-period').value.trim());
         formData.append('year', document.getElementById('field-informe-year').value || '');
-        formData.append('categories', JSON.stringify(selectedCats));
+        formData.append('categories', JSON.stringify(finalCategories));
+        formData.append('category_legacy', hasGEDirect ? 'Gestores Externos' : '');
         formData.append('enabled', enabled ? 'true' : 'false');
         formData.append('sort_order', document.getElementById('field-informe-order').value || '0');
         formData.append('require_login', requireLogin ? 'true' : 'false');

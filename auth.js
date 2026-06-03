@@ -291,6 +291,7 @@ async function loadUserPermissions(user) {
                         title: i.title,
                         description: i.description || '',
                         categories: (() => { try { const v = i.categories; return typeof v === 'string' ? JSON.parse(v) : (Array.isArray(v) ? v : []); } catch(e) { return []; } })(),
+                        category: i.category_legacy,
                         url: i.file_path || i.url,
                         fileType: i.file_type || 'url',
                         period: i.period || '',
@@ -547,15 +548,31 @@ function renderDashboard() {
         });
 
         if (renderedCount === 0) {
-            // Fallback for old boards that don't have categories IDs but have string group name? 
-            // Better to show boards matching group directly if they have no category array
+            // Fallback for old boards/informes that don't have categories IDs but have string group name? 
+            // Better to show them matching group directly if they have no category array
             const boardsWithoutCatInGroup = allAccessibleBoards.filter(b =>
                 (!b.categories || b.categories.length === 0) && (b.category === currentFilterGroup)
             );
+            const informesWithoutCatInGroup = allInformes.filter(i =>
+                (!i.categories || i.categories.length === 0) && (i.category === currentFilterGroup)
+            );
 
-            if (boardsWithoutCatInGroup.length > 0) {
+            if (boardsWithoutCatInGroup.length > 0 || informesWithoutCatInGroup.length > 0) {
                 boardsWithoutCatInGroup.forEach(board => renderButton(gridContainer, board.id, board));
-                renderedCount = boardsWithoutCatInGroup.length;
+                
+                if (informesWithoutCatInGroup.length > 0) {
+                    if (boardsWithoutCatInGroup.length > 0) {
+                        // Divider between tableros and informes
+                        gridContainer.insertAdjacentHTML('beforeend', `
+                            <div class="col-span-full mt-2 mb-1 flex items-center gap-3">
+                                <div class="flex-grow h-px bg-gray-200"></div>
+                                <span class="text-xs font-bold text-teal-600 uppercase tracking-widest px-2 py-1 bg-teal-50 rounded-full border border-teal-200">📄 Informes</span>
+                                <div class="flex-grow h-px bg-gray-200"></div>
+                            </div>`);
+                    }
+                    informesWithoutCatInGroup.forEach(informe => renderInformeCard(gridContainer, informe));
+                }
+                renderedCount = boardsWithoutCatInGroup.length + informesWithoutCatInGroup.length;
             } else {
                 gridContainer.insertAdjacentHTML('beforeend', getEmptyStateHtml(`No hay categorías creadas bajo el grupo "${currentFilterGroup}".`));
             }

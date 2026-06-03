@@ -342,6 +342,7 @@ const initializeTables = async () => {
                 require_login BOOLEAN DEFAULT FALSE,
                 allowed_users JSON,
                 access_expirations JSON,
+                category_legacy VARCHAR(255),
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
@@ -356,6 +357,9 @@ const initializeTables = async () => {
         } catch (e) { /* ignore if exists */ }
         try {
             await connection.query('ALTER TABLE informes ADD COLUMN access_expirations JSON');
+        } catch (e) { /* ignore if exists */ }
+        try {
+            await connection.query('ALTER TABLE informes ADD COLUMN category_legacy VARCHAR(255)');
         } catch (e) { /* ignore if exists */ }
         try {
             await connection.query('ALTER TABLE tableros ADD COLUMN file_path VARCHAR(500)');
@@ -1134,7 +1138,7 @@ app.post('/api/informes', verifyToken, uploadInformes.single('archivo'), async (
         const {
             id, title, description, categories, url,
             period, year, enabled, sort_order,
-            require_login, allowed_users, access_expirations
+            require_login, allowed_users, access_expirations, category_legacy
         } = req.body;
 
         let finalUrl = url || null;
@@ -1157,14 +1161,14 @@ app.post('/api/informes', verifyToken, uploadInformes.single('archivo'), async (
         const sql = `
             INSERT INTO informes (
                 id, title, description, categories, url, file_path, file_type, 
-                period, year, enabled, sort_order, require_login, allowed_users, access_expirations
+                period, year, enabled, sort_order, require_login, allowed_users, access_expirations, category_legacy
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
             title=VALUES(title), description=VALUES(description), categories=VALUES(categories),
             url=VALUES(url), file_path=VALUES(file_path), file_type=VALUES(file_type),
             period=VALUES(period), year=VALUES(year), enabled=VALUES(enabled), sort_order=VALUES(sort_order),
-            require_login=VALUES(require_login), allowed_users=VALUES(allowed_users), access_expirations=VALUES(access_expirations)
+            require_login=VALUES(require_login), allowed_users=VALUES(allowed_users), access_expirations=VALUES(access_expirations), category_legacy=VALUES(category_legacy)
         `;
         await connection.execute(sql, [
             informeId, title, description || null,
@@ -1175,7 +1179,8 @@ app.post('/api/informes', verifyToken, uploadInformes.single('archivo'), async (
             sort_order ? parseInt(sort_order) : 0,
             require_login === 'true' || require_login === true ? 1 : 0,
             allowed_users || null,
-            access_expirations || null
+            access_expirations || null,
+            category_legacy || null
         ]);
         await connection.end();
         res.json({ success: true, id: informeId, url: finalUrl });
