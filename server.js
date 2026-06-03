@@ -101,7 +101,7 @@ const verifyToken = async (req, res, next) => {
         next();
     } catch (error) {
         console.error('Error al verificar token:', error);
-        res.status(403).json({ error: 'Token inválido o expirado.' });
+        res.status(403).json({ error: `Token inválido o expirado: ${error.message}` });
     }
 };
 
