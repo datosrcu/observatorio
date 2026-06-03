@@ -406,10 +406,21 @@ initializeTablesWithRetry();
 app.get('/api/status', async (req, res) => {
     let dbStatus = 'disconnected';
     let dbError = null;
+    let userInDb = null;
 
     try {
         const connection = await getDbConnection();
         await connection.ping();
+        
+        // Consultar si el usuario específico existe en la base de datos
+        const [rows] = await connection.execute(
+            'SELECT uid, email, full_name, created_at FROM usuarios_perfiles WHERE email = ?',
+            ['gderivas@riocuarto.gov.ar']
+        );
+        if (rows.length > 0) {
+            userInDb = rows[0];
+        }
+        
         await connection.end();
         dbStatus = 'connected';
     } catch (error) {
@@ -420,6 +431,11 @@ app.get('/api/status', async (req, res) => {
         status: dbStatus === 'connected' && admin.apps.length > 0 ? 'online' : 'degraded',
         database: dbStatus,
         databaseError: dbError,
+        userCheck: {
+            email: 'gderivas@riocuarto.gov.ar',
+            existsInDb: !!userInDb,
+            userData: userInDb
+        },
         firebaseInitialized: admin.apps.length > 0,
         firebaseEnvPresent: !!process.env.FIREBASE_SERVICE_ACCOUNT,
         firebaseEnvLength: process.env.FIREBASE_SERVICE_ACCOUNT ? process.env.FIREBASE_SERVICE_ACCOUNT.length : 0,
