@@ -64,14 +64,19 @@ if (!resend) {
     console.warn("⚠️ RESEND_API_KEY no configurada. El envío de emails estará deshabilitado.");
 }
 
+let firebaseInitError = null;
 // Inicializar Firebase Admin
 try {
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+        throw new Error("La variable de entorno FIREBASE_SERVICE_ACCOUNT no está definida.");
+    }
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
     });
     console.log('Firebase Admin inicializado correctamente.');
 } catch (error) {
+    firebaseInitError = error;
     console.error('Error al inicializar Firebase Admin:', error.message);
 }
 
@@ -399,31 +404,32 @@ initializeTablesWithRetry();
 
 // Endpoint de prueba de conexión
 app.get('/api/status', async (req, res) => {
-    if (!process.env.DATABASE_URL && !process.env.DB_HOST) {
-        return res.status(500).json({
-            status: 'error',
-            message: 'No se encontró DATABASE_URL ni DB_HOST en las variables de entorno.'
-        });
-    }
+    let dbStatus = 'disconnected';
+    let dbError = null;
 
     try {
         const connection = await getDbConnection();
         await connection.ping();
         await connection.end();
-        res.json({ 
-            status: 'online', 
-            database: 'connected',
-            auth: 'ready',
-            message: '¡Conexión establecida y sistema de seguridad inicializado!' 
-        });
+        dbStatus = 'connected';
     } catch (error) {
-        console.error('Error de DB:', error);
-        res.status(500).json({ 
-            status: 'error', 
-            database: 'disconnected',
-            message: error.message 
-        });
+        dbError = error.message;
     }
+
+    res.json({
+        status: dbStatus === 'connected' && admin.apps.length > 0 ? 'online' : 'degraded',
+        database: dbStatus,
+        databaseError: dbError,
+        firebaseInitialized: admin.apps.length > 0,
+        firebaseEnvPresent: !!process.env.FIREBASE_SERVICE_ACCOUNT,
+        firebaseEnvLength: process.env.FIREBASE_SERVICE_ACCOUNT ? process.env.FIREBASE_SERVICE_ACCOUNT.length : 0,
+        firebaseInitError: firebaseInitError ? {
+            message: firebaseInitError.message,
+            stack: firebaseInitError.stack
+        } : null,
+        nodeVersion: process.version,
+        time: new Date().toISOString()
+    });
 });
 
 // Ruta protegida de prueba (Solo accesible con Login)
