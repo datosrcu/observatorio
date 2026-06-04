@@ -84,6 +84,23 @@ const app = express();
 app.set('trust proxy', true); // Permitir capturar la IP real del cliente detrás del proxy inverso Nginx/Docker
 const PORT = process.env.PORT || 8080;
 
+// Proxy for Firebase Auth redirects and iframes (to prevent third-party cookie blocking)
+app.get('/__/auth/*', async (req, res) => {
+    try {
+        const targetUrl = `https://web-subse.firebaseapp.com${req.originalUrl}`;
+        const response = await fetch(targetUrl);
+        const contentType = response.headers.get('content-type');
+        if (contentType) {
+            res.setHeader('Content-Type', contentType);
+        }
+        const buffer = await response.arrayBuffer();
+        res.send(Buffer.from(buffer));
+    } catch (err) {
+        console.error("Firebase Auth Proxy Error:", err);
+        res.status(500).send("Auth Proxy Error");
+    }
+});
+
 // Servir archivos estáticos desde la raíz
 app.use(express.static(path.join(__dirname)));
 
