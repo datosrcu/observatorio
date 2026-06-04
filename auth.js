@@ -104,6 +104,30 @@ onAuthStateChanged(auth, async (user) => {
             console.log("Auth State: User logged in", user.email);
             // Always show base UI then load data
             showUserUI(user);
+
+            // Auto-sync user to MySQL backend to ensure they are registered and keep last_login updated
+            try {
+                const token = await user.getIdToken();
+                const userEmail = (user.email || '').toLowerCase();
+                const isAdmin = userEmail ? ADMIN_EMAILS.includes(userEmail) : false;
+                await fetch('/api/usuarios/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        uid: user.uid,
+                        email: userEmail,
+                        full_name: user.displayName || userEmail.split('@')[0] || 'Usuario',
+                        photo_url: user.photoURL || '',
+                        is_admin: isAdmin
+                    })
+                });
+            } catch (syncErr) {
+                console.warn("Could not sync user to MySQL on auth change:", syncErr);
+            }
+
             try {
                 await loadUserPermissions(user);
             } catch (loadErr) {
@@ -144,47 +168,9 @@ onAuthStateChanged(auth, async (user) => {
 // Login function
 async function handleLogin() {
     try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        const userEmail = (user.email || '').toLowerCase();
-        const isAdmin = userEmail ? ADMIN_EMAILS.includes(userEmail) : false;
-
-        // Registrar/Actualizar usuario en MySQL backend (no Firestore)
-        try {
-            const token = await user.getIdToken();
-            await fetch('/api/usuarios/sync', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    uid: user.uid,
-                    email: userEmail,
-                    full_name: user.displayName || userEmail.split('@')[0] || 'Usuario',
-                    photo_url: user.photoURL || '',
-                    is_admin: isAdmin
-                })
-            });
-        } catch (e) {
-            // No bloquear el login si el sync falla
-            console.warn("Could not sync user to MySQL:", e);
-        }
+        await signInWithRedirect(auth, provider);
     } catch (error) {
-        if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-            return; // Ignore if user closed the popup
-        }
-        if (error.code === 'auth/popup-blocked') {
-            console.warn("Popup blocked, falling back to redirect...");
-            // Use redirect instead of popup if the browser blocked it
-            try {
-                await signInWithRedirect(auth, provider);
-                return; // Execution stops here, page will redirect
-            } catch (redirectError) {
-                console.error("Redirect login failed:", redirectError);
-            }
-        }
-        console.error("Error during login:", error);
+        console.error("Error during login redirect:", error);
         alert("Ocurrió un error al intentar iniciar sesión: " + (error.message || error) + "\n\nIntenta de nuevo.");
     }
 }
