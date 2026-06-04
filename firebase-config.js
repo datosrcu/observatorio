@@ -3,9 +3,12 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signO
 import { getFirestore, collection, getDocs, doc, getDoc, addDoc, serverTimestamp, updateDoc, deleteDoc, setDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
+const isCustomDomain = window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
+const authDomain = isCustomDomain ? window.location.hostname : "web-subse.firebaseapp.com";
+
 const firebaseConfig = {
   apiKey: "AIzaSyAidGT2L17aLE529cWjisko24FZT8_kkBA",
-  authDomain: "web-subse.firebaseapp.com",
+  authDomain: authDomain,
   projectId: "web-subse",
   storageBucket: "web-subse.firebasestorage.app",
   messagingSenderId: "1054370535841",
