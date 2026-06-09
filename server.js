@@ -578,28 +578,25 @@ app.post('/api/enviar-bienvenida', verifyToken, async (req, res) => {
     const userName = full_name || email.split('@')[0];
 
     try {
-        // 1. Leer el template HTML de bienvenida
-        const templatePath = path.join(__dirname, 'plantilla_bienvenida_ogm.html');
-        let htmlTemplate = fs.readFileSync(templatePath, 'utf-8');
-
-        // 2. Reemplazar placeholders con el nombre del usuario
-        htmlTemplate = htmlTemplate.replace(/\[Nombre del destinatario\]/g, userName);
-
-        // 3. Leer el documento de T&C para adjuntarlo
+        // 1. Leer el documento de T&C para adjuntarlo
         const termsPath = path.join(__dirname, 'normativas', 'Terminos', 'Terminos_y_Condiciones_OGM_RioCuarto_v1.htm');
         const termsContent = fs.readFileSync(termsPath);
 
-        // 4. Enviar email con Resend (si está configurado)
+        // 2. Enviar email con Resend (si está configurado)
         if (!resend) {
             console.log(`[Simulación] Email de bienvenida a ${email} no enviado (Resend no configurado).`);
             return res.json({ success: true, message: 'Simulación: Email de bienvenida omitido por falta de API Key.', emailId: 'simulated' });
         }
 
-        const { data, error } = await resend.emails.send({
-            from: process.env.RESEND_FROM_EMAIL || 'OGM Río Cuarto <onboarding@resend.dev>',
+        let fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        if (fromEmail && !fromEmail.includes('<')) {
+            fromEmail = `Observatorio de Gestión Municipal <${fromEmail}>`;
+        }
+
+        const emailOptions = {
+            from: fromEmail,
             to: [email],
             subject: 'Bienvenido/a al Observatorio de Gestión Municipal – RCU',
-            html: htmlTemplate,
             attachments: [
                 {
                     filename: 'Terminos_y_Condiciones_OGM_RioCuarto_v1.html',
@@ -607,7 +604,42 @@ app.post('/api/enviar-bienvenida', verifyToken, async (req, res) => {
                     content_type: 'text/html'
                 }
             ]
-        });
+        };
+
+        const templateId = process.env.RESEND_TEMPLATE_ID;
+
+        if (templateId) {
+            // Usar la plantilla creada en Resend
+            emailOptions.template = {
+                id: templateId,
+                variables: {
+                    userName: userName,
+                    full_name: userName,
+                    name: userName
+                }
+            };
+        } else {
+            // Fallback: Leer la plantilla HTML local y enviarla
+            const templatePath = path.join(__dirname, 'plantilla_bienvenida_ogm.html');
+            let htmlTemplate = fs.readFileSync(templatePath, 'utf-8');
+
+            // Reemplazar placeholders con el nombre del usuario
+            htmlTemplate = htmlTemplate.replace(/\[Nombre del destinatario\]/g, userName);
+
+            // Convertir los enlaces a absolutos basados en el host de la petición
+            const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+            let host = req.get('host');
+            if (host.includes('localhost') || host.includes('127.0.0.1')) {
+                host = 'observatorio.72.60.8.241.sslip.io'; // Fallback público para pruebas locales (VPS)
+            }
+            const baseUrl = `${protocol}://${host}`;
+            htmlTemplate = htmlTemplate.replace(/href="http:\/\/observatorio\.72\.60\.8\.241\.sslip\.io\/"/g, `href="${baseUrl}/"`);
+            htmlTemplate = htmlTemplate.replace(/observatorio\.72\.60\.8\.241\.sslip\.io<\/div>/g, `${host}</div>`);
+
+            emailOptions.html = htmlTemplate;
+        }
+
+        const { data, error } = await resend.emails.send(emailOptions);
 
         if (error) {
             console.error('Error de Resend al enviar email:', error);
