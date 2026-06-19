@@ -625,6 +625,7 @@ app.post('/api/enviar-bienvenida', verifyToken, async (req, res) => {
 
             // Reemplazar placeholders con el nombre del usuario
             htmlTemplate = htmlTemplate.replace(/\[Nombre del destinatario\]/g, userName);
+            htmlTemplate = htmlTemplate.replace(/\{\{\{userName\}\}\}/g, userName);
 
             // Convertir los enlaces a absolutos basados en el host de la petición
             const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
