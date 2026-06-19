@@ -315,8 +315,8 @@
 
             <!-- Sección de Acciones Rápidas -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                <div class="bg-obelisco-light border border-obelisco-border rounded-2xl p-8 flex items-start">
-                    <div class="bg-white p-4 rounded-xl shadow-sm mr-6">
+                <div class="bg-obelisco-light border border-obelisco-border rounded-2xl p-8 flex items-start h-full cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-obelisco-blue/30 group" onclick="document.getElementById('open-request-modal').click()">
+                    <div class="bg-white p-4 rounded-xl shadow-sm mr-6 shrink-0 transition-transform duration-300 group-hover:scale-105">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-obelisco-blue" fill="none"
                             viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -328,27 +328,45 @@
                         <p class="text-obelisco-gray mb-4">¿Necesitás un recorte específico de datos para investigación
                             o prensa?</p>
                         <button id="open-request-modal"
-                            class="text-obelisco-blue font-bold hover:underline flex items-center">
+                            class="text-obelisco-blue font-bold group-hover:underline flex items-center">
                             Llenar formulario de solicitud &rarr;
                         </button>
                     </div>
                 </div>
-                <div class="bg-obelisco-light border border-obelisco-border rounded-2xl p-8 flex items-start">
-                    <div class="bg-white p-4 rounded-xl shadow-sm mr-6">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[#00C96B]" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-bold text-obelisco-dark mb-2">Descargar Datos Abiertos <span
-                                class="text-obelisco-blue text-sm font-normal ml-1">(Próximamente)</span></h3>
-                        <p class="text-obelisco-gray mb-4">Accedé a los datasets crudos en formato CSV y JSON para tu
-                            propio análisis.</p>
-                        <a href="#" class="text-obelisco-blue font-bold hover:underline">Ir al portal de Datos Abiertos
-                            &rarr;</a>
-                    </div>
+                <div class="flex flex-col gap-4 h-full">
+                    <!-- Subtarjeta 1: Atlas Estadístico RCU -->
+                    <button data-button-id="atlas-estadistico" data-iframe="Atlas y Monitor/Atlas Estadístico de Río Cuarto.html" data-heading="Atlas Estadístico RCU" data-access="true" data-new-tab="false"
+                        class="bg-obelisco-light border border-obelisco-border rounded-2xl p-5 flex items-start dashboard-btn cursor-pointer text-left w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-obelisco-blue/30 obelisco-card flex-1 group">
+                        <div class="bg-white p-3 rounded-xl shadow-sm mr-4 shrink-0 transition-transform duration-300 group-hover:scale-105">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-obelisco-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-obelisco-dark mb-1">Atlas Estadístico RCU</h3>
+                            <p class="text-obelisco-gray text-xs mb-2">Explorá el perfil demográfico, habitacional, educativo, laboral, sanitario y social de cada barrio.</p>
+                            <span class="text-obelisco-blue font-bold text-xs flex items-center group-hover:underline">
+                                Visualizar Atlas RCU &rarr;
+                            </span>
+                        </div>
+                    </button>
+
+                    <!-- Subtarjeta 2: Monitor de Análisis Comparativo RCU -->
+                    <button data-button-id="monitor-analisis-comparativo" data-iframe="Atlas y Monitor/atlas-analisis-comparativo.html" data-heading="Monitor de Análisis Comparativo RCU" data-access="true" data-new-tab="false"
+                        class="bg-obelisco-light border border-obelisco-border rounded-2xl p-5 flex items-start dashboard-btn cursor-pointer text-left w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-teal-500/30 obelisco-card flex-1 group">
+                        <div class="bg-white p-3 rounded-xl shadow-sm mr-4 shrink-0 transition-transform duration-300 group-hover:scale-105">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-obelisco-dark mb-1">Monitor de Análisis Comparativo RCU</h3>
+                            <p class="text-obelisco-gray text-xs mb-2">Compará todos los barrios en un mismo indicador, filtrá por categoría de vulnerabilidad y abrí la ficha completa de cada barrio.</p>
+                            <span class="text-teal-600 font-bold text-xs flex items-center group-hover:underline">
+                                Visualizar Monitor RCU &rarr;
+                            </span>
+                        </div>
+                    </button>
                 </div>
             </div>
 
