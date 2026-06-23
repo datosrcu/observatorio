@@ -200,6 +200,7 @@ svg.map{width:100%;height:auto;display:block;touch-action:none}
   border-radius:10px;
   box-shadow:0 10px 28px rgba(10,10,10,.14),0 2px 6px rgba(10,10,10,.08);
   padding:12px 14px;font-size:12.5px;line-height:1.5;font-weight:500;
+  white-space:pre-line;
   opacity:0;visibility:hidden;transform:translateY(4px);
   transition:opacity .15s,transform .15s,visibility .15s;pointer-events:none;
 }
@@ -343,7 +344,7 @@ svg.map{width:100%;height:auto;display:block;touch-action:none}
     <p class="footnote">
       Fuente: Elaboración propia con base en Censo Nacional de Población, Hogares y Viviendas, 2022, INDEC. Procesamiento en Redatam X (CELADE- CEPAL).
       <br><br>
-      Nota: Los sectores «S/D» corresponden a áreas sin denominación barrial oficial. Los porcentajes se calculan sobre la población u hogares del área seleccionada. Bajo el nombre S/D N° 9 - Sector B Banda Norte, se engloban los sectores ribereños al río Cuarto, más el Barrio Riverside y el Barrio Empleados de Comercio (AGEC).
+      Nota: Los sectores «S/D» corresponden a áreas sin denominación barrial oficial. Dentro de los sectores «S/D» están incluidos barrios cuyos perímetros no están delimitados debido a que no poseen representación vecinal. Ejemplos de ello son: el barrio privado Riverside, cuyos datos se computan a las áreas aledañas al río en el S/D N° 9 - Sector B Banda Norte, o el barrio privado Aero Village, cuyos datos se computan con el barrio Trulalá. Los porcentajes se calculan sobre la población u hogares del área seleccionada.
     </p>
   </section>
 </main>
@@ -419,7 +420,7 @@ function stat(fid, cat, col){
 const DEFS = {
   // Demografía
   'Población total':'Población total: cantidad de personas que residen en viviendas particulares localizadas dentro del ejido municipal de la ciudad de Río Cuarto.',
-  'Población total por barrios':'Población total en barrios: estimación de la cantidad de personas que residen en viviendas particulares dentro del área cubierta por el mapa de barrios o vecinales de la ciudad.',
+  'Población total por barrios':'Población total en barrios: estimación de la cantidad de personas que residen en viviendas particulares dentro del área cubierta por el mapa de barrios o vecinales de la ciudad.\nEn este total no se incluyen 3.402 personas que residen fuera de las áreas vecinales delimitadas en el mapa.',
   'Índice de feminidad':'Índice de feminidad: cantidad de mujeres por cada 100 varones. Un valor igual a 100 indica una proporción equivalente de mujeres y varones. Los valores superiores a 100 reflejan una mayor presencia relativa de mujeres, mientras que los valores inferiores a 100 indican una mayor presencia relativa de varones.',
   'Índice de envejecimiento':'Índice de envejecimiento: cantidad de personas de 65 años o más por cada 100 personas de 15 años o menos. Un valor igual a 100 indica una proporción equivalente de ambos grupos etarios. Los valores superiores a 100 reflejan una mayor cantidad de personas de 65 años o más que de menores de 15 años, mientras que los valores inferiores a 100 indican un predominio de la población menor de 15 años.',
   'Viviendas':'Vivienda particular: vivienda destinada a alojar personas que viven bajo un régimen de tipo familiar, sean parientes o no. Estas viviendas pueden haber sido construidas con fines habitacionales o estar adaptadas para alojar personas y que el día del relevamiento se encuentren personas que viven allí.',
@@ -492,7 +493,6 @@ const CATS = [
     ],
     big:f=>{
       if(f==null) return [
-        {n:fmt(180777), k:'Población total', accent:true},
         {n:fmt(stat(f,'demografia','Total Población')), k:'Población total por barrios', accent:true},
       ];
       return [
@@ -516,6 +516,7 @@ const CATS = [
     mapMetrics:[
       {key:'dep', name:'% departamentos', icon:'apartment', val:f=>pct(stat(f,'habitacional','Departamento'),stat(f,'habitacional','Total Viviendas')), fmt:fpct},
       {key:'casa', name:'% casas', icon:'house', val:f=>pct(stat(f,'habitacional','Casa'),stat(f,'habitacional','Total Viviendas')), fmt:fpct},
+      {key:'rancho', name:'% ranchos', icon:'house', info:'Rancho', val:f=>pct(stat(f,'habitacional','Rancho'),stat(f,'habitacional','Total Viviendas')), fmt:fpct},
       {key:'hogv', name:'Hogares por vivienda', icon:'diversity_3', val:f=>{const h=stat(f,'habitacional','Total Hogares'),v=stat(f,'habitacional','Total Viviendas');return v>0?h/v*100:null;}, fmt:v=>v==null?'—':(v/100).toFixed(2)},
     ],
     big:f=>[
@@ -598,6 +599,7 @@ const CATS = [
     mapMetrics:[
       {key:'os', name:'% con obra social o prepaga', icon:'health_and_safety', val:f=>pct(stat(f,'salud','Total Poblacion con Obra social o prepaga (incluye PAMI)'),stat(f,'salud','Total Población')), fmt:fpct},
       {key:'sin', name:'% sin cobertura de salud', icon:'heart_broken', val:f=>pct(stat(f,'salud','Total Poblacion que No tiene obra social, prepaga ni plan estatal'),stat(f,'salud','Total Población')), fmt:fpct},
+      {key:'estatal', name:'% plan o programa estatal de salud', icon:'support', val:f=>pct(stat(f,'salud','Total Poblacion con Programas o planes estatales de salud'),stat(f,'salud','Total Población')), fmt:fpct},
     ],
     big:f=>{
       const P=stat(f,'salud','Total Población');
@@ -623,6 +625,10 @@ const CATS = [
     mapMetrics:[
       {key:'nbi', name:'% hogares con NBI', icon:'support', val:f=>pct(stat(f,'vulnerabilidad','NBI general'),stat(f,'vulnerabilidad','Total Hogares')), fmt:fpct},
       {key:'hac', name:'% hogares con hacinamiento', icon:'groups_2', val:f=>pct(stat(f,'vulnerabilidad','NBI Hacinamiento'),stat(f,'vulnerabilidad','Total Hogares')), fmt:fpct},
+      {key:'viv', name:'NBI · vivienda', icon:'house', info:'NBI · vivienda', val:f=>pct(stat(f,'vulnerabilidad','NBI Calidad de la vivienda'),stat(f,'vulnerabilidad','Total Hogares')), fmt:fpct},
+      {key:'san', name:'NBI · condiciones sanitarias', icon:'health_and_safety', info:'NBI · condiciones sanitarias', val:f=>pct(stat(f,'vulnerabilidad','NBI Condiciones Sanitarias'),stat(f,'vulnerabilidad','Total Hogares')), fmt:fpct},
+      {key:'esc', name:'NBI · escolaridad', icon:'school', info:'NBI · escolaridad', val:f=>pct(stat(f,'vulnerabilidad','NBI Escolaridad'),stat(f,'vulnerabilidad','Total Hogares')), fmt:fpct},
+      {key:'sub', name:'NBI · capacidad de subsistencia', icon:'work', info:'NBI · capacidad de subsistencia', val:f=>pct(stat(f,'vulnerabilidad','NBI Capacidad de subsistencia'),stat(f,'vulnerabilidad','Total Hogares')), fmt:fpct},
     ],
     big:f=>{
       const H=stat(f,'vulnerabilidad','Total Hogares');
