@@ -774,20 +774,30 @@ function openModal(title, url) {
     finalSrc = ogbEnsurePBIToolbar(finalSrc);
 
     // Adjust security based on source
-    modalIframe.setAttribute('referrerpolicy', 'no-referrer');
-    modalIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms');
-
-    if (finalSrc.includes('lookerstudio.google.com')) {
-        modalIframe.removeAttribute('referrerpolicy');
-    }
-
-    // Chrome's PDF viewer is disabled if the iframe has ANY sandbox attribute
+    const isLocalUpload = finalSrc.startsWith('/uploads/');
     const isPdf = finalSrc.toLowerCase().includes('.pdf');
-    if (isPdf) {
+
+    if (isLocalUpload) {
+        // Archivo HTML/imagen subido al servidor: mismo origen, no necesita sandbox.
+        // El sandbox bloquearía scripts externos (CDN) que el tablero puede necesitar.
         modalIframe.removeAttribute('sandbox');
-        // Hide PDF toolbar to prevent downloading/printing natively
-        if (!finalSrc.includes('toolbar=0')) {
-            finalSrc += (finalSrc.includes('#') ? '&' : '#') + 'toolbar=0';
+        modalIframe.removeAttribute('referrerpolicy');
+    } else {
+        // URL externa: aplicar sandbox y referrerpolicy por seguridad
+        modalIframe.setAttribute('referrerpolicy', 'no-referrer');
+        modalIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms');
+
+        if (finalSrc.includes('lookerstudio.google.com')) {
+            modalIframe.removeAttribute('referrerpolicy');
+        }
+
+        // Chrome's PDF viewer is disabled if the iframe has ANY sandbox attribute
+        if (isPdf) {
+            modalIframe.removeAttribute('sandbox');
+            // Hide PDF toolbar to prevent downloading/printing natively
+            if (!finalSrc.includes('toolbar=0')) {
+                finalSrc += (finalSrc.includes('#') ? '&' : '#') + 'toolbar=0';
+            }
         }
     }
 
