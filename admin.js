@@ -2202,15 +2202,14 @@ function openInformeModal(id = null) {
                 document.getElementById('field-informe-url').value = informe.url || '';
             }
 
-            // Load selected categories
+            // Load selected categories — siempre incluir _ge_direct si aplica
             let cats = (() => { try { return typeof informe.categories === 'string' ? JSON.parse(informe.categories) : (Array.isArray(informe.categories) ? informe.categories : []); } catch(e) { return []; } })();
-            if (cats.length === 0 && informe.category_legacy) {
-                if (informe.category_legacy === 'Gestores Externos') {
-                    cats = ['_ge_direct'];
-                } else {
-                    const matchedCat = globalCategories.find(c => c.name === informe.category_legacy);
-                    if (matchedCat) cats.push(matchedCat.id);
-                }
+            // Restaurar _ge_direct desde category_legacy aunque haya otras categorías
+            if (informe.category_legacy === 'Gestores Externos' && !cats.includes('_ge_direct')) {
+                cats = ['_ge_direct', ...cats];
+            } else if (cats.length === 0 && informe.category_legacy) {
+                const matchedCat = globalCategories.find(c => c.name === informe.category_legacy);
+                if (matchedCat) cats.push(matchedCat.id);
             }
             populateInformeCategories(cats);
         } else {
@@ -2332,7 +2331,9 @@ async function saveInforme() {
 
     const selectedCats = Array.from(document.querySelectorAll('input[name="informe-cat"]:checked')).map(c => c.value);
     const hasGEDirect = selectedCats.includes('_ge_direct');
-    const finalCategories = selectedCats.filter(id => id !== '_ge_direct');
+    // _ge_direct se guarda en category_legacy para compatibilidad, pero también se incluye en categories
+    // para que coexista con otras categorías al filtrar y mostrar
+    const finalCategories = selectedCats; // incluir _ge_direct en categories también
 
     const informeId = document.getElementById('informe-id').value || null;
     const enabled = document.getElementById('field-informe-enabled').checked;
@@ -2349,7 +2350,7 @@ async function saveInforme() {
         formData.append('description', document.getElementById('field-informe-desc').value.trim());
         formData.append('period', document.getElementById('field-informe-period').value.trim());
         formData.append('year', document.getElementById('field-informe-year').value || '');
-        formData.append('categories', JSON.stringify(finalCategories));
+        formData.append('categories', JSON.stringify(finalCategories.filter(id => id !== '_ge_direct'))); // sin _ge_direct en categories array
         formData.append('category_legacy', hasGEDirect ? 'Gestores Externos' : '');
         formData.append('enabled', enabled ? 'true' : 'false');
         formData.append('sort_order', document.getElementById('field-informe-order').value || '0');

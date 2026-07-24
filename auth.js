@@ -2418,8 +2418,7 @@ function renderSatisfaccionContent(catKey) {
 window.openSatisfaccionModal = function() {
     const modal = document.getElementById('monitor-satisfaccion-modal');
     if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+        modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
         renderSatisfaccionContent('_monitor_cl');
     }
@@ -2428,8 +2427,7 @@ window.openSatisfaccionModal = function() {
 window.closeSatisfaccionModal = function() {
     const modal = document.getElementById('monitor-satisfaccion-modal');
     if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+        modal.style.display = 'none';
         document.body.style.overflow = '';
     }
 };
