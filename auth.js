@@ -2432,8 +2432,8 @@ window.closeSatisfaccionModal = function() {
     }
 };
 
-// Inicializar listeners del modal al cargar la página
-window.addEventListener('load', () => {
+// Inicializar listeners del modal inmediatamente (el módulo se ejecuta en defer, DOM ya disponible)
+{
     const btnOpenSatisfaccion = document.getElementById('btn-open-satisfaccion-modal');
     const btnCloseSatisfaccion = document.getElementById('close-satisfaccion-modal');
     const overlaySatisfaccion = document.getElementById('close-satisfaccion-overlay');
@@ -2447,7 +2447,7 @@ window.addEventListener('load', () => {
     if (overlaySatisfaccion) overlaySatisfaccion.addEventListener('click', window.closeSatisfaccionModal);
     if (tabCL) tabCL.addEventListener('click', () => renderSatisfaccionContent('_monitor_cl'));
     if (tabCC) tabCC.addEventListener('click', () => renderSatisfaccionContent('_monitor_cc'));
-});
+}
 
 
 
