@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tablero de Satisfacción · Maternidad H. G. de Kowalk · Gobierno de Río Cuarto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    /* ===== Paleta institucional — Manual de identidad Gobierno de Río Cuarto ===== */
+    --celeste: #009DE0;       /* Pantone Process Blue C */
+    --celeste-oscuro: #00618A; /* tinte oscuro de celeste, para textos/profundidad */
+    --negro: #000000;
+    --blanco: #FFFFFF;
+    /* Cromática complementaria */
+    --verde: #00C96B;
+    --amarillo: #F2C100;
+    --naranja: #F27C00;
+    --magenta: #FF3CB2;
+
+    --bg: #F4F6F7;
+    --surface: #FFFFFF;
+    --ink: #14181A;
+    --ink-soft: #5B6669;
+    --line: #E1E6E8;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 6px 18px rgba(0,0,0,0.05);
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap{ max-width: 1240px; margin: 0 auto; padding: 0 28px 80px; }
+
+  /* ===== HEADER — celeste institucional, versión negativa del logo ===== */
+  header.hero{
+    background: var(--celeste);
+    color: #FFFFFF;
+    padding: 18px 0 16px;
+    position: relative;
+  }
+  header.hero .wrap{ position:relative; z-index:2; }
+  .hero-top{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap;
+  }
+  .brand-lockup{ display:flex; align-items:center; gap:12px; }
+  .brand-lockup svg{ width:36px; height:42px; flex-shrink:0; }
+  .brand-word{ line-height:1.05; }
+  .brand-word .l1{ font-size:17px; font-weight:800; letter-spacing:-0.01em; }
+  .brand-word .l2{ font-size:17px; font-weight:400; }
+  .brand-divider{ width:1px; height:28px; background: rgba(255,255,255,0.4); margin: 0 4px; }
+  .slogan-lockup{ display:flex; align-items:center; gap:7px; }
+  .slogan-mark{ font-family:'Inter',sans-serif; font-weight:900; font-style:italic; font-size:18px; letter-spacing:-0.02em; }
+  .slogan-text{ font-size:11px; line-height:1.15; }
+  .slogan-text .s1{ font-weight:400; }
+  .slogan-text .s2{ font-weight:800; }
+
+  .eyebrow{
+    text-transform: uppercase; letter-spacing: 0.12em; font-size: 10.5px; font-weight:700;
+    color: rgba(255,255,255,0.8); margin: 10px 0 3px;
+  }
+  .hero-top h1{
+    font-size: 22px; font-weight:800; margin:0; letter-spacing:-0.01em; line-height:1.15; max-width:640px;
+  }
+  .hero-sub{ margin:5px 0 0; font-size:12.5px; font-weight:400; color:rgba(255,255,255,0.88); max-width: 560px; line-height:1.4;}
+  .hero-updated{ font-size:12.5px; color:rgba(255,255,255,0.75); text-align:right; }
+  .hero-updated strong{ color:#fff; display:block; font-size:13px; margin-bottom:2px; font-weight:700;}
+
+  .monitor{
+    margin-top: 12px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 10px;
+    padding: 10px 16px;
+    display:flex;
+    align-items:center;
+    gap: 20px;
+  }
+  .monitor-readout{ display:flex; flex-direction:column; min-width:130px; }
+  .monitor-label{ font-size:10px; text-transform:uppercase; letter-spacing:0.09em; color:rgba(255,255,255,0.75); font-weight:700;}
+  .monitor-value{ font-size:28px; font-weight:800; line-height:1; margin-top:2px; color:#FFFFFF; display:flex; align-items:baseline; gap:5px;}
+  .monitor-value span{ font-size:13px; color:rgba(255,255,255,0.8); font-weight:600;}
+  .monitor-tag{ font-size:11px; margin-top:4px; color:rgba(255,255,255,0.85); }
+  .monitor-tag b{ color: #FFFFFF; }
+  .pulse-wrap{ flex:1; height:44px; position:relative; }
+  .pulse-wrap svg{ width:100%; height:100%; display:block; overflow:visible; }
+  .pulse-line{
+    fill:none; stroke:#FFFFFF; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray: 1400;
+    stroke-dashoffset: 1400;
+    animation: draw 2.2s ease-out forwards;
+  }
+  @keyframes draw{ to{ stroke-dashoffset:0; } }
+  .pulse-grid line{ stroke: rgba(255,255,255,0.16); stroke-width:1; }
+
+  /* ===== FILTER BAR ===== */
+  .filters{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    margin-top: -26px;
+    position: relative;
+    z-index: 5;
+    padding: 18px 22px;
+    display:flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    align-items:flex-end;
+  }
+  .field{ display:flex; flex-direction:column; gap:6px; min-width:170px; flex:1; }
+  .field label{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color: var(--ink-soft); }
+  .field select, .field input{
+    border: 1.5px solid var(--line);
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 13.5px;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  .field select:focus, .field input:focus{ border-color: var(--celeste); }
+  .field-reset{ flex: 0 0 auto; }
+  .btn-reset{
+    background: var(--celeste); color:#fff; border:none; border-radius:8px;
+    padding: 10px 16px; font-size:13px; font-weight:700; cursor:pointer;
+    font-family:'Inter',sans-serif;
+    transition: background .15s ease;
+  }
+  .btn-reset:hover{ background: var(--celeste-oscuro); }
+  .result-count{ font-size:12.5px; color: var(--ink-soft); margin-top:14px; text-align:right;}
+  .result-count b{ color:var(--celeste-oscuro); }
+  .sync-status{ color: var(--verde); font-weight:600; }
+  .sync-status.sync-error{ color: var(--naranja); }
+  .btn-refresh{
+    background:none; border:1px solid var(--line); color: var(--celeste-oscuro);
+    font-family:'Inter',sans-serif; font-size:11.5px; font-weight:700;
+    padding: 2px 9px; border-radius:6px; cursor:pointer; margin-left:8px;
+  }
+  .btn-refresh:hover{ background: var(--bg); border-color: var(--celeste); }
+
+  /* ===== KPI ROW ===== */
+  .kpis{
+    display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; margin-top: 22px;
+  }
+  .kpi{
+    background: var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding: 18px 20px; box-shadow: var(--shadow);
+    display:flex; flex-direction:column; gap: 6px;
+  }
+  .kpi-label{ font-size:11.5px; text-transform:uppercase; letter-spacing:0.06em; font-weight:700; color: var(--ink-soft); }
+  .kpi-value{ font-size:28px; font-weight:800; color: var(--celeste-oscuro); }
+  .kpi-value.warn{ color: var(--magenta); }
+  .kpi-foot{ font-size:12px; color: var(--ink-soft); }
+  .kpi-bar{ height:6px; border-radius:6px; background: var(--bg); overflow:hidden; margin-top:2px;}
+  .kpi-bar > div{ height:100%; border-radius:6px; background: var(--verde); }
+
+  /* ===== SECTIONS ===== */
+  section.block{ margin-top: 32px; }
+  .block-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom: 14px; flex-wrap:wrap; gap:8px;}
+  .block-head h2{ font-size: 19px; font-weight:800; margin:0; color: var(--ink); }
+  .block-head p{ margin:2px 0 0; font-size:13px; color: var(--ink-soft); }
+
+  .grid-2{ display:grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; }
+  .card{
+    background: var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding: 20px 22px; box-shadow: var(--shadow);
+  }
+  .chart-box{ position:relative; height: 260px; }
+  .chart-box.tall{ height: 300px; }
+
+  /* Ranking table */
+  table.rank{ width:100%; border-collapse: collapse; font-size: 13.5px; }
+  table.rank th{
+    text-align:left; font-size: 10.5px; text-transform:uppercase; letter-spacing:0.05em;
+    color: var(--ink-soft); font-weight:700; padding: 6px 8px; border-bottom: 2px solid var(--line);
+  }
+  table.rank td{ padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle;}
+  table.rank tr:last-child td{ border-bottom:none; }
+  .prof-name{ font-weight:700; color: var(--ink); }
+  .prof-spec{ font-size:11.5px; color: var(--ink-soft); }
+  .mini-bar{ background: var(--bg); border-radius:6px; height:7px; width:100%; overflow:hidden; }
+  .mini-bar > div{ height:100%; border-radius:6px; }
+  .nps-cell{ font-weight:800; }
+
+  /* Suggestions */
+  .sugg-list{ display:flex; flex-direction:column; gap:10px; max-height: 420px; overflow-y:auto; padding-right:4px;}
+  .sugg-item{
+    background: var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px 14px;
+  }
+  .sugg-meta{ display:flex; justify-content:space-between; font-size:11px; color: var(--ink-soft); margin-bottom:6px; flex-wrap:wrap; gap:6px;}
+  .sugg-meta b{ color: var(--celeste-oscuro); }
+  .sugg-text{ font-size: 13.5px; line-height:1.45; color: var(--ink); }
+  .empty-state{ text-align:center; padding: 30px 10px; color: var(--ink-soft); font-size:13.5px; }
+
+  .legend-row{ display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:11.5px; color:var(--ink-soft);}
+  .legend-row span{ display:inline-flex; align-items:center; gap:6px;}
+  .legend-dot{ width:9px; height:9px; border-radius:50%; display:inline-block;}
+
+  footer{ text-align:center; font-size:12px; color: var(--ink-soft); padding: 30px 0 10px;}
+  footer .brand-note{ font-size:11px; color:#9AA5A8; margin-top:4px; }
+
+  .ai-footer{
+    margin-top: 26px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+  .ai-footer .ai-disclaimer{
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: 640px;
+    margin: 0 auto 16px;
+  }
+  .ai-footer-brands{
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .ai-footer-logo{ display:flex; align-items:center; gap:8px; }
+  .ai-footer-logo svg{ width:20px; height:24px; flex-shrink:0; }
+  .ai-footer-logo .fl-word{ line-height:1.05; text-align:left; }
+  .ai-footer-logo .fl-word .l1{ font-size:12.5px; font-weight:800; color: var(--ink); letter-spacing:-0.01em; }
+  .ai-footer-logo .fl-word .l2{ font-size:12.5px; font-weight:400; color: var(--ink-soft); }
+  .ai-footer-divider{ width:1px; height:22px; background: var(--line); }
+  .anthropic-mark{
+    font-family: 'Inter', sans-serif; font-weight: 800; font-size: 13.5px;
+    letter-spacing: 0.01em; color: var(--ink);
+  }
+  .ai-footer-contact{ font-size: 11.5px; color: var(--ink-soft); line-height:1.6; }
+  .ai-footer-contact b{ color: var(--ink); font-weight:700; }
+  .ai-footer-contact a{ color: var(--celeste-oscuro); text-decoration:none; }
+  .ai-footer-contact a:hover{ text-decoration:underline; }
+
+  @media (max-width: 880px){
+    .kpis{ grid-template-columns: repeat(2,1fr); }
+    .grid-2{ grid-template-columns: 1fr; }
+    .hero-updated{ text-align:left; }
+  }
+  @media (max-width: 540px){
+    .kpis{ grid-template-columns: 1fr; }
+    .monitor{ flex-direction:column; align-items:flex-start; }
+    .pulse-wrap{ width:100%; }
+    .brand-divider, .slogan-lockup{ display:none; }
+  }
+
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-thumb{ background: var(--line); border-radius:8px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-top">
+      <div>
+        <div class="brand-lockup">
+          <!-- Isologotipo institucional (versión negativa, recreado según manual de identidad) -->
+          <svg viewBox="0 0 100 122" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Escudo Gobierno de Río Cuarto">
+            <path d="M35 14 Q40 8 45 14 Q47 10 50 14 Q53 10 55 14 Q60 8 65 14" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 20 L78 20 L78 68 Q78 82 63 88 L50 108 L37 88 Q22 82 22 68 Z" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M37 46 Q37 32 50 32 Q63 32 63 46" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="50" y1="38" x2="50" y2="58" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round"/>
+            <path d="M30 62 Q35 58 40 62 Q45 66 50 62 Q55 58 60 62 Q65 66 70 62" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M30 71 Q35 67 40 71 Q45 75 50 71 Q55 67 60 71 Q65 75 70 71" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="46" y="103" width="8" height="8" transform="rotate(45 50 107)" stroke="#FFFFFF" stroke-width="2.6"/>
+          </svg>
+          <div class="brand-word">
+            <div class="l1">Río Cuarto</div>
+            <div class="l2">Gobierno</div>
+          </div>
+          <div class="brand-divider"></div>
+          <div class="slogan-lockup">
+            <span class="slogan-mark">vos</span>
+            <span class="slogan-text"><span class="s1">Primero</span><br><span class="s2">estás vos</span></span>
+          </div>
+        </div>
+
+        <p class="eyebrow">Encuesta de satisfacción · Centro asistencial</p>
+        <h1>Maternidad H. G. de Kowalk</h1>
+        <p class="hero-sub">Monitoreo de la experiencia de pacientes: recepción, tiempos de espera, infraestructura, atención médica y de enfermería, y recomendación (NPS), por profesional y por fecha.</p>
+      </div>
+      <div class="hero-updated">
+        <strong id="rangoFechas">—</strong>
+        respuestas registradas en el período
+      </div>
+    </div>
+
+    <div class="monitor">
+      <div class="monitor-readout">
+        <span class="monitor-label">NPS global</span>
+        <div class="monitor-value" id="npsHeroValue">—<span>/ 100</span></div>
+        <span class="monitor-tag" id="npsHeroTag">calculando…</span>
+      </div>
+      <div class="pulse-wrap">
+        <svg id="pulseSvg" viewBox="0 0 640 70" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <div class="field">
+      <label for="fDesde">Desde</label>
+      <input type="date" id="fDesde">
+    </div>
+    <div class="field">
+      <label for="fHasta">Hasta</label>
+      <input type="date" id="fHasta">
+    </div>
+    <div class="field">
+      <label for="fEspecialidad">Especialidad</label>
+      <select id="fEspecialidad"><option value="">Todas</option></select>
+    </div>
+    <div class="field">
+      <label for="fMedico">Médico / Profesional</label>
+      <select id="fMedico"><option value="">Todos</option></select>
+    </div>
+    <div class="field">
+      <label for="fLlegada">Tipo de llegada</label>
+      <select id="fLlegada">
+        <option value="">Todas</option>
+        <option value="Con turno previo">Con turno previo</option>
+        <option value="Sin turno (espontáneo)">Sin turno (espontáneo)</option>
+      </select>
+    </div>
+    <div class="field-reset">
+      <button class="btn-reset" id="btnReset">Limpiar filtros</button>
+    </div>
+  </div>
+  <p class="result-count">
+    <span id="syncStatus" class="sync-status">Conectando con la planilla…</span>
+    <button class="btn-refresh" id="btnRefresh" title="Actualizar ahora">↻ Actualizar ahora</button>
+    · <b id="countN">0</b> respuestas coinciden con los filtros aplicados
+  </p>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi">
+      <span class="kpi-label">Respuestas</span>
+      <span class="kpi-value" id="kpiTotal">0</span>
+      <span class="kpi-foot" id="kpiTotalFoot">de 65 totales</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">NPS (recomendación)</span>
+      <span class="kpi-value" id="kpiNps">0</span>
+      <span class="kpi-foot" id="kpiNpsFoot">promotores − detractores</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Atención médica</span>
+      <span class="kpi-value" id="kpiMedico">0.0</span>
+      <span class="kpi-foot">promedio sobre 5</span>
+      <div class="kpi-bar"><div id="kpiMedicoBar" style="width:0%"></div></div>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Tiempo de espera</span>
+      <span class="kpi-value" id="kpiEspera">0.0</span>
+      <span class="kpi-foot">promedio sobre 5 · punto más débil</span>
+      <div class="kpi-bar"><div id="kpiEsperaBar" style="width:0%; background:var(--naranja);"></div></div>
+    </div>
+  </div>
+
+  <!-- DIMENSIONES + TENDENCIA -->
+  <section class="block">
+    <div class="block-head">
+      <div>
+        <h2>Indicadores relevados en la encuesta</h2>
+        <p>Promedio de cada dimensión evaluada (escala 1 a 5) y evolución del NPS en el tiempo.</p>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="chart-box"><canvas id="chartDimensiones"></canvas></div>
+        <div class="legend-row">
+          <span><span class="legend-dot" style="background:var(--magenta)"></span> 1–2 crítico</span>
+          <span><span class="legend-dot" style="background:var(--naranja)"></span> 3 regular</span>
+          <span><span class="legend-dot" style="background:var(--verde)"></span> 4–5 bueno/muy bueno</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="chart-box"><canvas id="chartTendencia"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- POR MEDICO -->
+  <section class="block">
+    <div class="block-head">
+      <div>
+        <h2>Evaluación por médico / profesional</h2>
+        <p>Ordenado por promedio de atención médica. Incluye especialidad, volumen de encuestas y NPS.</p>
+      </div>
+    </div>
+    <div class="card">
+      <table class="rank" id="tablaMedicos">
+        <thead>
+          <tr>
+            <th>Profesional</th>
+            <th>Encuestas</th>
+            <th>Atención médica</th>
+            <th>Recepción</th>
+            <th>Espera</th>
+            <th>Infraestructura</th>
+            <th>NPS prom.</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ESPECIALIDAD + LLEGADA -->
+  <section class="block">
+    <div class="block-head">
+      <div>
+        <h2>Composición de las respuestas</h2>
+        <p>Distribución por especialidad y por tipo de llegada.</p>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="chart-box"><canvas id="chartEspecialidad"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="chart-box"><canvas id="chartLlegada"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUGERENCIAS -->
+  <section class="block">
+    <div class="block-head">
+      <div>
+        <h2>Sugerencias de pacientes</h2>
+        <p>Comentarios abiertos, filtrados según los criterios seleccionados arriba.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sugg-list" id="suggList"></div>
+    </div>
+  </section>
+
+  <footer>
+    Tablero generado a partir de la solapa "Respuestas" · Maternidad H. G. de Kowalk · Gobierno de Río Cuarto
+    <div class="brand-note">Isologotipo recreado según el Manual de identidad visual. Para piezas oficiales, reemplazar por los archivos del Brand Central\01. Logos\.</div>
+
+    <div class="ai-footer">
+      <p class="ai-disclaimer">
+        Este informe fue elaborado por la Dirección de Estadística de la Municipalidad de Río Cuarto con asistencia de inteligencia artificial (Claude, Anthropic). Los datos, el análisis y las conclusiones son responsabilidad exclusiva del área emisora.
+      </p>
+      <div class="ai-footer-brands">
+        <div class="ai-footer-logo">
+          <svg viewBox="0 0 100 122" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Escudo Gobierno de Río Cuarto">
+            <path d="M35 14 Q40 8 45 14 Q47 10 50 14 Q53 10 55 14 Q60 8 65 14" stroke="#00618A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 20 L78 20 L78 68 Q78 82 63 88 L50 108 L37 88 Q22 82 22 68 Z" stroke="#00618A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M37 46 Q37 32 50 32 Q63 32 63 46" stroke="#00618A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="50" y1="38" x2="50" y2="58" stroke="#00618A" stroke-width="3.2" stroke-linecap="round"/>
+            <path d="M30 62 Q35 58 40 62 Q45 66 50 62 Q55 58 60 62 Q65 66 70 62" stroke="#00618A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M30 71 Q35 67 40 71 Q45 75 50 71 Q55 67 60 71 Q65 75 70 71" stroke="#00618A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="46" y="103" width="8" height="8" transform="rotate(45 50 107)" stroke="#00618A" stroke-width="2.6"/>
+          </svg>
+          <div class="fl-word">
+            <div class="l1">Río Cuarto</div>
+            <div class="l2">Gobierno</div>
+          </div>
+        </div>
+        <div class="ai-footer-divider"></div>
+        <div class="anthropic-mark">ANTHROP\C</div>
+      </div>
+      <div class="ai-footer-contact">
+        <b>Contacto</b><br>
+        E-mail: <a href="mailto:datos@riocuarto.gov.ar">datos@riocuarto.gov.ar</a><br>
+        Teléfono: 0800-444-5454 (int. 808)
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+// ===== Configuración de datos en vivo (Google Apps Script Web App publicado sobre el Google Sheet) =====
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5yaLn2GxnXVf2D1q9xbxsmzVnEIOUYf6McEQew1qAAzHZCWXuVHOTMIJ0YMVmInizrQ/exec";
+const REFRESH_MS = 5 * 60 * 1000; // 5 minutos
+
+// Copia local (snapshot) usada como respaldo instantáneo si falla la conexión
+let RAW = [{"fecha": "2026-06-02T14:05:09.467000", "llegada": "Con turno previo", "recepcion": "4 - Buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Ana Laura Peiovich", "medico": "5 - Muy bueno", "enfermeria": "No aplica", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-06-04T10:12:37.369000", "llegada": "Con turno previo", "recepcion": "4 - Buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. María José Marino", "medico": "4 - Bueno", "enfermeria": "No aplica", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-06T09:39:04.183000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Ana Laura Peiovich", "medico": "4 - Bueno", "enfermeria": "4 - Bueno", "sugerencias": null, "nps": 8.0}, {"fecha": "2026-07-06T10:18:29.757000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. María José Marino", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-06T10:47:33.184000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Mónica Roda", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-06T11:14:32.856000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-06T11:32:40.548000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-06T11:42:47.478000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Mónica Roda", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-06T15:45:26.847000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": "Mi única observación fue q no hay agua en el baño . ", "nps": 10.0}, {"fecha": "2026-07-06T16:18:30.823000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "3 - Regular", "infra": "3 - Regular", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Ana Laura Peiovich", "medico": "5 - Muy bueno", "enfermeria": "No aplica", "sugerencias": null, "nps": 7.0}, {"fecha": "2026-07-06T16:21:29.025000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "4 - Bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. María José Marino", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-06T16:59:28.698000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Ana Laura Peiovich", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-06T18:20:09.663000", "llegada": "Con turno previo", "recepcion": "4 - Buena", "espera": "3 - Regular", "infra": "4 - Bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Ana Laura Peiovich", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": "La espera\n", "nps": 10.0}, {"fecha": "2026-07-06T18:21:42.023000", "llegada": "Sin turno (espontáneo)", "recepcion": "4 - Buena", "espera": "2 - Malo", "infra": "4 - Bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "3 - Regular", "enfermeria": "4 - Bueno", "sugerencias": null, "nps": 6.0}, {"fecha": "2026-07-07T09:09:30.176000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-07T09:38:05.877000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "4 - Bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. María José Marino", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": "Muy buena atención ", "nps": 10.0}, {"fecha": "2026-07-07T09:50:19.521000", "llegada": "Con turno previo", "recepcion": "4 - Buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Mónica Roda", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-07T10:46:39.483000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "4 - Bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-07T11:06:53.329000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Silvina Silva", "medico": "4 - Bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-07T12:00:28.975000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Silvina Silva", "medico": "5 - Muy bueno", "enfermeria": "No aplica", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-07T16:51:12.523000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Mónica Roda", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-07T17:19:37.047000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Silvina Silva", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": "Que huvierA MAS MEDICOS DE DIFERENTES ESPESIALIDADES YA Q ES MUY EFICIENTE EL TRATO Y EL LUGAR\n", "nps": 10.0}, {"fecha": "2026-07-07T18:01:40.185000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": "Sinceramente, exelente atención,limpieza también.\n", "nps": 10.0}, {"fecha": "2026-07-07T18:27:29.940000", "llegada": "Con turno previo", "recepcion": "4 - Buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-07T18:30:04.409000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Mónica Roda", "medico": "4 - Bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 7.0}, {"fecha": "2026-07-08T10:27:15.163000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Hebe Saucedo", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-08T10:40:33.620000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "3 - Regular", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dr. Fabián Herrero", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-08T10:52:08.259000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Hebe Saucedo", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-08T11:18:51.058000", "llegada": "Sin turno (espontáneo)", "recepcion": "4 - Buena", "espera": "3 - Regular", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dr. Fabián Herrero", "medico": "5 - Muy bueno", "enfermeria": "4 - Bueno", "sugerencias": null, "nps": 7.0}, {"fecha": "2026-07-08T11:20:46.254000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dr. Fabián Herrero", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-08T12:58:15.350000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dr. Fabián Herrero", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-08T16:02:15.038000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Hebe Saucedo", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-08T17:02:39.795000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dr. Marcelo Pedraza", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-08T17:37:01.050000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "4 - Bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dr. Marcelo Pedraza", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-08T17:43:46.608000", "llegada": "Sin turno (espontáneo)", "recepcion": "1 - Muy mala", "espera": "1 - Muy malo", "infra": "4 - Bueno", "especialidad": "Médicos Pediatras", "profesional": "Dr. Fabián Herrero", "medico": "1 - Muy malo", "enfermeria": "1 - Muy malo", "sugerencias": "Mucho tiempo de espera ", "nps": 1.0}, {"fecha": "2026-07-08T17:50:40.096000", "llegada": "Sin turno (espontáneo)", "recepcion": "1 - Muy mala", "espera": "1 - Muy malo", "infra": "3 - Regular", "especialidad": "Médicos Pediatras", "profesional": "Dr. Fabián Herrero", "medico": "3 - Regular", "enfermeria": "4 - Bueno", "sugerencias": "Que la atención sea más rápida porque hay niños de por medio y se trata sobre su salud!!!!!! \n", "nps": 5.0}, {"fecha": "2026-07-08T17:55:26.591000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dr. Fabián Herrero", "medico": "4 - Bueno", "enfermeria": "4 - Bueno", "sugerencias": "Se podría mejorar la atención al paciente por la espera.\n", "nps": 7.0}, {"fecha": "2026-07-10T09:22:06.950000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Gabriela Alcántara", "medico": "5 - Muy bueno", "enfermeria": "4 - Bueno", "sugerencias": null, "nps": 8.0}, {"fecha": "2026-07-10T09:27:28.625000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "4 - Bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-10T09:42:17.410000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Gabriela Alcántara", "medico": "5 - Muy bueno", "enfermeria": "4 - Bueno", "sugerencias": null, "nps": 8.0}, {"fecha": "2026-07-10T10:28:53.294000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Gabriela Alcántara", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-10T10:31:52.906000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Cecilia Peñeñory", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-10T10:52:25.249000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Gabriela Alcántara", "medico": "5 - Muy bueno", "enfermeria": "No aplica", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-13T09:46:44.786000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Sandra Ojeda", "medico": "4 - Bueno", "enfermeria": "4 - Bueno", "sugerencias": "Muy bueno todo, me atendieron bien ", "nps": 10.0}, {"fecha": "2026-07-13T09:49:27.800000", "llegada": "Con turno previo", "recepcion": "3 - Regular", "espera": "3 - Regular", "infra": "4 - Bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "4 - Bueno", "enfermeria": "4 - Bueno", "sugerencias": "En la farmacia podrían dar los remedios temprano\n\n", "nps": 6.0}, {"fecha": "2026-07-13T09:52:40.900000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-13T10:01:00.986000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "4 - Bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Sandra Ojeda", "medico": "5 - Muy bueno", "enfermeria": "4 - Bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-13T10:10:34.567000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Hebe Saucedo", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-13T10:23:48.258000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Mónica Roda", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-13T10:39:41.019000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Sandra Ojeda", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-13T11:07:48.718000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "4 - Bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Hebe Saucedo", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-13T11:12:44.917000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Hebe Saucedo", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-13T11:13:53.445000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Ana Laura Peiovich", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-13T14:32:41.886000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "4 - Bueno", "enfermeria": "4 - Bueno", "sugerencias": null, "nps": 8.0}, {"fecha": "2026-07-13T16:20:14.793000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Hebe Saucedo", "medico": "4 - Bueno", "enfermeria": "4 - Bueno", "sugerencias": null, "nps": 8.0}, {"fecha": "2026-07-13T17:06:09.075000", "llegada": "Con turno previo", "recepcion": "4 - Buena", "espera": "4 - Bueno", "infra": "4 - Bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Hebe Saucedo", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-14T09:05:39.430000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Silvina Silva", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-14T09:09:42.920000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Silvina Silva", "medico": "5 - Muy bueno", "enfermeria": "No aplica", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-14T09:12:26.615000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "5 - Muy bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-14T10:30:23.795000", "llegada": "Con turno previo", "recepcion": "5 - Muy buena", "espera": "5 - Muy bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Silvina Silva", "medico": "5 - Muy bueno", "enfermeria": "No aplica", "sugerencias": null, "nps": 10.0}, {"fecha": "2026-07-14T10:42:07.638000", "llegada": "Sin turno (espontáneo)", "recepcion": "4 - Buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "4 - Bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 8.0}, {"fecha": "2026-07-14T16:08:51.486000", "llegada": "Sin turno (espontáneo)", "recepcion": "5 - Muy buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "4 - Bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}, {"fecha": "2026-07-14T16:51:18.767000", "llegada": "Con turno previo", "recepcion": "4 - Buena", "espera": "3 - Regular", "infra": "4 - Bueno", "especialidad": "Médicos Ginecólogos", "profesional": "Dra. Silvina Silva", "medico": "3 - Regular", "enfermeria": "4 - Bueno", "sugerencias": null, "nps": 8.0}, {"fecha": "2026-07-14T17:34:48.809000", "llegada": "Con turno previo", "recepcion": "4 - Buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Lic. en Obstetricia", "profesional": "Lic. Mónica Roda", "medico": "4 - Bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 8.0}, {"fecha": "2026-07-14T19:27:21.302000", "llegada": "Con turno previo", "recepcion": "4 - Buena", "espera": "4 - Bueno", "infra": "5 - Muy bueno", "especialidad": "Médicos Pediatras", "profesional": "Dra. Gladys Díaz", "medico": "4 - Bueno", "enfermeria": "5 - Muy bueno", "sugerencias": null, "nps": 9.0}];
+
+const scaleMap = { '1':1, '2':2, '3':3, '4':4, '5':5 };
+function toScale(v){
+  if(v === null || v === undefined || v === '') return null;
+  const s = String(v).trim();
+  if(!s || /^no\s*aplica$/i.test(s)) return null;
+  const n = parseInt(s[0], 10);
+  return scaleMap[n] ?? null;
+}
+
+let DATA = [];
+let minFecha, maxFecha;
+let firstLoad = true;
+
+function toISODate(d){ return d.toISOString().slice(0,10); }
+
+function buildDataset(raw){
+  return raw.map(r => ({
+    fecha: new Date(r.fecha),
+    llegada: r.llegada,
+    recepcion: toScale(r.recepcion),
+    espera: toScale(r.espera),
+    infra: toScale(r.infra),
+    especialidad: r.especialidad,
+    profesional: r.profesional,
+    medico: toScale(r.medico),
+    enfermeria: toScale(r.enfermeria),
+    sugerencias: r.sugerencias ? r.sugerencias.trim() : null,
+    nps: r.nps
+  })).filter(d => d.fecha instanceof Date && !isNaN(d.fecha) && d.profesional);
+}
+
+function refreshFilterOptions(){
+  const especialidades = [...new Set(DATA.map(d => d.especialidad))].filter(Boolean).sort();
+  const medicos = [...new Set(DATA.map(d => d.profesional))].filter(Boolean).sort();
+
+  const fEspecialidad = document.getElementById('fEspecialidad');
+  const fMedico = document.getElementById('fMedico');
+  const prevEsp = fEspecialidad.value;
+  const prevMed = fMedico.value;
+
+  fEspecialidad.innerHTML = '<option value="">Todas</option>';
+  especialidades.forEach(e => {
+    const o = document.createElement('option'); o.value = e; o.textContent = e;
+    fEspecialidad.appendChild(o);
+  });
+  fMedico.innerHTML = '<option value="">Todos</option>';
+  medicos.forEach(m => {
+    const o = document.createElement('option'); o.value = m; o.textContent = m;
+    fMedico.appendChild(o);
+  });
+
+  if(especialidades.includes(prevEsp)) fEspecialidad.value = prevEsp;
+  if(medicos.includes(prevMed)) fMedico.value = prevMed;
+}
+
+function initFromRaw(raw){
+  DATA = buildDataset(raw);
+  if(!DATA.length) return;
+
+  const fechas = DATA.map(d => d.fecha).sort((a,b)=>a-b);
+  minFecha = fechas[0];
+  maxFecha = fechas[fechas.length-1];
+
+  refreshFilterOptions();
+
+  if(firstLoad){
+    document.getElementById('fDesde').value = toISODate(minFecha);
+    document.getElementById('fHasta').value = toISODate(maxFecha);
+    firstLoad = false;
+  } else {
+    // Si el usuario tenía seleccionado "hasta el final", lo extendemos para incluir respuestas nuevas
+    const hastaInput = document.getElementById('fHasta');
+    if(hastaInput.dataset.autoExtend !== 'false'){
+      hastaInput.value = toISODate(maxFecha);
+    }
+  }
+
+  document.getElementById('rangoFechas').textContent =
+    minFecha.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}) + ' – ' +
+    maxFecha.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+
+  render();
+}
+
+// Si el usuario toca manualmente "Hasta", dejamos de auto-extenderlo
+document.getElementById('fHasta').addEventListener('change', function(){
+  this.dataset.autoExtend = 'false';
+});
+
+function setSyncStatus(state, extra){
+  const el = document.getElementById('syncStatus');
+  if(!el) return;
+  const now = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  if(state === 'loading'){
+    el.textContent = 'Actualizando datos…';
+  } else if(state === 'ok'){
+    el.textContent = `Datos en vivo · actualizado ${now}`;
+    el.classList.remove('sync-error');
+  } else if(state === 'error'){
+    el.textContent = `Sin conexión con la planilla · mostrando última copia (${now})`;
+    el.classList.add('sync-error');
+  }
+}
+
+// ---- Carga vía Google Apps Script Web App (fetch + JSON) ----
+// El Web App debe responder JSON: un array de filas, o un objeto con la
+// forma {rows:[...]} / {data:[...]} / {respuestas:[...]}. Cada fila puede
+// traer sus campos con nombres levemente distintos (mayúsculas, acentos,
+// espacios); normalizeKey/pickField los hacen coincidir igual.
+
+function normalizeKey(s){
+  return String(s).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // saca acentos
+    .replace(/[^a-z0-9]/g,''); // saca espacios, guiones, etc.
+}
+
+function pickField(obj, aliases){
+  const keys = Object.keys(obj);
+  const normKeys = keys.map(normalizeKey);
+  for(const alias of aliases){
+    const na = normalizeKey(alias);
+    const idx = normKeys.indexOf(na);
+    if(idx !== -1) return obj[keys[idx]];
+  }
+  return undefined;
+}
+
+// "2/6/2026 14:05:09" (D/M/AAAA H:mm:ss) -> string ISO local, interpretable por new Date()
+function parseFechaAR(str){
+  if(!str) return null;
+  const [datePart, timePart] = String(str).trim().split(' ');
+  if(!datePart) return null;
+  const [d, m, y] = datePart.split('/').map(n => parseInt(n,10));
+  let h = 0, mi = 0, s = 0;
+  if(timePart){
+    const t = timePart.split(':').map(n => parseInt(n,10));
+    h = t[0] || 0; mi = t[1] || 0; s = t[2] || 0;
+  }
+  if(!d || !m || !y) return null;
+  const pad = n => String(n).padStart(2,'0');
+  return `${y}-${pad(m)}-${pad(d)}T${pad(h)}:${pad(mi)}:${pad(s)}`;
+}
+
+// Acepta: Date nativo, string ISO, "D/M/AAAA H:mm:ss", o número serial de Google Sheets
+function parseFechaFlexible(v){
+  if(v === null || v === undefined || v === '') return null;
+  if(v instanceof Date) return isNaN(v) ? null : v;
+  if(typeof v === 'number'){
+    const ms = Math.round((v - 25569) * 86400 * 1000); // serial de Sheets -> epoch
+    const d = new Date(ms);
+    return isNaN(d) ? null : d;
+  }
+  const s = String(v).trim();
+  // Si viene como "D/M/AAAA[ H:mm:ss]" (formato argentino), SIEMPRE priorizar este parseo:
+  // new Date(s) de JavaScript asume mes/día al estilo estadounidense y confunde
+  // fechas ambiguas (ej. "2/6/2026" = 2 de junio, pero JS lo lee como 6 de febrero).
+  if(/^\d{1,2}\/\d{1,2}\/\d{2,4}(\s+\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?)?$/.test(s)){
+    const iso = parseFechaAR(s);
+    if(iso){ const d = new Date(iso); if(!isNaN(d)) return d; }
+  }
+  // Formatos no ambiguos (ISO con guiones, etc.)
+  const d = new Date(s);
+  if(!isNaN(d)) return d;
+  return null;
+}
+
+function normalizeRow(row){
+  const nps = pickField(row, ['nps','puntajenps']);
+  const npsNum = (typeof nps === 'number') ? nps : parseFloat(nps);
+  return {
+    fecha: parseFechaFlexible(pickField(row, ['fecha','marcatemporal','timestamp','date'])),
+    llegada: pickField(row, ['llegada','tipodellegada']),
+    recepcion: pickField(row, ['recepcion']),
+    espera: pickField(row, ['espera','tiempodeespera']),
+    infra: pickField(row, ['infra','infraestructura']),
+    especialidad: pickField(row, ['especialidad']),
+    profesional: pickField(row, ['profesional','nombredelprofesional']),
+    medico: pickField(row, ['medico','atencionmedica']),
+    enfermeria: pickField(row, ['enfermeria','atencionenfermeria']),
+    sugerencias: pickField(row, ['sugerencias','comentarios','observaciones']),
+    nps: isNaN(npsNum) ? null : npsNum
+  };
+}
+
+async function loadLive(){
+  setSyncStatus('loading');
+  try{
+    const sep = SCRIPT_URL.includes('?') ? '&' : '?';
+    const resp = await fetch(SCRIPT_URL + sep + '_=' + Date.now(), { cache: 'no-store' });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+
+    let rowsArr = null;
+    if(Array.isArray(json)) rowsArr = json;
+    else if(json && Array.isArray(json.rows)) rowsArr = json.rows;
+    else if(json && Array.isArray(json.data)) rowsArr = json.data;
+    else if(json && Array.isArray(json.respuestas)) rowsArr = json.respuestas;
+    if(!rowsArr) throw new Error('Formato de respuesta inesperado del script');
+
+    const raw = rowsArr.map(normalizeRow).filter(r => r.fecha && r.profesional);
+
+    if(raw.length){
+      RAW = raw;
+      initFromRaw(RAW);
+      setSyncStatus('ok');
+    } else {
+      throw new Error('El script respondió vacío o con columnas inesperadas');
+    }
+  }catch(err){
+    console.error('No se pudo actualizar desde la planilla en vivo:', err);
+    setSyncStatus('error');
+    if(!DATA.length) initFromRaw(RAW); // asegurar primer render con el snapshot embebido
+  }
+}
+
+// ---- charts refs ----
+let chartDimensiones, chartTendencia, chartEspecialidad, chartLlegada;
+
+
+// Colores institucionales por dimensión (paleta oficial del manual)
+const dimColors = { recepcion:'#00C96B', espera:'#F27C00', infra:'#009DE0', medico:'#00618A', enfermeria:'#FF3CB2' };
+
+function avg(arr){
+  const vals = arr.filter(v => v != null);
+  if(!vals.length) return null;
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+
+function applyFilters(){
+  const desde = document.getElementById('fDesde').value ? new Date(document.getElementById('fDesde').value + 'T00:00:00') : minFecha;
+  const hasta = document.getElementById('fHasta').value ? new Date(document.getElementById('fHasta').value + 'T23:59:59') : maxFecha;
+  const esp = document.getElementById('fEspecialidad').value;
+  const med = document.getElementById('fMedico').value;
+  const lleg = document.getElementById('fLlegada').value;
+
+  return DATA.filter(d =>
+    d.fecha >= desde && d.fecha <= hasta &&
+    (!esp || d.especialidad === esp) &&
+    (!med || d.profesional === med) &&
+    (!lleg || d.llegada === lleg)
+  );
+}
+
+function computeNPS(rows){
+  if(!rows.length) return {score:0, promoters:0, passives:0, detractors:0};
+  const promoters = rows.filter(r => r.nps >= 9).length;
+  const detractors = rows.filter(r => r.nps <= 6).length;
+  const passives = rows.length - promoters - detractors;
+  const score = Math.round(((promoters - detractors) / rows.length) * 100);
+  return {score, promoters, passives, detractors};
+}
+
+function drawPulse(rows){
+  const svg = document.getElementById('pulseSvg');
+  svg.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+  const W = 640, H = 70;
+
+  const grid = document.createElementNS(ns,'g'); grid.setAttribute('class','pulse-grid');
+  for(let i=1;i<4;i++){
+    const line = document.createElementNS(ns,'line');
+    line.setAttribute('x1',0); line.setAttribute('x2',W);
+    line.setAttribute('y1', (H/4)*i); line.setAttribute('y2', (H/4)*i);
+    grid.appendChild(line);
+  }
+  svg.appendChild(grid);
+
+  const sorted = [...rows].sort((a,b)=>a.fecha-b.fecha);
+  let path;
+  if(sorted.length < 2){
+    path = `M0,${H/2} L${W},${H/2}`;
+  } else {
+    // Onda continua (motivo de las aguas del río, presente en el escudo institucional)
+    const n = sorted.length;
+    const step = W / n;
+    let d = `M0,${H*0.55}`;
+    sorted.forEach((r, i) => {
+      const x = i*step;
+      const norm = Math.max(0, Math.min(1, r.nps/10));
+      const amp = 8 + norm*22;
+      const baseY = H*0.55;
+      d += ` Q${(x+step*0.25).toFixed(1)},${(baseY-amp).toFixed(1)} ${(x+step*0.5).toFixed(1)},${baseY.toFixed(1)}`;
+      d += ` Q${(x+step*0.75).toFixed(1)},${(baseY+amp*0.4).toFixed(1)} ${(x+step).toFixed(1)},${baseY.toFixed(1)}`;
+    });
+    path = d;
+  }
+  const p = document.createElementNS(ns,'path');
+  p.setAttribute('d', path);
+  p.setAttribute('class','pulse-line');
+  svg.appendChild(p);
+}
+
+function renderTable(rows){
+  const byMed = {};
+  rows.forEach(r => {
+    if(!byMed[r.profesional]) byMed[r.profesional] = { especialidad: r.especialidad, items: [] };
+    byMed[r.profesional].items.push(r);
+  });
+
+  const rowsArr = Object.entries(byMed).map(([nombre, obj]) => {
+    const items = obj.items;
+    return {
+      nombre,
+      especialidad: obj.especialidad,
+      n: items.length,
+      medico: avg(items.map(i=>i.medico)),
+      recepcion: avg(items.map(i=>i.recepcion)),
+      espera: avg(items.map(i=>i.espera)),
+      infra: avg(items.map(i=>i.infra)),
+      nps: avg(items.map(i=>i.nps))
+    };
+  }).sort((a,b) => (b.medico ?? 0) - (a.medico ?? 0));
+
+  const tbody = document.querySelector('#tablaMedicos tbody');
+  tbody.innerHTML = '';
+
+  if(!rowsArr.length){
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No hay respuestas para estos filtros.</td></tr>`;
+    return;
+  }
+
+  rowsArr.forEach(r => {
+    const tr = document.createElement('tr');
+    const barCell = (val, color) => {
+      if(val == null) return '<span style="color:var(--ink-soft); font-size:12px;">—</span>';
+      const pct = (val/5)*100;
+      return `<div style="display:flex; align-items:center; gap:8px;">
+        <div class="mini-bar" style="width:60px;"><div style="width:${pct}%; background:${color};"></div></div>
+        <span style="font-size:12.5px; font-weight:700;">${val.toFixed(1)}</span>
+      </div>`;
+    };
+    const npsColor = r.nps >= 9 ? '#00915F' : (r.nps >= 7 ? '#F27C00' : '#FF3CB2');
+    tr.innerHTML = `
+      <td>
+        <div class="prof-name">${r.nombre}</div>
+        <div class="prof-spec">${r.especialidad}</div>
+      </td>
+      <td>${r.n}</td>
+      <td>${barCell(r.medico, dimColors.medico)}</td>
+      <td>${barCell(r.recepcion, dimColors.recepcion)}</td>
+      <td>${barCell(r.espera, dimColors.espera)}</td>
+      <td>${barCell(r.infra, dimColors.infra)}</td>
+      <td class="nps-cell" style="color:${npsColor};">${r.nps != null ? r.nps.toFixed(1) : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderSuggestions(rows){
+  const list = document.getElementById('suggList');
+  list.innerHTML = '';
+  const withSugg = rows.filter(r => r.sugerencias).sort((a,b)=>b.fecha-a.fecha);
+  if(!withSugg.length){
+    list.innerHTML = '<div class="empty-state">No hay sugerencias registradas para estos filtros.</div>';
+    return;
+  }
+  withSugg.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'sugg-item';
+    div.innerHTML = `
+      <div class="sugg-meta">
+        <span><b>${r.profesional}</b> · ${r.especialidad}</span>
+        <span>${r.fecha.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'})}</span>
+      </div>
+      <div class="sugg-text">${r.sugerencias}</div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function renderCharts(rows){
+  const dims = ['recepcion','espera','infra','medico','enfermeria'];
+  const dimLabels = ['Recepción','Tiempo de espera','Infraestructura','Atención médica','Atención enfermería'];
+  const dimAverages = dims.map(d => avg(rows.map(r => r[d])));
+  // Coloreado según escala: crítico=magenta, regular=naranja, bueno=verde (paleta oficial)
+  const dimColorsArr = dimAverages.map(v => v == null ? '#E1E6E8' : (v <=2 ? '#FF3CB2' : v === 3 ? '#F27C00' : (v < 4 ? '#5FBE94' : '#00C96B')));
+
+  if(chartDimensiones) chartDimensiones.destroy();
+  chartDimensiones = new Chart(document.getElementById('chartDimensiones'), {
+    type: 'bar',
+    data: {
+      labels: dimLabels,
+      datasets: [{
+        data: dimAverages.map(v => v == null ? 0 : Number(v.toFixed(2))),
+        backgroundColor: dimColorsArr,
+        borderRadius: 5,
+        maxBarThickness: 38
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio:false,
+      plugins: { legend:{display:false}, title:{display:true, text:'Promedio por dimensión (escala 1–5)', align:'start', color:'#14181A', font:{family:"'Inter',sans-serif", size:14, weight:'800'}, padding:{bottom:14}} },
+      scales: {
+        x: { min:0, max:5, grid:{ color:'#EDF0F1' }, ticks:{ color:'#5B6669', font:{size:11} } },
+        y: { grid:{ display:false }, ticks:{ color:'#14181A', font:{size:12.5, weight:'600'} } }
+      }
+    }
+  });
+
+  // Trend: average NPS per day
+  const byDay = {};
+  rows.forEach(r => {
+    const key = r.fecha.toISOString().slice(0,10);
+    if(!byDay[key]) byDay[key] = [];
+    byDay[key].push(r.nps);
+  });
+  const days = Object.keys(byDay).sort();
+  const trendVals = days.map(k => avg(byDay[k]));
+
+  if(chartTendencia) chartTendencia.destroy();
+  chartTendencia = new Chart(document.getElementById('chartTendencia'), {
+    type: 'line',
+    data: {
+      labels: days.map(d => new Date(d+'T00:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short'})),
+      datasets: [{
+        data: trendVals.map(v => v == null ? null : Number(v.toFixed(2))),
+        borderColor: '#009DE0',
+        backgroundColor: 'rgba(0,157,224,0.08)',
+        fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor:'#009DE0',
+        spanGaps: true
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, title:{display:true, text:'NPS promedio por día', align:'start', color:'#14181A', font:{family:"'Inter',sans-serif", size:14, weight:'800'}, padding:{bottom:14}} },
+      scales: {
+        y: { min:0, max:10, grid:{ color:'#EDF0F1' }, ticks:{ color:'#5B6669', font:{size:11} } },
+        x: { grid:{ display:false }, ticks:{ color:'#5B6669', font:{size:10.5}, maxRotation:60, minRotation:0 } }
+      }
+    }
+  });
+
+  // Especialidad breakdown — celeste / verde / naranja (evita combinar magenta+amarillo+naranja)
+  const espCounts = {};
+  rows.forEach(r => { espCounts[r.especialidad] = (espCounts[r.especialidad]||0)+1; });
+  if(chartEspecialidad) chartEspecialidad.destroy();
+  chartEspecialidad = new Chart(document.getElementById('chartEspecialidad'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(espCounts),
+      datasets: [{ data: Object.values(espCounts), backgroundColor:['#009DE0','#00C96B','#F27C00'], borderColor:'#fff', borderWidth:3 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ color:'#14181A', font:{size:12}, padding:14 } }, title:{display:true, text:'Respuestas por especialidad', align:'start', color:'#14181A', font:{family:"'Inter',sans-serif", size:14, weight:'800'}, padding:{bottom:14}} }
+    }
+  });
+
+  // Llegada breakdown
+  const llegCounts = {};
+  rows.forEach(r => { llegCounts[r.llegada] = (llegCounts[r.llegada]||0)+1; });
+  if(chartLlegada) chartLlegada.destroy();
+  chartLlegada = new Chart(document.getElementById('chartLlegada'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(llegCounts),
+      datasets: [{ data: Object.values(llegCounts), backgroundColor:['#00618A','#00C96B'], borderColor:'#fff', borderWidth:3 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ color:'#14181A', font:{size:12}, padding:14 } }, title:{display:true, text:'Tipo de llegada', align:'start', color:'#14181A', font:{family:"'Inter',sans-serif", size:14, weight:'800'}, padding:{bottom:14}} }
+    }
+  });
+}
+
+function render(){
+  if (typeof Chart === 'undefined') {
+    document.querySelectorAll('.chart-box').forEach(box => {
+      box.innerHTML = '<div class="empty-state">No se pudo cargar la librería de gráficos (Chart.js). Revisá tu conexión a internet y volvé a abrir el archivo.</div>';
+    });
+    return;
+  }
+  const rows = applyFilters();
+  document.getElementById('countN').textContent = rows.length;
+  document.getElementById('kpiTotal').textContent = rows.length;
+  document.getElementById('kpiTotalFoot').textContent = `de ${DATA.length} totales`;
+
+  const nps = computeNPS(rows);
+  document.getElementById('kpiNps').textContent = rows.length ? nps.score : '—';
+  document.getElementById('kpiNps').className = 'kpi-value' + (nps.score < 30 && rows.length ? ' warn' : '');
+  document.getElementById('kpiNpsFoot').textContent = rows.length ? `${nps.promoters} promotores · ${nps.passives} pasivos · ${nps.detractors} detractores` : 'sin datos';
+
+  document.getElementById('npsHeroValue').innerHTML = (rows.length ? nps.score : '—') + '<span>/ 100</span>';
+  document.getElementById('npsHeroTag').innerHTML = rows.length
+    ? `<b>${nps.promoters}</b> promotores · <b>${nps.detractors}</b> detractores sobre ${rows.length} respuestas`
+    : 'sin respuestas para este filtro';
+
+  const avgMedico = avg(rows.map(r=>r.medico));
+  const avgEspera = avg(rows.map(r=>r.espera));
+  document.getElementById('kpiMedico').textContent = avgMedico != null ? avgMedico.toFixed(1) : '—';
+  document.getElementById('kpiMedicoBar').style.width = avgMedico != null ? (avgMedico/5*100)+'%' : '0%';
+  document.getElementById('kpiEspera').textContent = avgEspera != null ? avgEspera.toFixed(1) : '—';
+  document.getElementById('kpiEsperaBar').style.width = avgEspera != null ? (avgEspera/5*100)+'%' : '0%';
+
+  drawPulse(rows);
+  renderTable(rows);
+  renderSuggestions(rows);
+  renderCharts(rows);
+}
+
+['fDesde','fHasta','fEspecialidad','fMedico','fLlegada'].forEach(id => {
+  document.getElementById(id).addEventListener('change', render);
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+  document.getElementById('fDesde').value = toISODate(minFecha);
+  document.getElementById('fHasta').value = toISODate(maxFecha);
+  document.getElementById('fHasta').dataset.autoExtend = 'true';
+  document.getElementById('fEspecialidad').value = '';
+  document.getElementById('fMedico').value = '';
+  document.getElementById('fLlegada').value = '';
+  render();
+});
+
+// Primer pintado instantáneo con la copia local, y a continuación intento de datos en vivo
+document.getElementById('btnRefresh').addEventListener('click', loadLive);
+initFromRaw(RAW);
+loadLive();
+setInterval(loadLive, REFRESH_MS);
+</script>
+</body>
+</html>

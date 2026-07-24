@@ -1380,7 +1380,7 @@ boardForm?.addEventListener('submit', async (e) => {
     try {
         const docId = fieldBoardId.value || `board_${Date.now()}`;
         const hasGEDirect = currentlySelectedCategories.includes('_ge_direct');
-        const finalCategories = currentlySelectedCategories.filter(id => id !== '_ge_direct');
+        const finalCategories = currentlySelectedCategories;
         
         const allowedUsersList = currentlySelectedUsers.filter(email =>
             allUsersFetched.some(u => u.email.toLowerCase() === email.toLowerCase()) ||
@@ -2347,7 +2347,7 @@ async function saveInforme() {
         formData.append('description', document.getElementById('field-informe-desc').value.trim());
         formData.append('period', document.getElementById('field-informe-period').value.trim());
         formData.append('year', document.getElementById('field-informe-year').value || '');
-        formData.append('categories', JSON.stringify(finalCategories.filter(id => id !== '_ge_direct'))); // sin _ge_direct en categories array
+        formData.append('categories', JSON.stringify(finalCategories));
         formData.append('category_legacy', hasGEDirect ? 'Gestores Externos' : '');
         formData.append('enabled', enabled ? 'true' : 'false');
         formData.append('sort_order', document.getElementById('field-informe-order').value || '0');

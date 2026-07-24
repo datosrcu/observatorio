@@ -2357,105 +2357,65 @@ if (feedbackYesBtn) {
 
 // Phone Modal Footer Link listeners already handled above via unified togglePhonesModal logic.
 
-// --- MONITOR DE ENCUESTAS DE SATISFACCIÓN MODAL ---
-let currentSatisfaccionTab = '_monitor_cl';
+// --- MONITOR DE ENCUESTAS DE SATISFACCIÓN DROPDOWN ---
+function openSatisfaccionDropdown() {
+    const dropdown = document.getElementById('satisfaccion-dropdown');
+    if (!dropdown) return;
+    if (!dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+        return;
+    }
+    dropdown.innerHTML = '';
+    dropdown.classList.remove('hidden');
 
-function renderSatisfaccionContent(catKey) {
-    currentSatisfaccionTab = catKey;
-    const grid = document.getElementById('satisfaccion-content-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
+    const clBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cl'));
+    const clInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cl'));
+    const ccBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cc'));
+    const ccInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cc'));
 
-    const btnCL = document.getElementById('tab-satisfaccion-cl');
-    const btnCC = document.getElementById('tab-satisfaccion-cc');
-
-    if (catKey === '_monitor_cl') {
-        if (btnCL) {
-            btnCL.className = 'satisfaccion-tab-btn active flex-1 min-w-[200px] max-w-[350px] bg-white border-2 border-purple-600 text-purple-900 font-bold p-4 rounded-xl shadow-sm hover:shadow transition flex items-center justify-center gap-3';
-        }
-        if (btnCC) {
-            btnCC.className = 'satisfaccion-tab-btn flex-1 min-w-[200px] max-w-[350px] bg-white border border-gray-200 text-gray-600 font-bold p-4 rounded-xl shadow-sm hover:shadow transition flex items-center justify-center gap-3';
-        }
-    } else {
-        if (btnCC) {
-            btnCC.className = 'satisfaccion-tab-btn active flex-1 min-w-[200px] max-w-[350px] bg-white border-2 border-purple-600 text-purple-900 font-bold p-4 rounded-xl shadow-sm hover:shadow transition flex items-center justify-center gap-3';
-        }
-        if (btnCL) {
-            btnCL.className = 'satisfaccion-tab-btn flex-1 min-w-[200px] max-w-[350px] bg-white border border-gray-200 text-gray-600 font-bold p-4 rounded-xl shadow-sm hover:shadow transition flex items-center justify-center gap-3';
-        }
+    if (!clBoards.length && !clInformes.length && !ccBoards.length && !ccInformes.length) {
+        dropdown.innerHTML = '<div class="p-6 text-center text-gray-400 text-sm">No hay contenido publicado.</div>';
+        return;
     }
 
-    const boards = allAccessibleBoards.filter(b => b.categories && b.categories.includes(catKey));
-    const informes = allInformes.filter(i => i.categories && i.categories.includes(catKey));
-
-    let count = 0;
-    boards.forEach(board => {
-        renderButton(grid, board.id, board);
-        count++;
-    });
-
-    if (informes.length > 0) {
-        if (count > 0) {
-            grid.insertAdjacentHTML('beforeend', `
-                <div class="col-span-full mt-2 mb-1 flex items-center gap-3">
-                    <div class="flex-grow h-px bg-gray-200"></div>
-                    <span class="text-xs font-bold text-teal-600 uppercase tracking-widest px-2 py-1 bg-teal-50 rounded-full border border-teal-200">📄 Informes</span>
-                    <div class="flex-grow h-px bg-gray-200"></div>
-                </div>`);
+    function buildSection(label, icon, boards, informes) {
+        const frag = document.createDocumentFragment();
+        const header = document.createElement('div');
+        header.className = 'px-4 py-2.5 bg-purple-50 border-b border-purple-100 flex items-center gap-2 sticky top-0';
+        header.innerHTML = `<span class="text-lg">${icon}</span><span class="text-xs font-bold text-purple-700 uppercase tracking-wider">${label}</span>`;
+        frag.appendChild(header);
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-2 p-3';
+        boards.forEach(b => renderButton(grid, b.id, b));
+        if (informes.length) {
+            if (boards.length) {
+                const sep = document.createElement('div');
+                sep.className = 'col-span-full border-t border-gray-100 my-1';
+                grid.appendChild(sep);
+            }
+            informes.forEach(i => renderInformeCard(grid, i));
         }
-        informes.forEach(informe => renderInformeCard(grid, informe));
-        count += informes.length;
+        frag.appendChild(grid);
+        return frag;
     }
 
-    if (count === 0) {
-        const catTitle = catKey === '_monitor_cl' ? 'Clima Laboral (CL)' : 'Clima Ciudadano (CC)';
-        grid.insertAdjacentHTML('beforeend', getEmptyStateHtml(`No hay tableros ni informes publicados en "${catTitle}".`));
+    if (clBoards.length || clInformes.length) {
+        dropdown.appendChild(buildSection('Clima Laboral (CL)', '💼', clBoards, clInformes));
+    }
+    if (ccBoards.length || ccInformes.length) {
+        dropdown.appendChild(buildSection('Clima Ciudadano (CC)', '🏛️', ccBoards, ccInformes));
     }
 }
 
-// --- MONITOR DE SATISFACCIÓN: inicialización del modal ---
-// Se expone como función global para poder llamarla desde HTML si hace falta.
-window.openSatisfaccionModal = function() {
-    const modal = document.getElementById('monitor-satisfaccion-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        document.body.style.overflow = 'hidden';
-        try {
-            renderSatisfaccionContent('_monitor_cl');
-        } catch (e) {
-            console.error("Error rendering satisfaccion content:", e);
-            const grid = document.getElementById('satisfaccion-content-grid');
-            if (grid) grid.innerHTML = '<div class="col-span-full text-center py-12 text-red-500">Error al cargar contenido. Intente nuevamente.</div>';
-        }
-    }
-};
+document.getElementById('btn-open-satisfaccion-modal')?.addEventListener('click', openSatisfaccionDropdown);
 
-window.closeSatisfaccionModal = function() {
-    const modal = document.getElementById('monitor-satisfaccion-modal');
-    if (modal) {
-        modal.classList.remove('flex');
-        modal.classList.add('hidden');
-        document.body.style.overflow = '';
+document.addEventListener('click', (e) => {
+    const container = document.getElementById('satisfaccion-container');
+    const dropdown = document.getElementById('satisfaccion-dropdown');
+    if (container && dropdown && !container.contains(e.target) && !dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
     }
-};
-
-// Inicializar listeners del modal inmediatamente (el módulo se ejecuta en defer, DOM ya disponible)
-{
-    const btnOpenSatisfaccion = document.getElementById('btn-open-satisfaccion-modal');
-    const btnCloseSatisfaccion = document.getElementById('close-satisfaccion-modal');
-    const overlaySatisfaccion = document.getElementById('close-satisfaccion-overlay');
-    const tabCL = document.getElementById('tab-satisfaccion-cl');
-    const tabCC = document.getElementById('tab-satisfaccion-cc');
-
-    if (btnOpenSatisfaccion) {
-        btnOpenSatisfaccion.addEventListener('click', window.openSatisfaccionModal);
-    }
-    if (btnCloseSatisfaccion) btnCloseSatisfaccion.addEventListener('click', window.closeSatisfaccionModal);
-    if (overlaySatisfaccion) overlaySatisfaccion.addEventListener('click', window.closeSatisfaccionModal);
-    if (tabCL) tabCL.addEventListener('click', () => renderSatisfaccionContent('_monitor_cl'));
-    if (tabCC) tabCC.addEventListener('click', () => renderSatisfaccionContent('_monitor_cc'));
-}
+});
 
 
 
