@@ -2413,39 +2413,43 @@ function renderSatisfaccionContent(catKey) {
     }
 }
 
-// Los módulos ES6 son diferidos: el DOM siempre está listo al ejecutarse.
-// No es necesario DOMContentLoaded; se ejecuta directamente.
-(function initSatisfaccionModal() {
+// --- MONITOR DE SATISFACCIÓN: inicialización del modal ---
+// Se expone como función global para poder llamarla desde HTML si hace falta.
+window.openSatisfaccionModal = function() {
+    const modal = document.getElementById('monitor-satisfaccion-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+        renderSatisfaccionContent('_monitor_cl');
+    }
+};
+
+window.closeSatisfaccionModal = function() {
+    const modal = document.getElementById('monitor-satisfaccion-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+};
+
+// Inicializar listeners del modal al cargar la página
+window.addEventListener('load', () => {
     const btnOpenSatisfaccion = document.getElementById('btn-open-satisfaccion-modal');
-    const modalSatisfaccion = document.getElementById('monitor-satisfaccion-modal');
     const btnCloseSatisfaccion = document.getElementById('close-satisfaccion-modal');
     const overlaySatisfaccion = document.getElementById('close-satisfaccion-overlay');
     const tabCL = document.getElementById('tab-satisfaccion-cl');
     const tabCC = document.getElementById('tab-satisfaccion-cc');
 
-    if (btnOpenSatisfaccion && modalSatisfaccion) {
-        btnOpenSatisfaccion.addEventListener('click', () => {
-            modalSatisfaccion.classList.remove('hidden');
-            modalSatisfaccion.classList.add('flex');
-            document.body.style.overflow = 'hidden';
-            renderSatisfaccionContent('_monitor_cl');
-        });
+    if (btnOpenSatisfaccion) {
+        btnOpenSatisfaccion.addEventListener('click', window.openSatisfaccionModal);
     }
-
-    const closeSatisfaccionModal = () => {
-        if (modalSatisfaccion) {
-            modalSatisfaccion.classList.add('hidden');
-            modalSatisfaccion.classList.remove('flex');
-            document.body.style.overflow = '';
-        }
-    };
-
-    if (btnCloseSatisfaccion) btnCloseSatisfaccion.addEventListener('click', closeSatisfaccionModal);
-    if (overlaySatisfaccion) overlaySatisfaccion.addEventListener('click', closeSatisfaccionModal);
-
+    if (btnCloseSatisfaccion) btnCloseSatisfaccion.addEventListener('click', window.closeSatisfaccionModal);
+    if (overlaySatisfaccion) overlaySatisfaccion.addEventListener('click', window.closeSatisfaccionModal);
     if (tabCL) tabCL.addEventListener('click', () => renderSatisfaccionContent('_monitor_cl'));
     if (tabCC) tabCC.addEventListener('click', () => renderSatisfaccionContent('_monitor_cc'));
-})();
+});
 
 
 

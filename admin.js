@@ -2262,7 +2262,7 @@ function populateInformeCategories(selectedIds = []) {
         <label class="flex items-center gap-2 p-1.5 hover:bg-gray-50 rounded cursor-pointer">
             <input type="checkbox" name="informe-cat" value="${cat.id}" ${selectedIds.includes(cat.id) ? 'checked' : ''}
                 class="w-3.5 h-3.5 text-teal-600 rounded focus:ring-teal-500">
-            <span class="text-xs">${cat.icon || ''} ${cat.name}</span>
+            <span class="text-xs flex items-center gap-1">${cat.icon || ''} ${cat.name} <span class="text-[10px] text-gray-400 font-normal">(${cat.type || 'Categorías'})</span></span>
         </label>
     `).join('');
 
