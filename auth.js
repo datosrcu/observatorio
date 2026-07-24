@@ -537,10 +537,10 @@ function renderDashboard() {
             // Fallback for old boards/informes that don't have categories IDs but have string group name? 
             // Better to show them matching group directly if they have no category array
             const boardsWithoutCatInGroup = allAccessibleBoards.filter(b =>
-                (!b.categories || b.categories.length === 0) && (b.category === currentFilterGroup)
+                b.category === currentFilterGroup
             );
             const informesWithoutCatInGroup = allInformes.filter(i =>
-                (!i.categories || i.categories.length === 0) && (i.category === currentFilterGroup)
+                i.category === currentFilterGroup
             );
 
             if (boardsWithoutCatInGroup.length > 0 || informesWithoutCatInGroup.length > 0) {
@@ -2418,16 +2418,24 @@ function renderSatisfaccionContent(catKey) {
 window.openSatisfaccionModal = function() {
     const modal = document.getElementById('monitor-satisfaccion-modal');
     if (modal) {
-        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
         document.body.style.overflow = 'hidden';
-        renderSatisfaccionContent('_monitor_cl');
+        try {
+            renderSatisfaccionContent('_monitor_cl');
+        } catch (e) {
+            console.error("Error rendering satisfaccion content:", e);
+            const grid = document.getElementById('satisfaccion-content-grid');
+            if (grid) grid.innerHTML = '<div class="col-span-full text-center py-12 text-red-500">Error al cargar contenido. Intente nuevamente.</div>';
+        }
     }
 };
 
 window.closeSatisfaccionModal = function() {
     const modal = document.getElementById('monitor-satisfaccion-modal');
     if (modal) {
-        modal.style.display = 'none';
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
         document.body.style.overflow = '';
     }
 };

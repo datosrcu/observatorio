@@ -1143,7 +1143,7 @@ function boardMatchesFilter(data, search, catId, status) {
     let matchesCat = true;
     if (catId !== 'all') {
         if (catId === '_ge_direct') {
-            matchesCat = (data.category === 'Gestores Externos' && (!data.categories || data.categories.length === 0));
+            matchesCat = (data.category === 'Gestores Externos');
         } else {
             matchesCat = (data.categories || []).includes(catId);
         }
@@ -1277,15 +1277,12 @@ function filterAndRenderBoards() {
             userSearchInput.value = '';
             categorySearchInput.value = '';
             renderUserChecklist();
-            // Handle categories including virtual GE direct
             currentlySelectedCategories = data.categories || [];
-            if (currentlySelectedCategories.length === 0 && data.category) {
-                if (data.category === 'Gestores Externos') {
-                    currentlySelectedCategories = ['_ge_direct'];
-                } else {
-                    const matchedCat = globalCategories.find(c => c.name === data.category);
-                    if (matchedCat) currentlySelectedCategories.push(matchedCat.id);
-                }
+            if (data.category === 'Gestores Externos' && !currentlySelectedCategories.includes('_ge_direct')) {
+                currentlySelectedCategories = ['_ge_direct', ...currentlySelectedCategories];
+            } else if (currentlySelectedCategories.length === 0 && data.category) {
+                const matchedCat = globalCategories.find(c => c.name === data.category);
+                if (matchedCat) currentlySelectedCategories.push(matchedCat.id);
             }
             renderCategoryChecklist();
 
