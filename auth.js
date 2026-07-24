@@ -2357,4 +2357,96 @@ if (feedbackYesBtn) {
 
 // Phone Modal Footer Link listeners already handled above via unified togglePhonesModal logic.
 
+// --- MONITOR DE ENCUESTAS DE SATISFACCIÓN MODAL ---
+let currentSatisfaccionTab = '_monitor_cl';
+
+function renderSatisfaccionContent(catKey) {
+    currentSatisfaccionTab = catKey;
+    const grid = document.getElementById('satisfaccion-content-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const btnCL = document.getElementById('tab-satisfaccion-cl');
+    const btnCC = document.getElementById('tab-satisfaccion-cc');
+
+    if (catKey === '_monitor_cl') {
+        if (btnCL) {
+            btnCL.className = 'satisfaccion-tab-btn active flex-1 min-w-[200px] max-w-[350px] bg-white border-2 border-purple-600 text-purple-900 font-bold p-4 rounded-xl shadow-sm hover:shadow transition flex items-center justify-center gap-3';
+        }
+        if (btnCC) {
+            btnCC.className = 'satisfaccion-tab-btn flex-1 min-w-[200px] max-w-[350px] bg-white border border-gray-200 text-gray-600 font-bold p-4 rounded-xl shadow-sm hover:shadow transition flex items-center justify-center gap-3';
+        }
+    } else {
+        if (btnCC) {
+            btnCC.className = 'satisfaccion-tab-btn active flex-1 min-w-[200px] max-w-[350px] bg-white border-2 border-purple-600 text-purple-900 font-bold p-4 rounded-xl shadow-sm hover:shadow transition flex items-center justify-center gap-3';
+        }
+        if (btnCL) {
+            btnCL.className = 'satisfaccion-tab-btn flex-1 min-w-[200px] max-w-[350px] bg-white border border-gray-200 text-gray-600 font-bold p-4 rounded-xl shadow-sm hover:shadow transition flex items-center justify-center gap-3';
+        }
+    }
+
+    const boards = allAccessibleBoards.filter(b => b.categories && b.categories.includes(catKey));
+    const informes = allInformes.filter(i => i.categories && i.categories.includes(catKey));
+
+    let count = 0;
+    boards.forEach(board => {
+        renderButton(grid, board.id, board);
+        count++;
+    });
+
+    if (informes.length > 0) {
+        if (count > 0) {
+            grid.insertAdjacentHTML('beforeend', `
+                <div class="col-span-full mt-2 mb-1 flex items-center gap-3">
+                    <div class="flex-grow h-px bg-gray-200"></div>
+                    <span class="text-xs font-bold text-teal-600 uppercase tracking-widest px-2 py-1 bg-teal-50 rounded-full border border-teal-200">📄 Informes</span>
+                    <div class="flex-grow h-px bg-gray-200"></div>
+                </div>`);
+        }
+        informes.forEach(informe => renderInformeCard(grid, informe));
+        count += informes.length;
+    }
+
+    if (count === 0) {
+        const catTitle = catKey === '_monitor_cl' ? 'Clima Laboral (CL)' : 'Clima Ciudadano (CC)';
+        grid.insertAdjacentHTML('beforeend', getEmptyStateHtml(`No hay tableros ni informes publicados en "${catTitle}".`));
+    }
+}
+
+// Los módulos ES6 son diferidos: el DOM siempre está listo al ejecutarse.
+// No es necesario DOMContentLoaded; se ejecuta directamente.
+(function initSatisfaccionModal() {
+    const btnOpenSatisfaccion = document.getElementById('btn-open-satisfaccion-modal');
+    const modalSatisfaccion = document.getElementById('monitor-satisfaccion-modal');
+    const btnCloseSatisfaccion = document.getElementById('close-satisfaccion-modal');
+    const overlaySatisfaccion = document.getElementById('close-satisfaccion-overlay');
+    const tabCL = document.getElementById('tab-satisfaccion-cl');
+    const tabCC = document.getElementById('tab-satisfaccion-cc');
+
+    if (btnOpenSatisfaccion && modalSatisfaccion) {
+        btnOpenSatisfaccion.addEventListener('click', () => {
+            modalSatisfaccion.classList.remove('hidden');
+            modalSatisfaccion.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+            renderSatisfaccionContent('_monitor_cl');
+        });
+    }
+
+    const closeSatisfaccionModal = () => {
+        if (modalSatisfaccion) {
+            modalSatisfaccion.classList.add('hidden');
+            modalSatisfaccion.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+    };
+
+    if (btnCloseSatisfaccion) btnCloseSatisfaccion.addEventListener('click', closeSatisfaccionModal);
+    if (overlaySatisfaccion) overlaySatisfaccion.addEventListener('click', closeSatisfaccionModal);
+
+    if (tabCL) tabCL.addEventListener('click', () => renderSatisfaccionContent('_monitor_cl'));
+    if (tabCC) tabCC.addEventListener('click', () => renderSatisfaccionContent('_monitor_cc'));
+})();
+
+
+
 

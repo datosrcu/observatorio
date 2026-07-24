@@ -885,27 +885,34 @@ function renderCategoryChecklist(filterText = '') {
     categoriesChecklist.innerHTML = '';
     const lowerFilter = filterText.toLowerCase().trim();
 
-    // Virtual option: assign board directly to Gestores Externos (no real category needed)
-    const vIsChecked = currentlySelectedCategories.includes('_ge_direct');
-    const vLabel = "Gestores Externos".toLowerCase();
+    // Options virtuales (Gestores Externos + Monitores de Satisfacción)
+    const virtualOptions = [
+        { id: '_ge_direct', icon: '🌐', label: 'Gestores Externos', sub: 'sin categoría específica', textClass: 'text-obelisco-blue' },
+        { id: '_monitor_cl', icon: '📊', label: 'Monitor de satisfacción CL', sub: 'Clima Laboral', textClass: 'text-purple-700' },
+        { id: '_monitor_cc', icon: '📊', label: 'Monitor de satisfacción CC', sub: 'Clima Ciudadano', textClass: 'text-purple-700' }
+    ];
 
-    if (!lowerFilter || vLabel.includes(lowerFilter)) {
-        const vDiv = document.createElement('div');
-        vDiv.className = `flex items-center space-x-2 p-2 rounded border cursor-pointer transition mb-1 ${vIsChecked ? 'border-blue-300 bg-blue-50' : 'border-dashed border-blue-200 hover:bg-blue-50'}`;
-        vDiv.innerHTML = `
-            <input type="checkbox" class="w-4 h-4 text-obelisco-blue rounded border-gray-300 pointer-events-none" ${vIsChecked ? 'checked' : ''}>
-            <span class="pointer-events-none">🌐</span>
-            <span class="text-sm font-semibold pointer-events-none text-obelisco-blue">Gestores Externos <span class="text-xs text-gray-400 font-normal">· sin categoría específica</span></span>
-        `;
-        vDiv.addEventListener('click', () => {
-            const cb = vDiv.querySelector('input');
-            cb.checked = !cb.checked;
-            vDiv.className = `flex items-center space-x-2 p-2 rounded border cursor-pointer transition mb-1 ${cb.checked ? 'border-blue-300 bg-blue-50' : 'border-dashed border-blue-200 hover:bg-blue-50'}`;
-            if (cb.checked) { if (!currentlySelectedCategories.includes('_ge_direct')) currentlySelectedCategories.push('_ge_direct'); }
-            else { currentlySelectedCategories = currentlySelectedCategories.filter(id => id !== '_ge_direct'); }
-        });
-        categoriesChecklist.appendChild(vDiv);
-    }
+    virtualOptions.forEach(opt => {
+        const vIsChecked = currentlySelectedCategories.includes(opt.id);
+        const optLabel = opt.label.toLowerCase();
+        if (!lowerFilter || optLabel.includes(lowerFilter)) {
+            const vDiv = document.createElement('div');
+            vDiv.className = `flex items-center space-x-2 p-2 rounded border cursor-pointer transition mb-1 ${vIsChecked ? 'border-purple-300 bg-purple-50' : 'border-dashed border-gray-300 hover:bg-gray-50'}`;
+            vDiv.innerHTML = `
+                <input type="checkbox" class="w-4 h-4 text-purple-600 rounded border-gray-300 pointer-events-none" ${vIsChecked ? 'checked' : ''}>
+                <span class="pointer-events-none">${opt.icon}</span>
+                <span class="text-sm font-semibold pointer-events-none ${opt.textClass}">${opt.label} <span class="text-xs text-gray-400 font-normal">· ${opt.sub}</span></span>
+            `;
+            vDiv.addEventListener('click', () => {
+                const cb = vDiv.querySelector('input');
+                cb.checked = !cb.checked;
+                vDiv.className = `flex items-center space-x-2 p-2 rounded border cursor-pointer transition mb-1 ${cb.checked ? 'border-purple-300 bg-purple-50' : 'border-dashed border-gray-300 hover:bg-gray-50'}`;
+                if (cb.checked) { if (!currentlySelectedCategories.includes(opt.id)) currentlySelectedCategories.push(opt.id); }
+                else { currentlySelectedCategories = currentlySelectedCategories.filter(id => id !== opt.id); }
+            });
+            categoriesChecklist.appendChild(vDiv);
+        }
+    });
 
     const filteredCategories = globalCategories.filter(c => {
         const name = (c.name || '').toLowerCase();
@@ -913,7 +920,8 @@ function renderCategoryChecklist(filterText = '') {
         return name.includes(lowerFilter) || type.includes(lowerFilter);
     });
 
-    if (filteredCategories.length === 0 && (!vLabel.includes(lowerFilter) || !lowerFilter)) {
+    const anyVirtualMatches = virtualOptions.some(opt => !lowerFilter || opt.label.toLowerCase().includes(lowerFilter));
+    if (filteredCategories.length === 0 && !anyVirtualMatches) {
         const p = document.createElement('p');
         p.className = 'text-xs text-center text-gray-500 py-4';
         p.textContent = lowerFilter ? 'No se encontraron categorías.' : 'No hay categorías creadas aún.';
@@ -971,6 +979,8 @@ function updateBoardCategoryFilterOptions() {
     const currentVal = filterBoardCategory.value;
     filterBoardCategory.innerHTML = '<option value="all">Todas las categorías</option>';
     filterBoardCategory.innerHTML += '<option value="_ge_direct">🌐 Gestores Externos (Directos)</option>';
+    filterBoardCategory.innerHTML += '<option value="_monitor_cl">📊 Monitor de satisfacción CL</option>';
+    filterBoardCategory.innerHTML += '<option value="_monitor_cc">📊 Monitor de satisfacción CC</option>';
 
     globalCategories.forEach(cat => {
         const option = document.createElement('option');
@@ -1216,6 +1226,9 @@ function filterAndRenderBoards() {
                 ? `<span class="bg-blue-50 text-obelisco-blue border border-blue-200 px-2 py-0.5 rounded text-xs">${allowedCount} autorizados</span>`
                 : `<span class="bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded text-xs">Público abierto</span>`);
         const catNames = (data.categories || []).map(catId => {
+            if (catId === '_monitor_cl') return '📊 Monitor CL';
+            if (catId === '_monitor_cc') return '📊 Monitor CC';
+            if (catId === '_ge_direct') return '🌐 Gestores Externos';
             const c = globalCategories.find(gc => gc.id === catId);
             return c ? c.name : 'Desc.';
         }).join(', ') || data.category || 'Sin Categoría';
@@ -2080,7 +2093,12 @@ function renderInformesTable(informes) {
 
     tbody.innerHTML = informes.map(inf => {
         const cats = (() => { try { return typeof inf.categories === 'string' ? JSON.parse(inf.categories) : (Array.isArray(inf.categories) ? inf.categories : []); } catch(e) { return []; } })();
-        let catNames = cats.map(id => globalCategories?.find(c => c.id === id)?.name || id).join(', ');
+        let catNames = cats.map(id => {
+            if (id === '_monitor_cl') return '📊 Monitor CL';
+            if (id === '_monitor_cc') return '📊 Monitor CC';
+            if (id === '_ge_direct') return '🌐 Gestores Externos';
+            return globalCategories?.find(c => c.id === id)?.name || id;
+        }).join(', ');
         if (!catNames && inf.category_legacy) {
             catNames = inf.category_legacy === 'Gestores Externos' ? '🌐 Gestores Externos' : inf.category_legacy;
         }
@@ -2213,14 +2231,25 @@ function populateInformeCategories(selectedIds = []) {
     if (!container) return;
 
     const cats = globalCategories || [];
-    const vIsChecked = selectedIds.includes('_ge_direct');
-    
-    // Checkbox virtual para Gestores Externos
+    const geChecked = selectedIds.includes('_ge_direct');
+    const clChecked = selectedIds.includes('_monitor_cl');
+    const ccChecked = selectedIds.includes('_monitor_cc');
+
     let html = `
-        <label class="flex items-center gap-2 p-1.5 hover:bg-teal-50/40 border border-dashed border-teal-200 rounded cursor-pointer mb-1 ${vIsChecked ? 'bg-teal-50 border-teal-300' : ''}">
-            <input type="checkbox" name="informe-cat" value="_ge_direct" ${vIsChecked ? 'checked' : ''}
+        <label class="flex items-center gap-2 p-1.5 hover:bg-teal-50/40 border border-dashed border-teal-200 rounded cursor-pointer mb-1 ${geChecked ? 'bg-teal-50 border-teal-300' : ''}">
+            <input type="checkbox" name="informe-cat" value="_ge_direct" ${geChecked ? 'checked' : ''}
                 class="w-3.5 h-3.5 text-teal-600 rounded focus:ring-teal-500">
             <span class="text-xs font-semibold text-teal-700">🌐 Gestores Externos <span class="text-[10px] text-gray-400 font-normal">· sin categoría específica</span></span>
+        </label>
+        <label class="flex items-center gap-2 p-1.5 hover:bg-purple-50/40 border border-dashed border-purple-200 rounded cursor-pointer mb-1 ${clChecked ? 'bg-purple-50 border-purple-300' : ''}">
+            <input type="checkbox" name="informe-cat" value="_monitor_cl" ${clChecked ? 'checked' : ''}
+                class="w-3.5 h-3.5 text-purple-600 rounded focus:ring-purple-500">
+            <span class="text-xs font-semibold text-purple-700">📊 Monitor de satisfacción CL <span class="text-[10px] text-gray-400 font-normal">· Clima Laboral</span></span>
+        </label>
+        <label class="flex items-center gap-2 p-1.5 hover:bg-purple-50/40 border border-dashed border-purple-200 rounded cursor-pointer mb-1 ${ccChecked ? 'bg-purple-50 border-purple-300' : ''}">
+            <input type="checkbox" name="informe-cat" value="_monitor_cc" ${ccChecked ? 'checked' : ''}
+                class="w-3.5 h-3.5 text-purple-600 rounded focus:ring-purple-500">
+            <span class="text-xs font-semibold text-purple-700">📊 Monitor de satisfacción CC <span class="text-[10px] text-gray-400 font-normal">· Clima Ciudadano</span></span>
         </label>
     `;
 
