@@ -354,28 +354,24 @@
                             </div>
 
                             <!-- Tarjeta 2: Monitor de Encuestas de Satisfacción -->
-                            <div class="relative" id="satisfaccion-container">
-                                <button id="btn-open-satisfaccion-modal"
-                                    class="bg-obelisco-light border border-obelisco-border rounded-2xl p-5 flex items-start cursor-pointer text-left w-full transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-purple-500/30 obelisco-card flex-1 group">
-                                    <div
-                                        class="bg-white p-3 rounded-xl shadow-sm mr-4 shrink-0 transition-transform duration-300 group-hover:scale-105">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none"
-                                            viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h3 class="text-base font-bold text-obelisco-dark mb-1">Monitor de Encuestas de
-                                            Satisfacción</h3>
-                                        <p class="text-obelisco-gray text-xs mb-2">Explorá los tableros e informes de
-                                            encuestas de clima laboral y clima ciudadano.</p>
-                                        <span
-                                            class="text-purple-600 font-bold text-xs flex items-center group-hover:underline">
-                                            Visualizar Monitor &rarr;
-                                        </span>
-                                    </div>
-                                </button>
+                            <div class="bg-obelisco-light border border-obelisco-border rounded-2xl p-5 flex items-start cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-purple-500/30 obelisco-card flex-1 group"
+                                onclick="window.openSatisfaccionModal ? window.openSatisfaccionModal() : null">
+                                <div
+                                    class="bg-white p-3 rounded-xl shadow-sm mr-4 shrink-0 transition-transform duration-300 group-hover:scale-105">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-obelisco-dark mb-1">Monitor de Encuestas de Satisfacción</h3>
+                                    <p class="text-obelisco-gray text-xs mb-2">Explorá los tableros e informes de encuestas de clima laboral y clima ciudadano.</p>
+                                    <button id="btn-open-satisfaccion-modal" type="button"
+                                        class="text-purple-600 font-bold text-xs flex items-center group-hover:underline cursor-pointer">
+                                        Visualizar Monitor &rarr;
+                                    </button>
+                                </div>
                             </div>
                         </div>
 

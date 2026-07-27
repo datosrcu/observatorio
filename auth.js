@@ -2476,16 +2476,31 @@ function renderSatisfaccionModalContent(filterTab = 'all') {
     }
 }
 
-// Event listeners for Satisfaccion Modal
-document.getElementById('btn-open-satisfaccion-modal')?.addEventListener('click', openSatisfaccionModal);
-document.getElementById('satisfaccion-modal-close')?.addEventListener('click', closeSatisfaccionModal);
-document.getElementById('satisfaccion-modal-backdrop')?.addEventListener('click', closeSatisfaccionModal);
+// Expose functions to global window scope for inline onclick & module imports
+window.openSatisfaccionModal = openSatisfaccionModal;
+window.closeSatisfaccionModal = closeSatisfaccionModal;
+window.switchSatisfaccionTab = switchSatisfaccionTab;
 
-document.querySelectorAll('.satisfaccion-tab-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        const tab = btn.getAttribute('data-tab');
+// Event listeners for Satisfaccion Modal via Delegation
+document.addEventListener('click', (e) => {
+    // Open trigger
+    if (e.target.closest('#btn-open-satisfaccion-modal') || e.target.closest('[data-open-satisfaccion]')) {
+        e.preventDefault();
+        openSatisfaccionModal();
+        return;
+    }
+    // Tab trigger
+    const tabBtn = e.target.closest('.satisfaccion-tab-btn');
+    if (tabBtn) {
+        const tab = tabBtn.getAttribute('data-tab');
         if (tab) switchSatisfaccionTab(tab);
-    });
+        return;
+    }
+    // Close button or backdrop
+    if (e.target.closest('#satisfaccion-modal-close') || e.target.id === 'satisfaccion-modal-backdrop') {
+        closeSatisfaccionModal();
+        return;
+    }
 });
 
 document.addEventListener('keydown', (e) => {
@@ -2496,6 +2511,7 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
 
 
 
