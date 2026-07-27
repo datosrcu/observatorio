@@ -376,6 +376,9 @@ async function loadUserPermissions(user) {
 
         console.log("Loaded (MySQL)", allCategories.length, "categories,", allAccessibleBoards.length, "boards,", allInformes.length, "informes");
         renderDashboard();
+        if (document.getElementById('satisfaccion-page-container')) {
+            renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
+        }
 
 
     } catch (error) {
@@ -2563,22 +2566,36 @@ function renderSatisfaccionSection(filterTab = 'all') {
         return block;
     }
 
+    if (filterTab === 'all' || filterTab === '_monitor_cl') {
+        const blockCl = renderBlock('Encuestas de Clima Laboral (CL)', '💼', clBoards, clInformes, 'bg-purple-100 text-purple-800 border-purple-200');
+        if (blockCl) container.appendChild(blockCl);
+    }
+
+    if (filterTab === 'all' || filterTab === '_monitor_cc') {
+        const blockCc = renderBlock('Encuestas de Satisfacción Ciudadana (CC)', '🏛️', ccBoards, ccInformes, 'bg-indigo-100 text-indigo-800 border-indigo-200');
+        if (blockCc) container.appendChild(blockCc);
+    }
+}
+
 // Helper function to robustly check if a board or informe belongs to a category
 function itemHasCategory(item, catId) {
     if (!item) return false;
     
-    // Check categories array
-    if (Array.isArray(item.categories)) {
-        if (item.categories.includes(catId)) return true;
-        if (item.categories.some(c => typeof c === 'string' && c.trim() === catId)) return true;
-    }
-    
-    // Check categories as string or JSON
-    if (typeof item.categories === 'string') {
-        if (item.categories.includes(catId)) return true;
+    // Parse categories if array or JSON string
+    let cats = item.categories;
+    if (typeof cats === 'string') {
+        try {
+            cats = JSON.parse(cats);
+        } catch(e) {
+            cats = cats.split(',').map(s => s.trim());
+        }
     }
 
-    // Check category properties
+    if (Array.isArray(cats)) {
+        if (cats.includes(catId)) return true;
+        if (cats.some(c => typeof c === 'string' && c.trim() === catId)) return true;
+    }
+
     if (typeof item.category === 'string' && item.category.includes(catId)) return true;
     if (typeof item.category_legacy === 'string' && item.category_legacy.includes(catId)) return true;
 
