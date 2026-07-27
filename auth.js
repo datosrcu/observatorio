@@ -2357,65 +2357,146 @@ if (feedbackYesBtn) {
 
 // Phone Modal Footer Link listeners already handled above via unified togglePhonesModal logic.
 
-// --- MONITOR DE ENCUESTAS DE SATISFACCIÓN DROPDOWN ---
-function openSatisfaccionDropdown() {
-    const dropdown = document.getElementById('satisfaccion-dropdown');
-    if (!dropdown) return;
-    if (!dropdown.classList.contains('hidden')) {
-        dropdown.classList.add('hidden');
-        return;
-    }
-    dropdown.innerHTML = '';
-    dropdown.classList.remove('hidden');
+// --- MONITOR DE ENCUESTAS DE SATISFACCIÓN MODAL ---
+let currentSatisfaccionTab = 'all';
+
+function openSatisfaccionModal() {
+    const modal = document.getElementById('satisfaccion-modal');
+    if (!modal) return;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    modal.setAttribute('aria-hidden', 'false');
+
+    switchSatisfaccionTab(currentSatisfaccionTab || 'all');
+}
+
+function closeSatisfaccionModal() {
+    const modal = document.getElementById('satisfaccion-modal');
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function switchSatisfaccionTab(tabKey) {
+    currentSatisfaccionTab = tabKey;
+    const tabBtns = document.querySelectorAll('.satisfaccion-tab-btn');
+    tabBtns.forEach(btn => {
+        const isSelected = btn.getAttribute('data-tab') === tabKey;
+        if (isSelected) {
+            btn.className = 'satisfaccion-tab-btn px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-purple-700 text-white shadow-sm flex items-center gap-2 cursor-pointer';
+        } else {
+            btn.className = 'satisfaccion-tab-btn px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-white text-gray-600 hover:bg-purple-50 hover:text-purple-700 border border-gray-200 flex items-center gap-2 cursor-pointer';
+        }
+    });
+
+    renderSatisfaccionModalContent(tabKey);
+}
+
+function renderSatisfaccionModalContent(filterTab = 'all') {
+    const body = document.getElementById('satisfaccion-modal-body');
+    if (!body) return;
+    body.innerHTML = '';
 
     const clBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cl'));
     const clInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cl'));
     const ccBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cc'));
     const ccInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cc'));
 
-    if (!clBoards.length && !clInformes.length && !ccBoards.length && !ccInformes.length) {
-        dropdown.innerHTML = '<div class="p-6 text-center text-gray-400 text-sm">No hay contenido publicado.</div>';
+    // Update tab counters
+    const countCl = clBoards.length + clInformes.length;
+    const countCc = ccBoards.length + ccInformes.length;
+    const countAll = countCl + countCc;
+
+    const elCountAll = document.getElementById('tab-count-all');
+    const elCountCl = document.getElementById('tab-count-cl');
+    const elCountCc = document.getElementById('tab-count-cc');
+    if (elCountAll) elCountAll.textContent = countAll;
+    if (elCountCl) elCountCl.textContent = countCl;
+    if (elCountCc) elCountCc.textContent = countCc;
+
+    if (countAll === 0) {
+        body.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-12 text-center">
+                <div class="bg-purple-50 p-4 rounded-full text-purple-400 mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h4 class="text-base font-bold text-gray-700 mb-1">Sin contenido disponible</h4>
+                <p class="text-xs text-gray-400 max-w-sm">No se encontraron tableros ni informes de encuestas de satisfacción categorizados en este momento.</p>
+            </div>
+        `;
         return;
     }
 
-    function buildSection(label, icon, boards, informes) {
-        const frag = document.createDocumentFragment();
+    function renderSection(label, icon, boards, informes, badgeClass = 'bg-purple-100 text-purple-700 border-purple-200') {
+        if (!boards.length && !informes.length) return null;
+
+        const container = document.createElement('div');
+        container.className = 'mb-6 last:mb-0';
+
         const header = document.createElement('div');
-        header.className = 'px-4 py-2.5 bg-purple-50 border-b border-purple-100 flex items-center gap-2 sticky top-0';
-        header.innerHTML = `<span class="text-lg">${icon}</span><span class="text-xs font-bold text-purple-700 uppercase tracking-wider">${label}</span>`;
-        frag.appendChild(header);
+        header.className = 'flex items-center gap-2 mb-3 pb-2 border-b border-gray-200';
+        header.innerHTML = `
+            <span class="text-xl">${icon}</span>
+            <h3 class="text-sm font-extrabold text-obelisco-dark tracking-wide uppercase">${label}</h3>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeClass}">${boards.length + informes.length} disponible(s)</span>
+        `;
+        container.appendChild(header);
+
         const grid = document.createElement('div');
-        grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-2 p-3';
+        grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-4';
+
         boards.forEach(b => renderButton(grid, b.id, b));
-        if (informes.length) {
-            if (boards.length) {
-                const sep = document.createElement('div');
-                sep.className = 'col-span-full border-t border-gray-100 my-1';
-                grid.appendChild(sep);
-            }
-            informes.forEach(i => renderInformeCard(grid, i));
-        }
-        frag.appendChild(grid);
-        return frag;
+        informes.forEach(i => renderInformeCard(grid, i));
+
+        container.appendChild(grid);
+        return container;
     }
 
-    if (clBoards.length || clInformes.length) {
-        dropdown.appendChild(buildSection('Clima Laboral (CL)', '💼', clBoards, clInformes));
+    if (filterTab === 'all' || filterTab === '_monitor_cl') {
+        const secCl = renderSection('Satisfacción y Clima Laboral (CL)', '💼', clBoards, clInformes, 'bg-purple-100 text-purple-800 border-purple-200');
+        if (secCl) body.appendChild(secCl);
     }
-    if (ccBoards.length || ccInformes.length) {
-        dropdown.appendChild(buildSection('Clima Ciudadano (CC)', '🏛️', ccBoards, ccInformes));
+
+    if (filterTab === 'all' || filterTab === '_monitor_cc') {
+        const secCc = renderSection('Satisfacción Ciudadana (CC)', '🏛️', ccBoards, ccInformes, 'bg-indigo-100 text-indigo-800 border-indigo-200');
+        if (secCc) body.appendChild(secCc);
+    }
+
+    if (body.children.length === 0) {
+        body.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-10 text-center">
+                <p class="text-sm text-gray-500 font-medium">No hay encuestas o informes en la categoría seleccionada.</p>
+            </div>
+        `;
     }
 }
 
-document.getElementById('btn-open-satisfaccion-modal')?.addEventListener('click', openSatisfaccionDropdown);
+// Event listeners for Satisfaccion Modal
+document.getElementById('btn-open-satisfaccion-modal')?.addEventListener('click', openSatisfaccionModal);
+document.getElementById('satisfaccion-modal-close')?.addEventListener('click', closeSatisfaccionModal);
+document.getElementById('satisfaccion-modal-backdrop')?.addEventListener('click', closeSatisfaccionModal);
 
-document.addEventListener('click', (e) => {
-    const container = document.getElementById('satisfaccion-container');
-    const dropdown = document.getElementById('satisfaccion-dropdown');
-    if (container && dropdown && !container.contains(e.target) && !dropdown.classList.contains('hidden')) {
-        dropdown.classList.add('hidden');
+document.querySelectorAll('.satisfaccion-tab-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const tab = btn.getAttribute('data-tab');
+        if (tab) switchSatisfaccionTab(tab);
+    });
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('satisfaccion-modal');
+        if (modal && !modal.classList.contains('hidden')) {
+            closeSatisfaccionModal();
+        }
     }
 });
+
 
 
 

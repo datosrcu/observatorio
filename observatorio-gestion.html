@@ -376,9 +376,6 @@
                                         </span>
                                     </div>
                                 </button>
-                                <div id="satisfaccion-dropdown"
-                                    class="hidden absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-96 overflow-y-auto">
-                                </div>
                             </div>
                         </div>
 
@@ -793,6 +790,58 @@
                     </svg>
                     Tu solicitud ha sido registrada correctamente.
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Monitor de Encuestas de Satisfacción -->
+    <div id="satisfaccion-modal" class="fixed inset-0 hidden items-center justify-center z-[99995]" aria-hidden="true">
+        <!-- Backdrop -->
+        <div id="satisfaccion-modal-backdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer transition-opacity"></div>
+
+        <!-- Modal Box -->
+        <div class="relative w-[min(92vw,920px)] max-h-[88vh] bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col z-10 animate-in fade-in zoom-in-95 duration-200 border border-purple-100">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-5 px-6 flex items-center justify-between shrink-0 shadow-md">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-purple-500/20 p-2.5 rounded-xl border border-purple-400/30 text-purple-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-white tracking-wide">Monitor de Encuestas de Satisfacción</h2>
+                        <p class="text-xs text-purple-200/80 font-medium">Explorá los tableros e informes de clima laboral y clima ciudadano</p>
+                    </div>
+                </div>
+                <button id="satisfaccion-modal-close" class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-red-500 text-white rounded-full transition duration-150 cursor-pointer" aria-label="Cerrar" title="Cerrar modal">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Category Filter Tabs -->
+            <div class="bg-gray-50 border-b border-gray-200 px-6 py-3 shrink-0 flex items-center justify-between gap-2 overflow-x-auto">
+                <div class="flex items-center gap-2" id="satisfaccion-tab-group">
+                    <button data-tab="all" class="satisfaccion-tab-btn px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-purple-700 text-white shadow-sm flex items-center gap-2 cursor-pointer">
+                        <span>📊 Todas las encuestas</span>
+                        <span id="tab-count-all" class="bg-white/20 text-white px-2 py-0.5 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button data-tab="_monitor_cl" class="satisfaccion-tab-btn px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-white text-gray-600 hover:bg-purple-50 hover:text-purple-700 border border-gray-200 flex items-center gap-2 cursor-pointer">
+                        <span>💼 Clima Laboral</span>
+                        <span id="tab-count-cl" class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button data-tab="_monitor_cc" class="satisfaccion-tab-btn px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-white text-gray-600 hover:bg-purple-50 hover:text-purple-700 border border-gray-200 flex items-center gap-2 cursor-pointer">
+                        <span>🏛️ Satisfacción Ciudadana</span>
+                        <span id="tab-count-cc" class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[10px]">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body Content -->
+            <div id="satisfaccion-modal-body" class="p-6 overflow-y-auto max-h-[calc(88vh-140px)] min-h-[260px] bg-slate-50/50">
             </div>
         </div>
     </div>
