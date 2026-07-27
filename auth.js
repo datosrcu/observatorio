@@ -195,9 +195,14 @@ function showLoginUI() {
     if (unauthOverlay) unauthOverlay.style.display = 'flex';
     if (filtersContainer) filtersContainer.classList.add('hidden');
 
-    // Clear grid
+    // Clear grid for main dashboard
     const gridContainer = document.getElementById('tableros-grid');
     if (gridContainer) gridContainer.innerHTML = '';
+
+    // Load public content for dedicated satisfaccion page if open
+    if (document.getElementById('satisfaccion-page-container')) {
+        initSatisfaccionPage();
+    }
 }
 
 function showUserUI(user) {
@@ -2593,6 +2598,106 @@ function itemHasCategory(item, catId) {
 // --- MONITOR DE ENCUESTAS DE SATISFACCIÓN PÁGINA DEDICADA (monitor-satisfaccion.html) ---
 let currentSatisfaccionPageTab = 'all';
 
+async function initSatisfaccionPage() {
+    const container = document.getElementById('satisfaccion-page-container');
+    if (!container) return;
+
+    try {
+        const [categoriesData, boardsData, informesData] = await Promise.all([
+            fetch('/api/categorias').then(r => r.json()).catch(() => []),
+            fetch('/api/tableros').then(r => r.json()).catch(() => []),
+            fetch('/api/informes').then(r => r.json()).catch(() => [])
+        ]);
+
+        const user = auth.currentUser;
+
+        allCategories = (categoriesData || []).map(c => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            icon: c.icon,
+            type: c.type,
+            color: c.color,
+            visible: c.visible,
+            order: c.sort_order
+        }));
+
+        allInformes = (informesData || [])
+            .filter(i => i.enabled)
+            .map(i => {
+                const informeObj = {
+                    id: i.id,
+                    title: i.title,
+                    description: i.description || '',
+                    categories: (() => { try { const v = i.categories; return typeof v === 'string' ? JSON.parse(v) : (Array.isArray(v) ? v : []); } catch(e) { return []; } })(),
+                    category: i.category_legacy,
+                    url: i.file_path || i.url,
+                    fileType: i.file_type || 'url',
+                    period: i.period || '',
+                    year: i.year,
+                    sort_order: i.sort_order || 0,
+                    requireLogin: i.require_login === 1 || i.require_login === true || i.require_login === 'true' || i.require_login === '1',
+                    allowedUsers: (() => { try { const v = i.allowed_users; return typeof v === 'string' && v.trim() !== '' ? JSON.parse(v) : (Array.isArray(v) ? v : []); } catch(e) { return []; } })(),
+                    accessExpirations: (() => { try { const v = i.access_expirations; return typeof v === 'string' && v.trim() !== '' ? JSON.parse(v) : (typeof v === 'object' && v !== null ? v : {}); } catch(e) { return {}; } })()
+                };
+                const hasAccess = user ? checkUserAccess(user, informeObj) : !informeObj.requireLogin;
+                return { ...informeObj, hasAccess };
+            });
+
+        allAccessibleBoards = [];
+        (boardsData || []).forEach(data => {
+            if (data.enabled) {
+                const boardObj = {
+                    id: data.id,
+                    title: data.title,
+                    icon: data.icon,
+                    iframeUrl: data.iframe_url,
+                    enabled: data.enabled,
+                    requireLogin: data.require_login,
+                    openInNewTab: data.open_in_new_tab,
+                    sort_order: data.sort_order,
+                    allowedUsers: (() => {
+                        try {
+                            const val = data.allowed_users;
+                            if (typeof val === 'string' && val.trim() !== '') return JSON.parse(val);
+                            return Array.isArray(val) ? val : [];
+                        } catch (e) { return []; }
+                    })(),
+                    accessExpirations: (() => {
+                        try {
+                            const val = data.access_expirations;
+                            if (typeof val === 'string' && val.trim() !== '') return JSON.parse(val);
+                            return (typeof val === 'object' && val !== null) ? val : {};
+                        } catch (e) { return {}; }
+                    })(),
+                    categories: (() => {
+                        try {
+                            const val = data.categories;
+                            if (typeof val === 'string' && val.trim() !== '') return JSON.parse(val);
+                            return Array.isArray(val) ? val : [];
+                        } catch (e) { return []; }
+                    })(),
+                    category: data.category_legacy
+                };
+                const hasAccess = user ? checkUserAccess(user, boardObj) : !boardObj.requireLogin;
+                allAccessibleBoards.push({ ...boardObj, hasAccess });
+            }
+        });
+
+        renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
+    } catch (err) {
+        console.error("Error in initSatisfaccionPage:", err);
+        if (container) {
+            container.innerHTML = `
+                <div class="py-12 text-center bg-white rounded-xl border border-red-200 p-6">
+                    <p class="text-red-600 font-bold">Error al cargar encuestas de satisfacción</p>
+                    <p class="text-xs text-gray-500 mt-1">${err.message || err}</p>
+                </div>
+            `;
+        }
+    }
+}
+
 function renderSatisfaccionPageContent(filterTab = 'all') {
     currentSatisfaccionPageTab = filterTab;
     const container = document.getElementById('satisfaccion-page-container');
@@ -2637,11 +2742,7 @@ function renderSatisfaccionPageContent(filterTab = 'all') {
                     </svg>
                 </div>
                 <h3 class="text-xl font-bold text-gray-800 mb-2">No hay encuestas ni informes publicados</h3>
-                <p class="text-sm text-gray-500 max-w-md">En este momento no hay tableros o informes categorizados dentro del Monitor de Encuestas de Satisfacción. Consultá nuevamente más tarde.</p>
-            </div>
-        `;
-        return;
-    }momento no hay tableros o informes categorizados dentro del Monitor de Encuestas de Satisfacción. Consultá nuevamente más tarde.</p>
+                <p class="text-sm text-gray-500 max-w-md">En este momento no hay tableros o informes categorizados dentro del Monitor de Encuestas de Satisfacción.</p>
             </div>
         `;
         return;
@@ -2690,6 +2791,7 @@ window.openSatisfaccionModal = openSatisfaccionModal;
 window.closeSatisfaccionModal = closeSatisfaccionModal;
 window.switchSatisfaccionTab = switchSatisfaccionTab;
 window.renderSatisfaccionPageContent = renderSatisfaccionPageContent;
+window.initSatisfaccionPage = initSatisfaccionPage;
 
 // Event listeners via Delegation
 document.addEventListener('click', (e) => {
@@ -2728,8 +2830,12 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-
-
-
-
-
+// Auto initialize on DOMReady / load for monitor-satisfaccion.html
+if (document.getElementById('satisfaccion-page-container')) {
+    initSatisfaccionPage();
+}
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('satisfaccion-page-container')) {
+        initSatisfaccionPage();
+    }
+});
