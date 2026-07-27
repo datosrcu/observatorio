@@ -2577,6 +2577,25 @@ function renderSatisfaccionSection(filterTab = 'all') {
     }
 }
 
+// Dynamic helper to resolve category IDs from allCategories
+function getSatisfaccionCategoryIds() {
+    const clIds = new Set(['_monitor_cl']);
+    const ccIds = new Set(['_monitor_cc']);
+
+    (allCategories || []).forEach(cat => {
+        const catId = String(cat.id || '');
+        const str = (catId + ' ' + (cat.name || '') + ' ' + (cat.description || '') + ' ' + (cat.type || '')).toLowerCase();
+        if (str.includes('clima laboral') || str.includes('monitor cl') || str.includes('satisfacción cl') || str.includes('satisfaccion cl') || str.includes('_monitor_cl')) {
+            clIds.add(catId);
+        }
+        if (str.includes('clima ciudadano') || str.includes('satisfaccion ciudadana') || str.includes('satisfacción ciudadana') || str.includes('monitor cc') || str.includes('_monitor_cc')) {
+            ccIds.add(catId);
+        }
+    });
+
+    return { clIds, ccIds };
+}
+
 // Helper function to robustly check if a board or informe belongs to a category
 function itemHasCategory(item, catId) {
     if (!item) return false;
@@ -2590,24 +2609,32 @@ function itemHasCategory(item, catId) {
             cats = cats.split(',').map(s => s.trim());
         }
     }
+    if (!Array.isArray(cats)) cats = [];
 
-    if (Array.isArray(cats)) {
-        if (cats.includes(catId)) return true;
-        if (cats.some(c => typeof c === 'string' && c.trim() === catId)) return true;
+    const { clIds, ccIds } = getSatisfaccionCategoryIds();
+    const targetIds = catId === '_monitor_cl' ? clIds : (catId === '_monitor_cc' ? ccIds : new Set([catId]));
+
+    for (const c of cats) {
+        const cStr = String(c || '');
+        if (targetIds.has(cStr)) return true;
     }
 
-    if (typeof item.category === 'string' && item.category.includes(catId)) return true;
-    if (typeof item.category_legacy === 'string' && item.category_legacy.includes(catId)) return true;
+    if (item.category) {
+        const catStr = String(item.category).toLowerCase();
+        if (catId === '_monitor_cl' && (catStr.includes('clima laboral') || catStr.includes('monitor cl') || catStr.includes('_monitor_cl'))) return true;
+        if (catId === '_monitor_cc' && (catStr.includes('clima ciudadano') || catStr.includes('satisfaccion ciudadana') || catStr.includes('satisfacción ciudadana') || catStr.includes('_monitor_cc'))) return true;
+    }
 
-    // Keyword fallback matching for _monitor_cl and _monitor_cc
-    if (catId === '_monitor_cl') {
-        const str = (JSON.stringify(item.categories || '') + ' ' + (item.category || '') + ' ' + (item.category_legacy || '') + ' ' + (item.title || '')).toLowerCase();
-        if (str.includes('clima laboral') || str.includes('monitor cl') || str.includes('_monitor_cl') || str.includes('satisfacción cl') || str.includes('satisfaccion cl')) return true;
+    if (item.category_legacy) {
+        const catStr = String(item.category_legacy).toLowerCase();
+        if (catId === '_monitor_cl' && (catStr.includes('clima laboral') || catStr.includes('monitor cl') || catStr.includes('_monitor_cl'))) return true;
+        if (catId === '_monitor_cc' && (catStr.includes('clima ciudadano') || catStr.includes('satisfaccion ciudadana') || catStr.includes('satisfacción ciudadana') || catStr.includes('_monitor_cc'))) return true;
     }
-    if (catId === '_monitor_cc') {
-        const str = (JSON.stringify(item.categories || '') + ' ' + (item.category || '') + ' ' + (item.category_legacy || '') + ' ' + (item.title || '')).toLowerCase();
-        if (str.includes('clima ciudadano') || str.includes('satisfaccion ciudadana') || str.includes('satisfacción ciudadana') || str.includes('monitor cc') || str.includes('_monitor_cc')) return true;
-    }
+
+    // Fallback on item title or raw JSON
+    const fullStr = (JSON.stringify(item.categories || '') + ' ' + (item.category || '') + ' ' + (item.category_legacy || '') + ' ' + (item.title || '')).toLowerCase();
+    if (catId === '_monitor_cl' && (fullStr.includes('clima laboral') || fullStr.includes('monitor cl') || fullStr.includes('_monitor_cl') || fullStr.includes('satisfacción cl') || fullStr.includes('satisfaccion cl'))) return true;
+    if (catId === '_monitor_cc' && (fullStr.includes('clima ciudadano') || fullStr.includes('satisfaccion ciudadana') || fullStr.includes('satisfacción ciudadana') || fullStr.includes('monitor cc') || fullStr.includes('_monitor_cc'))) return true;
 
     return false;
 }
