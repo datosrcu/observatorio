@@ -564,6 +564,8 @@ function renderDashboard() {
             }
         }
     }
+
+    renderSatisfaccionSection(currentSatisfaccionSecTab || 'all');
 }
 
 function getEmptyStateHtml(msg) {
@@ -2476,20 +2478,120 @@ function renderSatisfaccionModalContent(filterTab = 'all') {
     }
 }
 
+// --- MONITOR DE ENCUESTAS DE SATISFACCIÓN SECCIÓN DEDICADA (#encuestas-satisfaccion) ---
+let currentSatisfaccionSecTab = 'all';
+
+function renderSatisfaccionSection(filterTab = 'all') {
+    currentSatisfaccionSecTab = filterTab;
+    const container = document.getElementById('encuestas-satisfaccion-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const clBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cl'));
+    const clInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cl'));
+    const ccBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cc'));
+    const ccInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cc'));
+
+    // Update section tab counters
+    const countCl = clBoards.length + clInformes.length;
+    const countCc = ccBoards.length + ccInformes.length;
+    const countAll = countCl + countCc;
+
+    const elCountAll = document.getElementById('sec-count-all');
+    const elCountCl = document.getElementById('sec-count-cl');
+    const elCountCc = document.getElementById('sec-count-cc');
+    if (elCountAll) elCountAll.textContent = countAll;
+    if (elCountCl) elCountCl.textContent = countCl;
+    if (elCountCc) elCountCc.textContent = countCc;
+
+    // Update section tab button styles
+    const secBtns = document.querySelectorAll('.satisfaccion-sec-btn');
+    secBtns.forEach(btn => {
+        const isSelected = btn.getAttribute('data-sec-tab') === filterTab;
+        if (isSelected) {
+            btn.className = 'satisfaccion-sec-btn px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200 bg-purple-600 text-white shadow-sm flex items-center gap-2 cursor-pointer';
+        } else {
+            btn.className = 'satisfaccion-sec-btn px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200 bg-transparent text-purple-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer';
+        }
+    });
+
+    if (countAll === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-12 text-center bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+                <div class="bg-purple-50 p-4 rounded-full text-purple-400 mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h4 class="text-base font-bold text-gray-700 mb-1">Sin contenido disponible</h4>
+                <p class="text-xs text-gray-400 max-w-sm">No se encontraron tableros ni informes de encuestas de satisfacción categorizados en este momento.</p>
+            </div>
+        `;
+        return;
+    }
+
+    function renderBlock(title, icon, boards, informes, badgeBg = 'bg-purple-100 text-purple-800 border-purple-200') {
+        if (!boards.length && !informes.length) return null;
+
+        const block = document.createElement('div');
+        block.className = 'mb-8 last:mb-0';
+
+        const head = document.createElement('div');
+        head.className = 'flex items-center justify-between mb-4 pb-2 border-b border-gray-200';
+        head.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">${icon}</span>
+                <h3 class="text-base font-extrabold text-obelisco-dark tracking-wide uppercase">${title}</h3>
+            </div>
+            <span class="text-xs font-bold px-3 py-1 rounded-full border ${badgeBg}">${boards.length + informes.length} publicado(s)</span>
+        `;
+        block.appendChild(head);
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6';
+
+        boards.forEach(b => renderButton(grid, b.id, b));
+        informes.forEach(i => renderInformeCard(grid, i));
+
+        block.appendChild(grid);
+        return block;
+    }
+
+    if (filterTab === 'all' || filterTab === '_monitor_cl') {
+        const blockCl = renderBlock('Encuestas de Clima Laboral (CL)', '💼', clBoards, clInformes, 'bg-purple-100 text-purple-800 border-purple-200');
+        if (blockCl) container.appendChild(blockCl);
+    }
+
+    if (filterTab === 'all' || filterTab === '_monitor_cc') {
+        const blockCc = renderBlock('Encuestas de Satisfacción Ciudadana (CC)', '🏛️', ccBoards, ccInformes, 'bg-indigo-100 text-indigo-800 border-indigo-200');
+        if (blockCc) container.appendChild(blockCc);
+    }
+}
+
 // Expose functions to global window scope for inline onclick & module imports
 window.openSatisfaccionModal = openSatisfaccionModal;
 window.closeSatisfaccionModal = closeSatisfaccionModal;
 window.switchSatisfaccionTab = switchSatisfaccionTab;
+window.renderSatisfaccionSection = renderSatisfaccionSection;
 
-// Event listeners for Satisfaccion Modal via Delegation
+// Event listeners for Satisfaccion Modal & Section via Delegation
 document.addEventListener('click', (e) => {
+    // Section Tab trigger
+    const secTabBtn = e.target.closest('.satisfaccion-sec-btn');
+    if (secTabBtn) {
+        const secTab = secTabBtn.getAttribute('data-sec-tab');
+        if (secTab) renderSatisfaccionSection(secTab);
+        return;
+    }
+
     // Open trigger
     if (e.target.closest('#btn-open-satisfaccion-modal') || e.target.closest('[data-open-satisfaccion]')) {
         e.preventDefault();
         openSatisfaccionModal();
         return;
     }
-    // Tab trigger
+    // Modal Tab trigger
     const tabBtn = e.target.closest('.satisfaccion-tab-btn');
     if (tabBtn) {
         const tab = tabBtn.getAttribute('data-tab');
