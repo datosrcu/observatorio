@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="recursos/Favicon.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Encuestas de Satisfacción - Dirección de Estadística</title>
+
+    <!-- Tipografía Inter de Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        obelisco: {
+                            yellow: '#009DE0',
+                            yellowHover: '#0088C4',
+                            dark: '#212529',
+                            gray: '#495057',
+                            light: '#F8F9FA',
+                            border: '#DEE2E6',
+                            blue: '#0072BB'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            color: #212529;
+            line-height: 1.5;
+        }
+
+        .obelisco-card {
+            transition: all 0.25s ease;
+        }
+
+        .obelisco-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+        }
+    </style>
+</head>
+
+<body class="antialiased flex flex-col min-h-screen">
+
+    <!-- CABECERA PRINCIPAL -->
+    <header class="bg-white text-obelisco-dark py-3 border-b border-obelisco-border sticky top-0 z-40 shadow-sm">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <a href="observatorio-gestion.html">
+                    <img src="recursos/Escudo.png" alt="Escudo" class="h-10 sm:h-12 md:h-14 hover:opacity-90 transition">
+                </a>
+                <span class="hidden sm:inline-block h-6 w-px bg-gray-300"></span>
+                <a href="observatorio-gestion.html" class="inline-flex items-center text-xs sm:text-sm font-bold text-obelisco-blue hover:text-blue-800 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Volver al Observatorio
+                </a>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <!-- Authentication UI -->
+                <div id="auth-section" class="flex items-center space-x-3">
+                    <button id="login-btn"
+                        class="flex items-center space-x-2 bg-obelisco-yellow hover:bg-obelisco-yellowHover text-white font-medium rounded-lg px-3 py-1.5 text-sm transition shadow-sm whitespace-nowrap">
+                        <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24">
+                            <path fill="currentColor"
+                                d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" />
+                        </svg>
+                        <span>Iniciar Sesión</span>
+                    </button>
+                    <div id="user-profile" class="hidden items-center space-x-3">
+                        <span id="user-name" class="text-sm font-semibold text-gray-700"></span>
+                        <button id="logout-btn" class="text-xs text-red-500 hover:text-red-700 font-bold underline">Cerrar Sesión</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO / BANNER PRINCIPAL -->
+    <section class="bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 text-white py-12 px-4 sm:px-6 lg:px-8 border-b border-purple-800/40">
+        <div class="max-w-[1600px] mx-auto">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-bold uppercase tracking-wider mb-3">
+                        <span>📊 Monitor Oficial</span>
+                    </div>
+                    <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-3">
+                        Monitor de Encuestas de Satisfacción
+                    </h1>
+                    <p class="text-base sm:text-lg text-purple-200/80 font-medium max-w-3xl">
+                        Explorá los tableros interactivos e informes oficiales sobre <strong class="text-white">Clima Laboral</strong> y <strong class="text-white">Satisfacción Ciudadana</strong>.
+                    </p>
+                </div>
+
+                <!-- CONTROLES DE FILTRO / PESTAÑAS -->
+                <div class="flex flex-wrap items-center gap-2 bg-white/10 p-2 rounded-2xl border border-white/10 shrink-0" id="satisfaccion-page-tabs">
+                    <button data-page-tab="all" class="satisfaccion-page-btn px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 bg-purple-600 text-white shadow-md flex items-center gap-2 cursor-pointer">
+                        <span>📊 Todas las encuestas</span>
+                        <span id="page-count-all" class="bg-white/20 text-white px-2 py-0.5 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button data-page-tab="_monitor_cl" class="satisfaccion-page-btn px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 bg-transparent text-purple-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer">
+                        <span>💼 Clima Laboral</span>
+                        <span id="page-count-cl" class="bg-purple-500/30 text-purple-200 px-2 py-0.5 rounded-full text-[10px]">0</span>
+                    </button>
+                    <button data-page-tab="_monitor_cc" class="satisfaccion-page-btn px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 bg-transparent text-purple-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer">
+                        <span>🏛️ Satisfacción Ciudadana</span>
+                        <span id="page-count-cc" class="bg-purple-500/30 text-purple-200 px-2 py-0.5 rounded-full text-[10px]">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-grow max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div id="satisfaccion-page-container" class="min-h-[350px]">
+            <!-- Loader State -->
+            <div id="satisfaccion-page-loader" class="flex flex-col items-center justify-center py-20 text-center">
+                <svg class="animate-spin h-10 w-10 text-purple-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-sm font-bold text-gray-600">Cargando encuestas de satisfacción...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- PIE DE PÁGINA -->
+    <footer class="bg-obelisco-dark text-white py-8 border-t border-gray-800 mt-auto">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p class="text-xs text-gray-400">
+                © Dirección de Estadística - Gobierno de Río Cuarto. Todos los derechos reservados.
+            </p>
+            <a href="observatorio-gestion.html" class="text-xs font-bold text-purple-400 hover:text-purple-300 transition">
+                ← Volver al Observatorio de Gestión
+            </a>
+        </div>
+    </footer>
+
+    <!-- Iframe Modal UI (para abrir tableros al hacer clic) -->
+    <div id="ogb-modal" class="fixed inset-0 hidden items-center justify-center z-[99999]" aria-hidden="true">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" data-ogb-close></div>
+        <div id="ogb-modal-card" class="relative w-[min(96vw,1100px)] h-[min(94vh,820px)] bg-white rounded-xl overflow-hidden shadow-2xl flex flex-col transition-all duration-300">
+            <div class="flex items-center justify-between p-4 px-6 border-b border-gray-200 shrink-0 bg-gray-50">
+                <h2 id="ogb-heading" class="text-xl font-bold text-obelisco-dark truncate flex-grow mr-4">...</h2>
+                <button class="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-red-500 hover:text-white rounded-full transition" id="ogb-close" data-ogb-close aria-label="Cerrar">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div id="ogb-iframe-wrap" class="flex flex-col h-full min-h-0 overflow-auto bg-gray-100 relative">
+                <iframe id="ogb-iframe" class="flex-1 w-full h-full min-h-[500px] border-0 z-10 relative" allowfullscreen loading="lazy"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts de la aplicación -->
+    <script type="module" src="requests.js?v=1.5.0"></script>
+    <script type="module" src="auth.js?v=1.5.0"></script>
+</body>
+
+</html>

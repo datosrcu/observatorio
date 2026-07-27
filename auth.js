@@ -565,7 +565,7 @@ function renderDashboard() {
         }
     }
 
-    renderSatisfaccionSection(currentSatisfaccionSecTab || 'all');
+    renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
 }
 
 function getEmptyStateHtml(msg) {
@@ -2569,36 +2569,125 @@ function renderSatisfaccionSection(filterTab = 'all') {
     }
 }
 
-// Expose functions to global window scope for inline onclick & module imports
-window.openSatisfaccionModal = openSatisfaccionModal;
-window.closeSatisfaccionModal = closeSatisfaccionModal;
-window.switchSatisfaccionTab = switchSatisfaccionTab;
-window.renderSatisfaccionSection = renderSatisfaccionSection;
+// --- MONITOR DE ENCUESTAS DE SATISFACCIÓN PÁGINA DEDICADA (monitor-satisfaccion.html) ---
+let currentSatisfaccionPageTab = 'all';
 
-// Event listeners for Satisfaccion Modal & Section via Delegation
-document.addEventListener('click', (e) => {
-    // Section Tab trigger
-    const secTabBtn = e.target.closest('.satisfaccion-sec-btn');
-    if (secTabBtn) {
-        const secTab = secTabBtn.getAttribute('data-sec-tab');
-        if (secTab) renderSatisfaccionSection(secTab);
+function renderSatisfaccionPageContent(filterTab = 'all') {
+    currentSatisfaccionPageTab = filterTab;
+    const container = document.getElementById('satisfaccion-page-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const clBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cl'));
+    const clInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cl'));
+    const ccBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cc'));
+    const ccInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cc'));
+
+    // Update page tab counters
+    const countCl = clBoards.length + clInformes.length;
+    const countCc = ccBoards.length + ccInformes.length;
+    const countAll = countCl + countCc;
+
+    const elCountAll = document.getElementById('page-count-all');
+    const elCountCl = document.getElementById('page-count-cl');
+    const elCountCc = document.getElementById('page-count-cc');
+    if (elCountAll) elCountAll.textContent = countAll;
+    if (elCountCl) elCountCl.textContent = countCl;
+    if (elCountCc) elCountCc.textContent = countCc;
+
+    // Update page tab button styles
+    const pageBtns = document.querySelectorAll('.satisfaccion-page-btn');
+    pageBtns.forEach(btn => {
+        const isSelected = btn.getAttribute('data-page-tab') === filterTab;
+        if (isSelected) {
+            btn.className = 'satisfaccion-page-btn px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 bg-purple-600 text-white shadow-md flex items-center gap-2 cursor-pointer';
+        } else {
+            btn.className = 'satisfaccion-page-btn px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 bg-transparent text-purple-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer';
+        }
+    });
+
+    if (countAll === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+                <div class="bg-purple-50 p-5 rounded-full text-purple-500 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">No hay encuestas ni informes publicados</h3>
+                <p class="text-sm text-gray-500 max-w-md">En este momento no hay tableros o informes categorizados dentro del Monitor de Encuestas de Satisfacción. Consultá nuevamente más tarde.</p>
+            </div>
+        `;
         return;
     }
 
-    // Open trigger
+    function renderBlock(title, icon, boards, informes, badgeBg = 'bg-purple-100 text-purple-800 border-purple-200') {
+        if (!boards.length && !informes.length) return null;
+
+        const block = document.createElement('div');
+        block.className = 'mb-10 last:mb-0';
+
+        const head = document.createElement('div');
+        head.className = 'flex items-center justify-between mb-6 pb-3 border-b border-gray-200';
+        head.innerHTML = `
+            <div class="flex items-center gap-3">
+                <span class="text-2xl sm:text-3xl">${icon}</span>
+                <h2 class="text-lg sm:text-xl font-extrabold text-obelisco-dark tracking-wide uppercase">${title}</h2>
+            </div>
+            <span class="text-xs font-bold px-3 py-1 rounded-full border ${badgeBg}">${boards.length + informes.length} contenido(s)</span>
+        `;
+        block.appendChild(head);
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6';
+
+        boards.forEach(b => renderButton(grid, b.id, b));
+        informes.forEach(i => renderInformeCard(grid, i));
+
+        block.appendChild(grid);
+        return block;
+    }
+
+    if (filterTab === 'all' || filterTab === '_monitor_cl') {
+        const blockCl = renderBlock('Satisfacción y Clima Laboral (CL)', '💼', clBoards, clInformes, 'bg-purple-100 text-purple-800 border-purple-200');
+        if (blockCl) container.appendChild(blockCl);
+    }
+
+    if (filterTab === 'all' || filterTab === '_monitor_cc') {
+        const blockCc = renderBlock('Satisfacción Ciudadana (CC)', '🏛️', ccBoards, ccInformes, 'bg-indigo-100 text-indigo-800 border-indigo-200');
+        if (blockCc) container.appendChild(blockCc);
+    }
+}
+
+// Expose functions to global window scope
+window.openSatisfaccionModal = openSatisfaccionModal;
+window.closeSatisfaccionModal = closeSatisfaccionModal;
+window.switchSatisfaccionTab = switchSatisfaccionTab;
+window.renderSatisfaccionPageContent = renderSatisfaccionPageContent;
+
+// Event listeners via Delegation
+document.addEventListener('click', (e) => {
+    // Dedicated Page Tab trigger
+    const pageTabBtn = e.target.closest('.satisfaccion-page-btn');
+    if (pageTabBtn) {
+        const pageTab = pageTabBtn.getAttribute('data-page-tab');
+        if (pageTab) renderSatisfaccionPageContent(pageTab);
+        return;
+    }
+
+    // Modal triggers
     if (e.target.closest('#btn-open-satisfaccion-modal') || e.target.closest('[data-open-satisfaccion]')) {
         e.preventDefault();
         openSatisfaccionModal();
         return;
     }
-    // Modal Tab trigger
     const tabBtn = e.target.closest('.satisfaccion-tab-btn');
     if (tabBtn) {
         const tab = tabBtn.getAttribute('data-tab');
         if (tab) switchSatisfaccionTab(tab);
         return;
     }
-    // Close button or backdrop
     if (e.target.closest('#satisfaccion-modal-close') || e.target.id === 'satisfaccion-modal-backdrop') {
         closeSatisfaccionModal();
         return;
