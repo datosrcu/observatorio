@@ -170,12 +170,16 @@ async function handleLogin() {
     try {
         await signInWithPopup(auth, provider);
     } catch (error) {
-        console.warn("signInWithPopup error, trying redirect fallback:", error);
-        try {
-            await signInWithRedirect(auth, provider);
-        } catch (err2) {
-            console.error("Error during login fallback:", err2);
-            alert("Ocurrió un error al intentar iniciar sesión: " + (err2.message || err2) + "\n\nIntenta de nuevo.");
+        console.warn("signInWithPopup notice:", error);
+        if (error.code === 'auth/popup-blocked') {
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (err2) {
+                console.error("Error during login redirect fallback:", err2);
+                alert("Ocurrió un error al intentar iniciar sesión: " + (err2.message || err2));
+            }
+        } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+            alert("Error al iniciar sesión: " + (error.message || error));
         }
     }
 }
