@@ -1,5 +1,11 @@
 import { auth, storage, provider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
 
+// Auto-close auth popup handler if running inside a popup window
+if (window.opener && (window.location.pathname.includes('/__/auth') || window.location.href.includes('__/auth/handler'))) {
+    console.log("Auth handler detected inside popup, closing window...");
+    setTimeout(() => { try { window.close(); } catch (e) {} }, 100);
+}
+
 // Process redirect login result if user arrived via redirect
 getRedirectResult(auth).then(result => {
     if (result && result.user) {

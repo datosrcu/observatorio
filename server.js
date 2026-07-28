@@ -198,6 +198,22 @@ const limiter = rateLimit({
     validate: { trustProxy: false } // Desactivar advertencia permisiva sobre trust proxy en VPS
 });
 
+// Servir handler de autenticacion de Firebase para cerrar popups al instante
+app.get('/__/auth/handler', (req, res) => {
+    res.send(`<!DOCTYPE html>
+<html>
+<head><title>Autenticando...</title></head>
+<body style="background:#f8f9fa;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">
+  <p style="color:#495057;font-weight:600;">Autenticación completada. Cerrando ventana...</p>
+  <script>
+    setTimeout(function() {
+      try { window.close(); } catch(e) {}
+    }, 100);
+  </script>
+</body>
+</html>`);
+});
+
 // Aplicar el limitador a todas las rutas de la API
 app.use('/api/', limiter);
 
