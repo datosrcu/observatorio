@@ -209,8 +209,10 @@ errorLoginBtn?.addEventListener('click', async () => {
     try {
         await signInWithPopup(auth, provider);
     } catch (e) {
-        console.warn("signInWithPopup error:", e);
-        await signInWithRedirect(auth, provider);
+        console.warn("signInWithPopup notice:", e);
+        if (e.code === 'auth/popup-blocked') {
+            await signInWithRedirect(auth, provider);
+        }
     }
 });
 logoutBtn?.addEventListener('click', () => signOut(auth));
