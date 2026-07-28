@@ -174,14 +174,9 @@ async function handleLogin() {
     } catch (error) {
         console.warn("signInWithPopup notice:", error);
         if (error.code === 'auth/popup-blocked') {
-            try {
-                await signInWithRedirect(auth, provider);
-            } catch (err2) {
-                console.error("Error during login redirect fallback:", err2);
-                alert("Ocurrió un error al intentar iniciar sesión: " + (err2.message || err2));
-            }
+            await signInWithRedirect(auth, provider).catch(() => {});
         } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-            alert("Error al iniciar sesión: " + (error.message || error));
+            console.error("Login error:", error);
         }
     }
 }
@@ -237,19 +232,16 @@ async function loadUserPermissions(user) {
     const userEmail = user.email.toLowerCase();
     console.log("Loading permissions for user:", userEmail);
 
+    let perfilData = { profile: null }, categoriesData = [], boardsData = [];
     try {
-        // 1. Load profile from MySQL (source of truth) and categories/tableros in parallel
-        let perfilData, categoriesData, boardsData;
-        try {
-            [perfilData, categoriesData, boardsData] = await Promise.all([
-                callApi('/api/perfil/me', 'GET'),
-                callApi('/api/categorias', 'GET'),
-                callApi('/api/tableros', 'GET')
-            ]);
-        } catch (e) {
-            console.error("Error loading base data:", e);
-            throw e;
-        }
+        [perfilData, categoriesData, boardsData] = await Promise.all([
+            callApi('/api/perfil/me', 'GET').catch(() => ({ profile: null })),
+            callApi('/api/categorias', 'GET').catch(() => []),
+            callApi('/api/tableros', 'GET').catch(() => [])
+        ]);
+    } catch (e) {
+        console.warn("Error loading base data from API:", e);
+    }
 
         const profile = perfilData.profile;
         const globalTermsVersion = perfilData.termsVersion || '1';
