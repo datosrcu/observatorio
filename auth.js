@@ -288,6 +288,7 @@ async function loadUserPermissions(user) {
         const globalTermsVersion = perfilData.termsVersion || '1';
 
         // Cache role and profile status from MySQL
+        let hasProfileInfo = false;
         if (profile) {
             currentUserRole = (profile.role || 'usuario').toLowerCase();
             if (ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
@@ -302,6 +303,7 @@ async function loadUserPermissions(user) {
             hasProfileInfo = profileCompleted || isAdmin;
         } else {
             currentUserRole = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail) ? 'admin' : 'usuario';
+            hasProfileInfo = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
         }
 
         // Show registration modal if missing info
