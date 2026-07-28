@@ -1,4 +1,4 @@
-import { auth, provider, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signInWithCredential, signOut, onAuthStateChanged } from './firebase-config.js';
+import { auth, provider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from './firebase-config.js';
 
 // --- DOM Elements ---
 const loader = document.getElementById('auth-loader');
@@ -205,28 +205,14 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-const GOOGLE_CLIENT_ID = "1054370535841-g9a68amo39phksjsic4nqd8qssh9476n.apps.googleusercontent.com";
-
 errorLoginBtn?.addEventListener('click', async () => {
-    if (window.google && window.google.accounts && window.google.accounts.id) {
-        google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: async (response) => {
-                try {
-                    const credential = GoogleAuthProvider.credential(response.credential);
-                    await signInWithCredential(auth, credential);
-                } catch (err) {
-                    await signInWithPopup(auth, provider).catch(() => {});
-                }
-            }
-        });
-        google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                signInWithPopup(auth, provider).catch(() => {});
-            }
-        });
-    } else {
-        await signInWithPopup(auth, provider).catch(() => {});
+    try {
+        await signInWithPopup(auth, provider);
+    } catch (e) {
+        console.warn("signInWithPopup notice:", e);
+        if (e.code === 'auth/popup-blocked') {
+            await signInWithRedirect(auth, provider);
+        }
     }
 });
 logoutBtn?.addEventListener('click', () => signOut(auth));

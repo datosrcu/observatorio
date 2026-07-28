@@ -1,4 +1,4 @@
-import { auth, storage, provider, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signInWithCredential, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
+import { auth, storage, provider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
 
 // DOM Elements
 const loginBtn = document.getElementById('login-btn');
@@ -167,33 +167,21 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-const GOOGLE_CLIENT_ID = "1054370535841-g9a68amo39phksjsic4nqd8qssh9476n.apps.googleusercontent.com";
-
 // Login function
 async function handleLogin() {
-    if (window.google && window.google.accounts && window.google.accounts.id) {
-        google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: async (response) => {
-                try {
-                    const credential = GoogleAuthProvider.credential(response.credential);
-                    await signInWithCredential(auth, credential);
-                } catch (err) {
-                    console.error("GIS Sign In Error:", err);
-                    await signInWithPopup(auth, provider).catch(() => {});
-                }
+    try {
+        await signInWithPopup(auth, provider);
+    } catch (error) {
+        console.warn("signInWithPopup notice:", error);
+        if (error.code === 'auth/popup-blocked') {
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (err2) {
+                console.error("Error during login redirect fallback:", err2);
+                alert("Ocurrió un error al intentar iniciar sesión: " + (err2.message || err2));
             }
-        });
-        google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                signInWithPopup(auth, provider).catch(() => {});
-            }
-        });
-    } else {
-        try {
-            await signInWithPopup(auth, provider);
-        } catch (error) {
-            console.warn("signInWithPopup notice:", error);
+        } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+            alert("Error al iniciar sesión: " + (error.message || error));
         }
     }
 }
