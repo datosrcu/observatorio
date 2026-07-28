@@ -171,6 +171,122 @@
             <div id="ogb-iframe-wrap" class="flex flex-col h-full min-h-0 overflow-auto bg-gray-100 relative">
                 <iframe id="ogb-iframe" class="flex-1 w-full h-full min-h-[500px] border-0 z-10 relative" allowfullscreen loading="lazy"></iframe>
             </div>
+
+            <!-- Access Request Form Container -->
+            <div id="ogb-form-wrap"
+                class="hidden p-8 flex-col max-w-lg mx-auto h-full text-center overflow-y-auto w-full">
+                <div
+                    class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-obelisco-dark mb-2">Acceso Denegado</h3>
+                <p class="text-obelisco-gray mb-8">No poseés los permisos necesarios para visualizar este tablero.</p>
+                <form id="ogb-form" class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Usuario solicitante</label>
+                        <input type="text" id="ogb-form-user"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 text-gray-500"
+                            readonly>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tablero</label>
+                        <input type="text" id="ogb-form-button-name"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 text-gray-500"
+                            readonly>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-obelisco-dark mb-3">Motivo de solicitud <span
+                                class="text-red-500">*</span></label>
+
+                        <!-- Scrollable Motive List -->
+                        <div
+                            class="h-48 overflow-y-auto border border-gray-200 rounded-lg bg-gray-50 p-3 space-y-2 custom-scrollbar">
+                            <label
+                                class="flex items-start gap-3 p-2 rounded-lg hover:bg-white hover:shadow-sm transition cursor-pointer group border border-transparent hover:border-gray-200">
+                                <input type="radio" name="ogb-form-motivo"
+                                    value="Análisis estadístico, investigación científica, académica o tecnológica, siempre que los resultados se publiquen con cita expresa de la fuente."
+                                    class="mt-1 w-4 h-4 text-obelisco-blue focus:ring-obelisco-blue cursor-pointer"
+                                    required>
+                                <span class="text-xs text-gray-700 leading-relaxed">Análisis estadístico, investigación
+                                    científica, académica o tecnológica, siempre que los resultados se publiquen con
+                                    cita expresa de la fuente.</span>
+                            </label>
+
+                            <label
+                                class="flex items-start gap-3 p-2 rounded-lg hover:bg-white hover:shadow-sm transition cursor-pointer group border border-transparent hover:border-gray-200">
+                                <input type="radio" name="ogb-form-motivo"
+                                    value="Elaboración de informes de política pública, periodismo de datos o comunicación de interés general, citando al OGM como fuente oficial."
+                                    class="mt-1 w-4 h-4 text-obelisco-blue focus:ring-obelisco-blue cursor-pointer">
+                                <span class="text-xs text-gray-700 leading-relaxed">Elaboración de informes de política
+                                    pública, periodismo de datos o comunicación de interés general, citando al OGM como
+                                    fuente oficial.</span>
+                            </label>
+
+                            <label
+                                class="flex items-start gap-3 p-2 rounded-lg hover:bg-white hover:shadow-sm transition cursor-pointer group border border-transparent hover:border-gray-200">
+                                <input type="radio" name="ogb-form-motivo"
+                                    value="Uso institucional por parte de organismos públicos municipales, provinciales o nacionales en el ejercicio de sus funciones."
+                                    class="mt-1 w-4 h-4 text-obelisco-blue focus:ring-obelisco-blue cursor-pointer">
+                                <span class="text-xs text-gray-700 leading-relaxed">Uso institucional por parte de
+                                    organismos públicos municipales, provinciales o nacionales en el ejercicio de sus
+                                    funciones.</span>
+                            </label>
+
+                            <label
+                                class="flex items-start gap-3 p-2 rounded-lg hover:bg-white hover:shadow-sm transition cursor-pointer group border border-transparent hover:border-gray-200">
+                                <input type="radio" name="ogb-form-motivo"
+                                    value="Desarrollo de herramientas, aplicaciones o visualizaciones de acceso público que contribuyan a la transparencia y rendición de cuentas, con notificación previa al OGM."
+                                    class="mt-1 w-4 h-4 text-obelisco-blue focus:ring-obelisco-blue cursor-pointer">
+                                <span class="text-xs text-gray-700 leading-relaxed">Desarrollo de herramientas,
+                                    aplicaciones o visualizaciones de acceso público que contribuyan a la transparencia
+                                    y rendición de cuentas, con notificación previa al OGM.</span>
+                            </label>
+
+                            <label
+                                class="flex items-start gap-3 p-2 rounded-lg hover:bg-white hover:shadow-sm transition cursor-pointer group border border-transparent hover:border-gray-200">
+                                <input type="radio" name="ogb-form-motivo" value="Otra"
+                                    class="mt-1 w-4 h-4 text-obelisco-blue focus:ring-obelisco-blue cursor-pointer">
+                                <span class="text-xs font-bold text-obelisco-blue group-hover:underline">Otra
+                                    (Especificar debajo)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Detalle Motivo (Hidden by default) -->
+                    <div id="ogb-form-motivo-detalle-wrap"
+                        class="hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                        <label class="block text-sm font-medium text-gray-700 mb-1 mt-4">Detallar motivo <span
+                                class="text-red-500">*</span></label>
+                        <textarea id="ogb-form-motivo-detalle" rows="2"
+                            class="w-full border border-gray-300 outline-none focus:border-obelisco-blue rounded-lg px-4 py-2 text-sm"
+                            placeholder="Completá el motivo de tu solicitud..."></textarea>
+                    </div>
+
+                    <!-- T&C acceptance notice -->
+                    <p id="ogb-form-tc-notice"
+                        class="text-xs text-gray-500 leading-relaxed italic px-1 border-t border-gray-100 pt-3">Al
+                        solicitar este acceso, confirmás que la solicitud se encuadra en los Términos y Condiciones que
+                        aceptaste al registrarte en el OGM (Versión <span id="ogb-tc-version">—</span>, aceptados el
+                        <span id="ogb-tc-date">—</span>).
+                    </p>
+
+                    <button type="submit" id="ogb-submit-btn"
+                        class="w-full bg-obelisco-blue hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition">
+                        Solicitar Aprobación
+                    </button>
+                </form>
+                <div id="ogb-form-ok"
+                    class="hidden mt-6 p-4 bg-green-50 text-green-700 rounded-lg flex items-center justify-center font-medium">
+                    <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Tu solicitud ha sido registrada correctamente.
+                </div>
+            </div>
         </div>
     </div>
 

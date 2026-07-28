@@ -263,9 +263,9 @@ const initializeTables = async () => {
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
-        // Agregar columnas que pueden no existir en BBDDs previas
         await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN last_login DATETIME`).catch(() => {});
         await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN role VARCHAR(50) DEFAULT 'usuario'`).catch(() => {});
+        await connection.query(`UPDATE usuarios_perfiles SET role = 'admin' WHERE email = 'datos@riocuarto.gov.ar'`).catch(() => {});
 
         // 2. Tabla de Solicitudes de Acceso
         await connection.query(`
@@ -552,16 +552,19 @@ app.post('/api/usuarios/sync', verifyToken, async (req, res) => {
     if (!uid || !email) {
         return res.status(400).json({ error: 'Faltan campos obligatorios: uid, email' });
     }
+    const cleanEmail = email.toLowerCase().trim();
+    const defaultRole = cleanEmail === 'datos@riocuarto.gov.ar' ? 'admin' : 'usuario';
     try {
         const connection = await getDbConnection();
         await connection.execute(
-            `INSERT INTO usuarios_perfiles (uid, email, full_name, last_login)
-             VALUES (?, ?, ?, NOW())
+            `INSERT INTO usuarios_perfiles (uid, email, full_name, role, last_login)
+             VALUES (?, ?, ?, ?, NOW())
              ON DUPLICATE KEY UPDATE
                uid = VALUES(uid),
                full_name = COALESCE(NULLIF(?, ''), full_name),
+               role = IF(email = 'datos@riocuarto.gov.ar', 'admin', role),
                last_login = NOW()`,
-            [uid, email, full_name, full_name]
+            [uid, cleanEmail, full_name, defaultRole, full_name]
         );
         await connection.end();
         res.json({ success: true });
@@ -575,14 +578,23 @@ app.post('/api/usuarios/sync', verifyToken, async (req, res) => {
 // Obtener perfil propio (usado por auth.js para saber si el perfil está completo)
 app.get('/api/perfil/me', verifyToken, async (req, res) => {
     try {
+        const userEmail = (req.user.email || '').toLowerCase().trim();
         const connection = await getDbConnection();
+        if (userEmail === 'datos@riocuarto.gov.ar') {
+            await connection.execute("UPDATE usuarios_perfiles SET role = 'admin' WHERE email = ?", [userEmail]).catch(() => {});
+        }
         const [[profile], [configRow]] = await Promise.all([
-            connection.execute('SELECT * FROM usuarios_perfiles WHERE email = ?', [req.user.email])
+            connection.execute('SELECT * FROM usuarios_perfiles WHERE email = ?', [userEmail])
                 .then(([rows]) => rows),
             connection.query("SELECT config_value FROM config_sistema WHERE config_key = 'terms_version'")
                 .then(([rows]) => rows)
         ]);
         await connection.end();
+
+        if (profile && userEmail === 'datos@riocuarto.gov.ar') {
+            profile.role = 'admin';
+        }
+
         res.json({
             profile: profile || {
                 role: 'admin',
