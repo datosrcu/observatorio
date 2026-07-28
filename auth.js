@@ -1,4 +1,13 @@
-import { auth, storage, provider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
+import { auth, storage, provider, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithCredential, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
+
+// Process redirect login result if user arrived via redirect
+getRedirectResult(auth).then(result => {
+    if (result && result.user) {
+        console.log("Logged in via redirect result:", result.user.email);
+    }
+}).catch(err => {
+    console.warn("getRedirectResult warning:", err);
+});
 
 // DOM Elements
 const loginBtn = document.getElementById('login-btn');
@@ -172,11 +181,13 @@ async function handleLogin() {
     try {
         await signInWithPopup(auth, provider);
     } catch (error) {
-        console.warn("signInWithPopup notice:", error);
-        if (error.code === 'auth/popup-blocked') {
-            await signInWithRedirect(auth, provider).catch(() => {});
-        } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-            console.error("Login error:", error);
+        console.warn("signInWithPopup did not complete, launching redirect auth fallback:", error);
+        if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (err2) {
+                console.error("Login redirect fallback error:", err2);
+            }
         }
     }
 }
