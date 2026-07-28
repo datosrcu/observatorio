@@ -130,9 +130,6 @@ onAuthStateChanged(auth, async (user) => {
 
             try {
                 await loadUserPermissions(user);
-                if (document.getElementById('satisfaccion-page-container')) {
-                    initSatisfaccionPage();
-                }
             } catch (loadErr) {
                 console.error("loadUserPermissions failed:", loadErr);
                 // Still try to show registration modal if profile is incomplete
@@ -2357,8 +2354,10 @@ if (feedbackYesBtn) {
     };
 }
 
-// --- MONITOR DE ENCUESTAS DE SATISFACCIÓN MODAL (#satisfaccion-modal) ---
-let currentSatisfaccionTab = '_monitor_cl';
+// Phone Modal Footer Link listeners already handled above via unified togglePhonesModal logic.
+
+// --- MONITOR DE ENCUESTAS DE SATISFACCIÓN MODAL ---
+let currentSatisfaccionTab = 'all';
 
 function openSatisfaccionModal() {
     const modal = document.getElementById('satisfaccion-modal');
@@ -2368,7 +2367,7 @@ function openSatisfaccionModal() {
     modal.classList.add('flex');
     modal.setAttribute('aria-hidden', 'false');
 
-    switchSatisfaccionTab(currentSatisfaccionTab || '_monitor_cl');
+    switchSatisfaccionTab(currentSatisfaccionTab || 'all');
 }
 
 function closeSatisfaccionModal() {
@@ -2395,15 +2394,15 @@ function switchSatisfaccionTab(tabKey) {
     renderSatisfaccionModalContent(tabKey);
 }
 
-function renderSatisfaccionModalContent(filterTab = '_monitor_cl') {
+function renderSatisfaccionModalContent(filterTab = 'all') {
     const body = document.getElementById('satisfaccion-modal-body');
     if (!body) return;
     body.innerHTML = '';
 
-    const clBoards = allAccessibleBoards.filter(b => itemHasCategory(b, '_monitor_cl'));
-    const clInformes = allInformes.filter(i => itemHasCategory(i, '_monitor_cl'));
-    const ccBoards = allAccessibleBoards.filter(b => itemHasCategory(b, '_monitor_cc'));
-    const ccInformes = allInformes.filter(i => itemHasCategory(i, '_monitor_cc'));
+    const clBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cl'));
+    const clInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cl'));
+    const ccBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cc'));
+    const ccInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cc'));
 
     // Update tab counters
     const countCl = clBoards.length + clInformes.length;
@@ -2457,12 +2456,12 @@ function renderSatisfaccionModalContent(filterTab = '_monitor_cl') {
         return container;
     }
 
-    if (filterTab === '_monitor_cl' || filterTab === 'all') {
+    if (filterTab === 'all' || filterTab === '_monitor_cl') {
         const secCl = renderSection('Satisfacción y Clima Laboral (CL)', '💼', clBoards, clInformes, 'bg-purple-100 text-purple-800 border-purple-200');
         if (secCl) body.appendChild(secCl);
     }
 
-    if (filterTab === '_monitor_cc' || filterTab === 'all') {
+    if (filterTab === 'all' || filterTab === '_monitor_cc') {
         const secCc = renderSection('Satisfacción Ciudadana (CC)', '🏛️', ccBoards, ccInformes, 'bg-indigo-100 text-indigo-800 border-indigo-200');
         if (secCc) body.appendChild(secCc);
     }
@@ -2477,19 +2476,19 @@ function renderSatisfaccionModalContent(filterTab = '_monitor_cl') {
 }
 
 // --- MONITOR DE ENCUESTAS DE SATISFACCIÓN SECCIÓN DEDICADA (#encuestas-satisfaccion) ---
-let currentSatisfaccionSecTab = '_monitor_cl';
+let currentSatisfaccionSecTab = 'all';
 
-function renderSatisfaccionSection(filterTab = '_monitor_cl') {
+function renderSatisfaccionSection(filterTab = 'all') {
     currentSatisfaccionSecTab = filterTab;
     const container = document.getElementById('encuestas-satisfaccion-container');
     if (!container) return;
 
     container.innerHTML = '';
 
-    const clBoards = allAccessibleBoards.filter(b => itemHasCategory(b, '_monitor_cl'));
-    const clInformes = allInformes.filter(i => itemHasCategory(i, '_monitor_cl'));
-    const ccBoards = allAccessibleBoards.filter(b => itemHasCategory(b, '_monitor_cc'));
-    const ccInformes = allInformes.filter(i => itemHasCategory(i, '_monitor_cc'));
+    const clBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cl'));
+    const clInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cl'));
+    const ccBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cc'));
+    const ccInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cc'));
 
     // Update section tab counters
     const countCl = clBoards.length + clInformes.length;
@@ -2556,17 +2555,6 @@ function renderSatisfaccionSection(filterTab = '_monitor_cl') {
         return block;
     }
 
-    if (filterTab === '_monitor_cl' || filterTab === 'all') {
-        const blockCl = renderBlock('Satisfacción y Clima Laboral (CL)', '💼', clBoards, clInformes, 'bg-purple-100 text-purple-800 border-purple-200');
-        if (blockCl) container.appendChild(blockCl);
-    }
-
-    if (filterTab === '_monitor_cc' || filterTab === 'all') {
-        const blockCc = renderBlock('Satisfacción Ciudadana (CC)', '🏛️', ccBoards, ccInformes, 'bg-indigo-100 text-indigo-800 border-indigo-200');
-        if (blockCc) container.appendChild(blockCc);
-    }
-}
-
 // Dynamic helper to resolve category IDs from allCategories
 function getSatisfaccionCategoryIds() {
     const clIds = new Set(['_monitor_cl']);
@@ -2575,10 +2563,10 @@ function getSatisfaccionCategoryIds() {
     (allCategories || []).forEach(cat => {
         const catId = String(cat.id || '');
         const str = (catId + ' ' + (cat.name || '') + ' ' + (cat.description || '') + ' ' + (cat.type || '')).toLowerCase();
-        if (str.includes('clima') || str.includes('laboral') || str.includes('monitor cl') || str.includes('_monitor_cl')) {
+        if (str.includes('clima laboral') || str.includes('monitor cl') || str.includes('satisfacción cl') || str.includes('satisfaccion cl') || str.includes('_monitor_cl')) {
             clIds.add(catId);
         }
-        if (str.includes('ciudadan') || str.includes('monitor cc') || str.includes('_monitor_cc')) {
+        if (str.includes('clima ciudadano') || str.includes('satisfaccion ciudadana') || str.includes('satisfacción ciudadana') || str.includes('monitor cc') || str.includes('_monitor_cc')) {
             ccIds.add(catId);
         }
     });
@@ -2590,69 +2578,47 @@ function getSatisfaccionCategoryIds() {
 function itemHasCategory(item, catId) {
     if (!item) return false;
     
-    // Parse categories if array, single string or JSON string
-    let cats = [];
-    if (Array.isArray(item.categories)) {
-        cats = item.categories;
-    } else if (typeof item.categories === 'string' && item.categories.trim() !== '') {
+    // Parse categories if array or JSON string
+    let cats = item.categories;
+    if (typeof cats === 'string') {
         try {
-            const parsed = JSON.parse(item.categories);
-            cats = Array.isArray(parsed) ? parsed : [String(parsed)];
+            cats = JSON.parse(cats);
         } catch(e) {
-            cats = item.categories.split(',').map(s => s.trim());
+            cats = cats.split(',').map(s => s.trim());
         }
     }
+    if (!Array.isArray(cats)) cats = [];
 
     const { clIds, ccIds } = getSatisfaccionCategoryIds();
     const targetIds = catId === '_monitor_cl' ? clIds : (catId === '_monitor_cc' ? ccIds : new Set([catId]));
 
     for (const c of cats) {
-        const cStr = String(c || '').trim();
+        const cStr = String(c || '');
         if (targetIds.has(cStr)) return true;
-        const cLower = cStr.toLowerCase();
-        if (catId === '_monitor_cl' && (cLower.includes('clima') || cLower.includes('laboral') || cLower.includes('_monitor_cl') || cLower.includes('monitor cl'))) return true;
-        if (catId === '_monitor_cc' && (cLower.includes('ciudadan') || cLower.includes('_monitor_cc') || cLower.includes('monitor cc'))) return true;
     }
 
     if (item.category) {
         const catStr = String(item.category).toLowerCase();
-        if (catId === '_monitor_cl' && (catStr.includes('clima') || catStr.includes('laboral') || catStr.includes('_monitor_cl') || catStr.includes('monitor cl'))) return true;
-        if (catId === '_monitor_cc' && (catStr.includes('ciudadan') || catStr.includes('_monitor_cc') || catStr.includes('monitor cc'))) return true;
+        if (catId === '_monitor_cl' && (catStr.includes('clima laboral') || catStr.includes('monitor cl') || catStr.includes('_monitor_cl'))) return true;
+        if (catId === '_monitor_cc' && (catStr.includes('clima ciudadano') || catStr.includes('satisfaccion ciudadana') || catStr.includes('satisfacción ciudadana') || catStr.includes('_monitor_cc'))) return true;
     }
 
     if (item.category_legacy) {
         const catStr = String(item.category_legacy).toLowerCase();
-        if (catId === '_monitor_cl' && (catStr.includes('clima') || catStr.includes('laboral') || catStr.includes('_monitor_cl') || catStr.includes('monitor cl'))) return true;
-        if (catId === '_monitor_cc' && (catStr.includes('ciudadan') || catStr.includes('_monitor_cc') || catStr.includes('monitor cc'))) return true;
+        if (catId === '_monitor_cl' && (catStr.includes('clima laboral') || catStr.includes('monitor cl') || catStr.includes('_monitor_cl'))) return true;
+        if (catId === '_monitor_cc' && (catStr.includes('clima ciudadano') || catStr.includes('satisfaccion ciudadana') || catStr.includes('satisfacción ciudadana') || catStr.includes('_monitor_cc'))) return true;
     }
 
     // Fallback on item title or raw JSON
     const fullStr = (JSON.stringify(item.categories || '') + ' ' + (item.category || '') + ' ' + (item.category_legacy || '') + ' ' + (item.title || '')).toLowerCase();
-    if (catId === '_monitor_cl' && (fullStr.includes('clima') || fullStr.includes('laboral') || fullStr.includes('_monitor_cl') || fullStr.includes('monitor cl'))) return true;
-    if (catId === '_monitor_cc' && (fullStr.includes('ciudadan') || fullStr.includes('_monitor_cc') || fullStr.includes('monitor cc'))) return true;
+    if (catId === '_monitor_cl' && (fullStr.includes('clima laboral') || fullStr.includes('monitor cl') || fullStr.includes('_monitor_cl') || fullStr.includes('satisfacción cl') || fullStr.includes('satisfaccion cl'))) return true;
+    if (catId === '_monitor_cc' && (fullStr.includes('clima ciudadano') || fullStr.includes('satisfaccion ciudadana') || fullStr.includes('satisfacción ciudadana') || fullStr.includes('monitor cc') || fullStr.includes('_monitor_cc'))) return true;
 
     return false;
 }
 
-// Helper to safely parse categories
-function parseCategoriesSafe(val) {
-    if (!val) return [];
-    if (Array.isArray(val)) return val;
-    if (typeof val === 'string') {
-        const trimmed = val.trim();
-        if (!trimmed) return [];
-        try {
-            const parsed = JSON.parse(trimmed);
-            return Array.isArray(parsed) ? parsed : [String(parsed)];
-        } catch (e) {
-            return trimmed.split(',').map(s => s.trim()).filter(Boolean);
-        }
-    }
-    return [];
-}
-
 // --- MONITOR DE ENCUESTAS DE SATISFACCIÓN PÁGINA DEDICADA (monitor-satisfaccion.html) ---
-let currentSatisfaccionPageTab = '_monitor_cl';
+let currentSatisfaccionPageTab = 'all';
 
 async function initSatisfaccionPage() {
     const container = document.getElementById('satisfaccion-page-container');
@@ -2689,7 +2655,7 @@ async function initSatisfaccionPage() {
                     id: i.id,
                     title: i.title,
                     description: i.description || '',
-                    categories: parseCategoriesSafe(i.categories),
+                    categories: (() => { try { const v = i.categories; return typeof v === 'string' ? JSON.parse(v) : (Array.isArray(v) ? v : []); } catch(e) { return []; } })(),
                     category: i.category_legacy,
                     url: i.file_path || i.url,
                     fileType: i.file_type || 'url',
@@ -2731,7 +2697,13 @@ async function initSatisfaccionPage() {
                             return (typeof val === 'object' && val !== null) ? val : {};
                         } catch (e) { return {}; }
                     })(),
-                    categories: parseCategoriesSafe(data.categories),
+                    categories: (() => {
+                        try {
+                            const val = data.categories;
+                            if (typeof val === 'string' && val.trim() !== '') return JSON.parse(val);
+                            return Array.isArray(val) ? val : [];
+                        } catch (e) { return []; }
+                    })(),
                     category: data.category_legacy
                 };
                 const hasAccess = user ? checkUserAccess(user, boardObj) : !boardObj.requireLogin;
@@ -2739,14 +2711,14 @@ async function initSatisfaccionPage() {
             }
         });
 
-        renderSatisfaccionPageContent(currentSatisfaccionPageTab || '_monitor_cl');
+        renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
     } catch (err) {
         console.error("Error in initSatisfaccionPage:", err);
-        renderSatisfaccionPageContent(currentSatisfaccionPageTab || '_monitor_cl');
+        renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
     }
 }
 
-function renderSatisfaccionPageContent(filterTab = '_monitor_cl') {
+function renderSatisfaccionPageContent(filterTab = 'all') {
     currentSatisfaccionPageTab = filterTab;
     const container = document.getElementById('satisfaccion-page-container');
     if (!container) return;
@@ -2781,6 +2753,21 @@ function renderSatisfaccionPageContent(filterTab = '_monitor_cl') {
         }
     });
 
+    if (countAll === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+                <div class="bg-purple-50 p-5 rounded-full text-purple-500 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">No hay encuestas ni informes publicados</h3>
+                <p class="text-sm text-gray-500 max-w-md">En este momento no hay tableros o informes categorizados dentro del Monitor de Encuestas de Satisfacción.</p>
+            </div>
+        `;
+        return;
+    }
+
     function renderBlock(title, icon, boards, informes, badgeBg = 'bg-purple-100 text-purple-800 border-purple-200') {
         if (!boards.length && !informes.length) return null;
 
@@ -2808,28 +2795,14 @@ function renderSatisfaccionPageContent(filterTab = '_monitor_cl') {
         return block;
     }
 
-    if (filterTab === '_monitor_cl' || filterTab === 'all') {
+    if (filterTab === 'all' || filterTab === '_monitor_cl') {
         const blockCl = renderBlock('Satisfacción y Clima Laboral (CL)', '💼', clBoards, clInformes, 'bg-purple-100 text-purple-800 border-purple-200');
         if (blockCl) container.appendChild(blockCl);
     }
 
-    if (filterTab === '_monitor_cc' || filterTab === 'all') {
+    if (filterTab === 'all' || filterTab === '_monitor_cc') {
         const blockCc = renderBlock('Satisfacción Ciudadana (CC)', '🏛️', ccBoards, ccInformes, 'bg-indigo-100 text-indigo-800 border-indigo-200');
         if (blockCc) container.appendChild(blockCc);
-    }
-
-    if (container.children.length === 0) {
-        container.innerHTML = `
-            <div class="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-                <div class="bg-purple-50 p-5 rounded-full text-purple-500 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                </div>
-                <h3 class="text-xl font-bold text-gray-800 mb-2">No hay encuestas ni informes en esta categoría</h3>
-                <p class="text-sm text-gray-500 max-w-md">No se encontraron tableros o informes publicados para la opción seleccionada.</p>
-            </div>
-        `;
     }
 }
 
