@@ -111,6 +111,15 @@ onAuthStateChanged(auth, async (user) => {
     try {
         if (user) {
             console.log("Auth State: User logged in", user.email);
+
+            const userEmail = (user.email || '').toLowerCase();
+            if (!userEmail.endsWith(ALLOWED_DOMAIN)) {
+                console.warn("Domain not allowed:", userEmail);
+                await signOut(auth);
+                alert('Solo se permite el acceso con correo institucional @riocuarto.gov.ar.');
+                return;
+            }
+
             // Always show base UI then load data
             showUserUI(user);
 
@@ -181,13 +190,13 @@ async function handleLogin() {
     try {
         await signInWithPopup(auth, provider);
     } catch (error) {
-        console.warn("signInWithPopup did not complete, launching redirect auth fallback:", error);
-        if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-            try {
-                await signInWithRedirect(auth, provider);
-            } catch (err2) {
-                console.error("Login redirect fallback error:", err2);
-            }
+        console.warn("Error en signInWithPopup:", error);
+        if (error.code === 'auth/popup-blocked') {
+            alert('El navegador bloqueó la ventana emergente. Permití popups para este sitio o intentá de nuevo.');
+        } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+            // Usuario cerró el popup, no hacer nada
+        } else {
+            alert('Error al iniciar sesión: ' + (error.message || 'Intenta de nuevo más tarde.'));
         }
     }
 }
