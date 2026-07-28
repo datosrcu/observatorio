@@ -1,12 +1,14 @@
-import { auth, storage, provider, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithCredential, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
+import { auth, storage, provider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
 
 // Process redirect login result if user arrived via redirect
 getRedirectResult(auth).then(result => {
     if (result && result.user) {
-        console.log("Logged in via redirect result:", result.user.email);
+        console.log("getRedirectResult: user logged in via redirect:", result.user.email);
+    } else {
+        console.log("getRedirectResult: no pending redirect result");
     }
 }).catch(err => {
-    console.warn("getRedirectResult warning:", err);
+    console.warn("getRedirectResult error:", err.code || err.message);
 });
 
 // DOM Elements
@@ -100,8 +102,8 @@ const iframeFallback = document.getElementById('iframe-fallback');
 const ogbFallbackBtn = null;
 const unauthOverlay = document.getElementById('unauth-overlay');
 
-// Allowed Domain
-const ALLOWED_DOMAIN = "@riocuarto.gov.ar";
+// Allowed Domain (actualmente cualquier cuenta de Google puede acceder)
+// const ALLOWED_DOMAIN = "@riocuarto.gov.ar";
 
 // Current User State
 let currentUser = null;
@@ -179,22 +181,12 @@ onAuthStateChanged(auth, async (user) => {
 
 // Login function
 async function handleLogin() {
+    console.log("Iniciando login via redirect...");
     try {
-        await signInWithPopup(auth, provider);
+        await signInWithRedirect(auth, provider);
     } catch (error) {
-        console.warn("Error en signInWithPopup:", error);
-        if (error.code === 'auth/popup-blocked') {
-            try {
-                await signInWithRedirect(auth, provider);
-            } catch (redirectErr) {
-                console.error("Redirect fallback error:", redirectErr);
-                alert('No se pudo iniciar sesión. Intentá permitiendo popups para este sitio.');
-            }
-        } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-            // Usuario cerró el popup, no hacer nada
-        } else {
-            alert('Error al iniciar sesión: ' + (error.message || 'Intenta de nuevo más tarde.'));
-        }
+        console.error("Error en signInWithRedirect:", error);
+        alert('Error al iniciar sesión: ' + (error.message || 'Intenta de nuevo más tarde.'));
     }
 }
 
