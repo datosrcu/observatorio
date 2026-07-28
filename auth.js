@@ -105,28 +105,30 @@ onAuthStateChanged(auth, async (user) => {
             // Always show base UI then load data
             showUserUI(user);
 
-            // Auto-sync user to MySQL backend to ensure they are registered and keep last_login updated
-            try {
-                const token = await user.getIdToken();
-                const userEmail = (user.email || '').toLowerCase();
-                const isAdmin = userEmail ? ADMIN_EMAILS.includes(userEmail) : false;
-                await fetch('/api/usuarios/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        uid: user.uid,
-                        email: userEmail,
-                        full_name: user.displayName || userEmail.split('@')[0] || 'Usuario',
-                        photo_url: user.photoURL || '',
-                        is_admin: isAdmin
-                    })
-                });
-            } catch (syncErr) {
-                console.warn("Could not sync user to MySQL on auth change:", syncErr);
-            }
+            // Auto-sync user to MySQL backend in background without blocking login UI
+            (async () => {
+                try {
+                    const token = await user.getIdToken();
+                    const userEmail = (user.email || '').toLowerCase();
+                    const isAdmin = userEmail ? ADMIN_EMAILS.includes(userEmail) : false;
+                    fetch('/api/usuarios/sync', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            uid: user.uid,
+                            email: userEmail,
+                            full_name: user.displayName || userEmail.split('@')[0] || 'Usuario',
+                            photo_url: user.photoURL || '',
+                            is_admin: isAdmin
+                        })
+                    }).catch(e => console.warn("Background sync warning:", e));
+                } catch (syncErr) {
+                    console.warn("Could not sync user to MySQL on auth change:", syncErr);
+                }
+            })();
 
             try {
                 await loadUserPermissions(user);
