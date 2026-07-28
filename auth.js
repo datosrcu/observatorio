@@ -2572,12 +2572,12 @@ function renderSatisfaccionSection(filterTab = 'all') {
     }
 
     if (filterTab === 'all' || filterTab === '_monitor_cl') {
-        const blockCl = renderBlock('Encuestas de Clima Laboral (CL)', '💼', clBoards, clInformes, 'bg-purple-100 text-purple-800 border-purple-200');
+        const blockCl = renderBlock('Satisfacción y Clima Laboral (CL)', '💼', clBoards, clInformes, 'bg-purple-100 text-purple-800 border-purple-200');
         if (blockCl) container.appendChild(blockCl);
     }
 
     if (filterTab === 'all' || filterTab === '_monitor_cc') {
-        const blockCc = renderBlock('Encuestas de Satisfacción Ciudadana (CC)', '🏛️', ccBoards, ccInformes, 'bg-indigo-100 text-indigo-800 border-indigo-200');
+        const blockCc = renderBlock('Satisfacción Ciudadana (CC)', '🏛️', ccBoards, ccInformes, 'bg-indigo-100 text-indigo-800 border-indigo-200');
         if (blockCc) container.appendChild(blockCc);
     }
 }

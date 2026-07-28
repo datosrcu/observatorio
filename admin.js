@@ -1,4 +1,4 @@
-import { auth, provider, signInWithRedirect, signOut, onAuthStateChanged } from './firebase-config.js';
+import { auth, provider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from './firebase-config.js';
 
 // --- DOM Elements ---
 const loader = document.getElementById('auth-loader');
@@ -205,7 +205,14 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-errorLoginBtn?.addEventListener('click', () => signInWithRedirect(auth, provider));
+errorLoginBtn?.addEventListener('click', async () => {
+    try {
+        await signInWithPopup(auth, provider);
+    } catch (e) {
+        console.warn("signInWithPopup error:", e);
+        await signInWithRedirect(auth, provider);
+    }
+});
 logoutBtn?.addEventListener('click', () => signOut(auth));
 
 function showAdminUI(user) {
