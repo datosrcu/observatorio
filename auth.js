@@ -1,4 +1,4 @@
-import { auth, storage, provider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
+import { auth, storage, provider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
 
 // Process redirect login result if user arrived via redirect
 getRedirectResult(auth).then(result => {
@@ -181,12 +181,37 @@ onAuthStateChanged(auth, async (user) => {
 
 // Login function
 async function handleLogin() {
-    console.log("Iniciando login via redirect...");
+    console.log("Iniciando login via popup...");
     try {
-        await signInWithRedirect(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        console.log("signInWithPopup success:", result.user.email);
     } catch (error) {
-        console.error("Error en signInWithRedirect:", error);
-        alert('Error al iniciar sesión: ' + (error.message || 'Intenta de nuevo más tarde.'));
+        console.warn("Error en signInWithPopup:", error.code || error.message);
+        // Si Firebase dice que el popup se cerró, verificamos si el usuario igual se autenticó
+        if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+                console.log("Usuario ya autenticado a pesar del error:", currentUser.email);
+                return;
+            }
+            // Si no se autenticó, probamos con redirect como fallback
+            console.log("Fallback a redirect...");
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (redirectErr) {
+                console.error("Redirect fallback error:", redirectErr);
+                alert('No se pudo iniciar sesión con popup ni redirect.');
+            }
+        } else if (error.code === 'auth/popup-blocked') {
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (redirectErr) {
+                console.error("Redirect fallback error:", redirectErr);
+                alert('Popup bloqueado y redirect falló. Permití popups para este sitio.');
+            }
+        } else {
+            alert('Error al iniciar sesión: ' + (error.message || 'Intenta de nuevo más tarde.'));
+        }
     }
 }
 
