@@ -188,15 +188,19 @@ onAuthStateChanged(auth, async (user) => {
 // Login function
 async function handleLogin() {
     try {
-        await signInWithPopup(auth, provider);
+        await signInWithRedirect(auth, provider);
     } catch (error) {
-        console.warn("Error en signInWithPopup:", error);
-        if (error.code === 'auth/popup-blocked') {
-            alert('El navegador bloqueó la ventana emergente. Permití popups para este sitio o intentá de nuevo.');
-        } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-            // Usuario cerró el popup, no hacer nada
-        } else {
-            alert('Error al iniciar sesión: ' + (error.message || 'Intenta de nuevo más tarde.'));
+        console.error("Error al iniciar con redirect:", error);
+        // Fallback a popup si redirect falla
+        try {
+            await signInWithPopup(auth, provider);
+        } catch (popupError) {
+            console.warn("Error en signInWithPopup:", popupError);
+            if (popupError.code === 'auth/popup-blocked') {
+                alert('El navegador bloqueó la ventana emergente. Permití popups para este sitio o intentá de nuevo.');
+            } else if (popupError.code !== 'auth/popup-closed-by-user' && popupError.code !== 'auth/cancelled-popup-request') {
+                alert('Error al iniciar sesión: ' + (popupError.message || 'Intenta de nuevo más tarde.'));
+            }
         }
     }
 }
