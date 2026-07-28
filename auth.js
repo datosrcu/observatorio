@@ -288,18 +288,20 @@ async function loadUserPermissions(user) {
         const globalTermsVersion = perfilData.termsVersion || '1';
 
         // Cache role and profile status from MySQL
-        let hasProfileInfo = false;
         if (profile) {
-            currentUserRole = profile.role || 'usuario';
+            currentUserRole = (profile.role || 'usuario').toLowerCase();
+            if (ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
+                currentUserRole = 'admin';
+            }
             currentUserAcceptedTCVersion = profile.terms_accepted_version || null;
             currentUserAcceptedTCTimestamp = profile.terms_accepted_date || null;
             currentUserData = profile;
 
-            const isAdmin = ['datos@riocuarto.gov.ar'].includes(userEmail);
+            const isAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
             const profileCompleted = !!(profile.sector_group && profile.organization_name && profile.role_position);
             hasProfileInfo = profileCompleted || isAdmin;
         } else {
-            currentUserRole = 'usuario';
+            currentUserRole = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail) ? 'admin' : 'usuario';
         }
 
         // Show registration modal if missing info
@@ -457,12 +459,10 @@ function checkUserAccess(user, buttonData) {
 
     const userEmail = user.email.toLowerCase();
 
-    // Role status check (Full access for Lectors)
-    if (currentUserRole === 'lector') return true;
-
-    // Check if user is an admin by default
-    if (ADMIN_EMAILS.includes(userEmail)) {
-        console.log("Access granted: Admin user");
+    const role = (currentUserRole || '').toLowerCase();
+    // Role status check (Full access for Admin and Lector roles)
+    if (role === 'admin' || role === 'lector' || ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
+        console.log("Access granted: Full privileges (Admin / Lector)");
         return true;
     }
 
