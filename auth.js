@@ -200,9 +200,14 @@ function showLoginUI() {
     if (unauthOverlay) unauthOverlay.style.display = 'flex';
     if (filtersContainer) filtersContainer.classList.add('hidden');
 
-    // Clear grid
+    // Clear grid for main dashboard
     const gridContainer = document.getElementById('tableros-grid');
     if (gridContainer) gridContainer.innerHTML = '';
+
+    // Load public content for dedicated satisfaccion page if open
+    if (document.getElementById('satisfaccion-page-container')) {
+        initSatisfaccionPage();
+    }
 }
 
 function showUserUI(user) {
@@ -376,6 +381,9 @@ async function loadUserPermissions(user) {
 
         console.log("Loaded (MySQL)", allCategories.length, "categories,", allAccessibleBoards.length, "boards,", allInformes.length, "informes");
         renderDashboard();
+        if (document.getElementById('satisfaccion-page-container')) {
+            renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
+        }
 
 
     } catch (error) {
@@ -405,27 +413,30 @@ async function loadUserPermissions(user) {
 }
 
 function checkUserAccess(user, buttonData) {
-    if (!buttonData || !buttonData.requireLogin) return true;
+    if (!buttonData.requireLogin) return true;
     if (!user) return false;
 
-    const userEmail = (user.email || '').toLowerCase();
-    if (!userEmail) return false;
+    const userEmail = user.email.toLowerCase();
 
     // Role status check (Full access for Lectors)
     if (currentUserRole === 'lector') return true;
 
     // Check if user is an admin by default
-    if (ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
+    if (ADMIN_EMAILS.includes(userEmail)) {
         console.log("Access granted: Admin user");
         return true;
     }
 
-    const allowedUsers = (buttonData.allowedUsers || []).map(e => String(e).toLowerCase());
-    if (allowedUsers.includes(userEmail)) {
+    const allowedUsers = buttonData.allowedUsers || [];
+    const lowerEmail = userEmail.toLowerCase();
+    
+    const isAllowed = allowedUsers.map(email => email.toLowerCase()).includes(lowerEmail);
+
+    if (isAllowed) {
         // Check for expiration if it exists
         const accessExpirations = buttonData.accessExpirations || {};
-        if (accessExpirations[userEmail]) {
-            const expiry = new Date(accessExpirations[userEmail]);
+        if (accessExpirations[lowerEmail]) {
+            const expiry = new Date(accessExpirations[lowerEmail]);
             const now = new Date();
             if (now > expiry) {
                 console.warn(`Access expired for ${userEmail} on board ${buttonData.id || 'unknown'}`);
@@ -2560,6 +2571,17 @@ function renderSatisfaccionSection(filterTab = 'all') {
         return block;
     }
 
+    if (filterTab === 'all' || filterTab === '_monitor_cl') {
+        const blockCl = renderBlock('Encuestas de Clima Laboral (CL)', '💼', clBoards, clInformes, 'bg-purple-100 text-purple-800 border-purple-200');
+        if (blockCl) container.appendChild(blockCl);
+    }
+
+    if (filterTab === 'all' || filterTab === '_monitor_cc') {
+        const blockCc = renderBlock('Encuestas de Satisfacción Ciudadana (CC)', '🏛️', ccBoards, ccInformes, 'bg-indigo-100 text-indigo-800 border-indigo-200');
+        if (blockCc) container.appendChild(blockCc);
+    }
+}
+
 // Dynamic helper to resolve category IDs from allCategories
 function getSatisfaccionCategoryIds() {
     const clIds = new Set(['_monitor_cl']);
@@ -2630,19 +2652,15 @@ async function initSatisfaccionPage() {
     if (!container) return;
 
     try {
-        const [categoriesRes, boardsRes, informesRes] = await Promise.allSettled([
-            fetch('/api/categorias').then(r => r.ok ? r.json() : []),
-            fetch('/api/tableros').then(r => r.ok ? r.json() : []),
-            fetch('/api/informes').then(r => r.ok ? r.json() : [])
+        const [categoriesData, boardsData, informesData] = await Promise.all([
+            fetch('/api/categorias').then(r => r.json()).catch(() => []),
+            fetch('/api/tableros').then(r => r.json()).catch(() => []),
+            fetch('/api/informes').then(r => r.json()).catch(() => [])
         ]);
-
-        const categoriesData = categoriesRes.status === 'fulfilled' && Array.isArray(categoriesRes.value) ? categoriesRes.value : [];
-        const boardsData = boardsRes.status === 'fulfilled' && Array.isArray(boardsRes.value) ? boardsRes.value : [];
-        const informesData = informesRes.status === 'fulfilled' && Array.isArray(informesRes.value) ? informesRes.value : [];
 
         const user = auth.currentUser;
 
-        allCategories = categoriesData.map(c => ({
+        allCategories = (categoriesData || []).map(c => ({
             id: c.id,
             name: c.name,
             description: c.description,
@@ -2653,8 +2671,8 @@ async function initSatisfaccionPage() {
             order: c.sort_order
         }));
 
-        allInformes = informesData
-            .filter(i => i.enabled === 1 || i.enabled === true || i.enabled === '1' || i.enabled === 'true')
+        allInformes = (informesData || [])
+            .filter(i => i.enabled)
             .map(i => {
                 const informeObj = {
                     id: i.id,
@@ -2676,17 +2694,16 @@ async function initSatisfaccionPage() {
             });
 
         allAccessibleBoards = [];
-        boardsData.forEach(data => {
-            const isEnabled = data.enabled === 1 || data.enabled === true || data.enabled === '1' || data.enabled === 'true';
-            if (isEnabled) {
+        (boardsData || []).forEach(data => {
+            if (data.enabled) {
                 const boardObj = {
                     id: data.id,
                     title: data.title,
                     icon: data.icon,
                     iframeUrl: data.iframe_url,
-                    enabled: isEnabled,
-                    requireLogin: data.require_login === 1 || data.require_login === true || data.require_login === '1' || data.require_login === 'true',
-                    openInNewTab: data.open_in_new_tab === 1 || data.open_in_new_tab === true || data.open_in_new_tab === '1' || data.open_in_new_tab === 'true',
+                    enabled: data.enabled,
+                    requireLogin: data.require_login,
+                    openInNewTab: data.open_in_new_tab,
                     sort_order: data.sort_order,
                     allowedUsers: (() => {
                         try {
@@ -2719,7 +2736,14 @@ async function initSatisfaccionPage() {
         renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
     } catch (err) {
         console.error("Error in initSatisfaccionPage:", err);
-        renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
+        if (container) {
+            container.innerHTML = `
+                <div class="py-12 text-center bg-white rounded-xl border border-red-200 p-6">
+                    <p class="text-red-600 font-bold">Error al cargar encuestas de satisfacción</p>
+                    <p class="text-xs text-gray-500 mt-1">${err.message || err}</p>
+                </div>
+            `;
+        }
     }
 }
 
