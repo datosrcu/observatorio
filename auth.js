@@ -168,10 +168,15 @@ onAuthStateChanged(auth, async (user) => {
 // Login function
 async function handleLogin() {
     try {
-        await signInWithRedirect(auth, provider);
+        await signInWithPopup(auth, provider);
     } catch (error) {
-        console.error("Error during login redirect:", error);
-        alert("Ocurrió un error al intentar iniciar sesión: " + (error.message || error) + "\n\nIntenta de nuevo.");
+        console.warn("signInWithPopup error, trying redirect fallback:", error);
+        try {
+            await signInWithRedirect(auth, provider);
+        } catch (err2) {
+            console.error("Error during login fallback:", err2);
+            alert("Ocurrió un error al intentar iniciar sesión: " + (err2.message || err2) + "\n\nIntenta de nuevo.");
+        }
     }
 }
 
