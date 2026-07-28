@@ -258,6 +258,7 @@ async function loadUserPermissions(user) {
         console.warn("Error loading base data from API:", e);
     }
 
+    try {
         const profile = perfilData.profile;
         const globalTermsVersion = perfilData.termsVersion || '1';
 
