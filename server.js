@@ -173,16 +173,8 @@ const verifyToken = async (req, res, next) => {
         req.user = decodedToken;
         next();
     } catch (error) {
-        console.warn('verifyIdToken warning, using JWT payload fallback:', error.message);
-        try {
-            const base64Payload = idToken.split('.')[1];
-            const payload = JSON.parse(Buffer.from(base64Payload, 'base64').toString('utf8'));
-            req.user = payload;
-            next();
-        } catch (e2) {
-            console.error('Error al verificar token:', error);
-            res.status(403).json({ error: `Token inválido o expirado: ${error.message}` });
-        }
+        console.error('Error al verificar token:', error);
+        return res.status(403).json({ error: `Token inválido o expirado: ${error.message}` });
     }
 };
 
@@ -540,7 +532,10 @@ app.get('/api/protected-test', verifyToken, (req, res) => {
 
 // 0. Sincronizar usuario al hacer login (reemplaza Firestore)
 app.post('/api/usuarios/sync', verifyToken, async (req, res) => {
-    const { email, full_name } = req.body;
+    const { uid, email, full_name } = req.body;
+    if (!uid || !email) {
+        return res.status(400).json({ error: 'Faltan campos obligatorios: uid, email' });
+    }
     try {
         const connection = await getDbConnection();
         await connection.execute(
@@ -550,7 +545,7 @@ app.post('/api/usuarios/sync', verifyToken, async (req, res) => {
                uid = VALUES(uid),
                full_name = COALESCE(NULLIF(?, ''), full_name),
                last_login = NOW()`,
-            [email, email, full_name, full_name]
+            [uid, email, full_name, full_name]
         );
         await connection.end();
         res.json({ success: true });

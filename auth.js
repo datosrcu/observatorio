@@ -1,12 +1,14 @@
-import { auth, storage, provider, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithCredential, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
+import { auth, storage, provider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
 
 // Process redirect login result if user arrived via redirect
 getRedirectResult(auth).then(result => {
     if (result && result.user) {
-        console.log("Logged in via redirect result:", result.user.email);
+        console.log("getRedirectResult: user logged in via redirect:", result.user.email);
+    } else {
+        console.log("getRedirectResult: no pending redirect result");
     }
 }).catch(err => {
-    console.warn("getRedirectResult warning:", err);
+    console.warn("getRedirectResult error:", err.code || err.message);
 });
 
 // DOM Elements
@@ -100,8 +102,8 @@ const iframeFallback = document.getElementById('iframe-fallback');
 const ogbFallbackBtn = null;
 const unauthOverlay = document.getElementById('unauth-overlay');
 
-// Allowed Domain
-const ALLOWED_DOMAIN = "@riocuarto.gov.ar";
+// Allowed Domain (actualmente cualquier cuenta de Google puede acceder)
+// const ALLOWED_DOMAIN = "@riocuarto.gov.ar";
 
 // Current User State
 let currentUser = null;
@@ -111,6 +113,7 @@ onAuthStateChanged(auth, async (user) => {
     try {
         if (user) {
             console.log("Auth State: User logged in", user.email);
+
             // Always show base UI then load data
             showUserUI(user);
 
@@ -178,16 +181,36 @@ onAuthStateChanged(auth, async (user) => {
 
 // Login function
 async function handleLogin() {
+    console.log("Iniciando login via popup...");
     try {
-        await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        console.log("signInWithPopup success:", result.user.email);
     } catch (error) {
-        console.warn("signInWithPopup did not complete, launching redirect auth fallback:", error);
-        if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+        console.warn("Error en signInWithPopup:", error.code || error.message);
+        // Si Firebase dice que el popup se cerró, verificamos si el usuario igual se autenticó
+        if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+                console.log("Usuario ya autenticado a pesar del error:", currentUser.email);
+                return;
+            }
+            // Si no se autenticó, probamos con redirect como fallback
+            console.log("Fallback a redirect...");
             try {
                 await signInWithRedirect(auth, provider);
-            } catch (err2) {
-                console.error("Login redirect fallback error:", err2);
+            } catch (redirectErr) {
+                console.error("Redirect fallback error:", redirectErr);
+                alert('No se pudo iniciar sesión con popup ni redirect.');
             }
+        } else if (error.code === 'auth/popup-blocked') {
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (redirectErr) {
+                console.error("Redirect fallback error:", redirectErr);
+                alert('Popup bloqueado y redirect falló. Permití popups para este sitio.');
+            }
+        } else {
+            alert('Error al iniciar sesión: ' + (error.message || 'Intenta de nuevo más tarde.'));
         }
     }
 }
@@ -254,6 +277,7 @@ async function loadUserPermissions(user) {
         console.warn("Error loading base data from API:", e);
     }
 
+    try {
         const profile = perfilData.profile;
         const globalTermsVersion = perfilData.termsVersion || '1';
 
