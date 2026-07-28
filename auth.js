@@ -112,14 +112,6 @@ onAuthStateChanged(auth, async (user) => {
         if (user) {
             console.log("Auth State: User logged in", user.email);
 
-            const userEmail = (user.email || '').toLowerCase();
-            if (!userEmail.endsWith(ALLOWED_DOMAIN)) {
-                console.warn("Domain not allowed:", userEmail);
-                await signOut(auth);
-                alert('Solo se permite el acceso con correo institucional @riocuarto.gov.ar.');
-                return;
-            }
-
             // Always show base UI then load data
             showUserUI(user);
 
@@ -188,19 +180,20 @@ onAuthStateChanged(auth, async (user) => {
 // Login function
 async function handleLogin() {
     try {
-        await signInWithRedirect(auth, provider);
+        await signInWithPopup(auth, provider);
     } catch (error) {
-        console.error("Error al iniciar con redirect:", error);
-        // Fallback a popup si redirect falla
-        try {
-            await signInWithPopup(auth, provider);
-        } catch (popupError) {
-            console.warn("Error en signInWithPopup:", popupError);
-            if (popupError.code === 'auth/popup-blocked') {
-                alert('El navegador bloqueó la ventana emergente. Permití popups para este sitio o intentá de nuevo.');
-            } else if (popupError.code !== 'auth/popup-closed-by-user' && popupError.code !== 'auth/cancelled-popup-request') {
-                alert('Error al iniciar sesión: ' + (popupError.message || 'Intenta de nuevo más tarde.'));
+        console.warn("Error en signInWithPopup:", error);
+        if (error.code === 'auth/popup-blocked') {
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (redirectErr) {
+                console.error("Redirect fallback error:", redirectErr);
+                alert('No se pudo iniciar sesión. Intentá permitiendo popups para este sitio.');
             }
+        } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+            // Usuario cerró el popup, no hacer nada
+        } else {
+            alert('Error al iniciar sesión: ' + (error.message || 'Intenta de nuevo más tarde.'));
         }
     }
 }
