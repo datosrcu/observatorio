@@ -818,11 +818,17 @@ function openModal(title, url) {
         return;
     }
 
-    modalHeading.textContent = title;
+    const mModal = modal || document.getElementById('ogb-modal');
+    const mHeading = modalHeading || document.getElementById('ogb-heading');
+    const mIframe = modalIframe || document.getElementById('ogb-iframe');
+    const mLoader = modalLoader || document.getElementById('iframe-loader');
+    const mWrap = modalIframeWrap || document.getElementById('ogb-iframe-wrap');
+
+    if (mHeading) mHeading.textContent = title;
 
     // Reset iframe state
-    modalIframe.style.opacity = '0';
-    modalLoader.style.display = 'flex';
+    if (mIframe) mIframe.style.opacity = '0';
+    if (mLoader) mLoader.style.display = 'flex';
 
     // Apply URL formatting fixes
     let finalSrc = ogbFixSheetUrl(url);
@@ -833,76 +839,82 @@ function openModal(title, url) {
     const isLocalUpload = finalSrc.startsWith('/uploads/');
     const isPdf = finalSrc.toLowerCase().includes('.pdf');
 
-    if (isLocalUpload) {
-        // Archivo HTML/imagen subido al servidor: mismo origen, no necesita sandbox.
-        // El sandbox bloquearía scripts externos (CDN) que el tablero puede necesitar.
-        modalIframe.removeAttribute('sandbox');
-        modalIframe.removeAttribute('referrerpolicy');
-    } else {
-        // URL externa: aplicar sandbox y referrerpolicy por seguridad
-        modalIframe.setAttribute('referrerpolicy', 'no-referrer');
-        modalIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms');
+    if (mIframe) {
+        if (isLocalUpload) {
+            mIframe.removeAttribute('sandbox');
+            mIframe.removeAttribute('referrerpolicy');
+        } else {
+            mIframe.setAttribute('referrerpolicy', 'no-referrer');
+            mIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms');
 
-        if (finalSrc.includes('lookerstudio.google.com')) {
-            modalIframe.removeAttribute('referrerpolicy');
-        }
+            if (finalSrc.includes('lookerstudio.google.com')) {
+                mIframe.removeAttribute('referrerpolicy');
+            }
 
-        // Chrome's PDF viewer is disabled if the iframe has ANY sandbox attribute
-        if (isPdf) {
-            modalIframe.removeAttribute('sandbox');
-            // Hide PDF toolbar to prevent downloading/printing natively
-            if (!finalSrc.includes('toolbar=0')) {
-                finalSrc += (finalSrc.includes('#') ? '&' : '#') + 'toolbar=0';
+            if (isPdf) {
+                mIframe.removeAttribute('sandbox');
+                if (!finalSrc.includes('toolbar=0')) {
+                    finalSrc += (finalSrc.includes('#') ? '&' : '#') + 'toolbar=0';
+                }
             }
         }
+        mIframe.src = finalSrc;
     }
-
-    // Load iframe content
-    modalIframe.src = finalSrc;
 
     // Reset fallback visibility
     if (iframeFallback) iframeFallback.classList.add('hidden');
 
     // Show fallback if it takes too long (might be blocked)
     const fallbackTimeout = setTimeout(() => {
-        if (modalLoader.style.display !== 'none' || modalIframe.style.opacity === '0') {
+        if ((mLoader && mLoader.style.display !== 'none') || (mIframe && mIframe.style.opacity === '0')) {
             if (iframeFallback) iframeFallback.classList.remove('hidden');
         }
     }, 6000);
 
     // Listen for iframe load
-    modalIframe.onload = () => {
-        clearTimeout(fallbackTimeout);
-        modalLoader.style.display = 'none';
-        modalIframe.style.opacity = '1';
-        // Even if it loads, we hide fallback just in case it was showing
-        if (iframeFallback) iframeFallback.classList.add('hidden');
-    };
+    if (mIframe) {
+        mIframe.onload = () => {
+            clearTimeout(fallbackTimeout);
+            if (mLoader) mLoader.style.display = 'none';
+            mIframe.style.opacity = '1';
+            if (iframeFallback) iframeFallback.classList.add('hidden');
+        };
+    }
 
     // If it's a PDF, Chrome might not fire the onload event for the plugin, so we force visibility.
     if (isPdf) {
         setTimeout(() => {
             clearTimeout(fallbackTimeout);
-            modalLoader.style.display = 'none';
-            modalIframe.style.opacity = '1';
+            if (mLoader) mLoader.style.display = 'none';
+            if (mIframe) mIframe.style.opacity = '1';
         }, 1000);
     }
 
     // Show modal
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    modal.setAttribute('aria-hidden', 'false');
+    if (mWrap) mWrap.classList.remove('hidden');
+    if (mModal) {
+        mModal.classList.remove('hidden');
+        mModal.classList.add('flex');
+        mModal.setAttribute('aria-hidden', 'false');
+    }
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
 }
 
 function closeModal() {
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    modal.setAttribute('aria-hidden', 'true');
+    const mModal = modal || document.getElementById('ogb-modal');
+    const mHeading = modalHeading || document.getElementById('ogb-heading');
+    const mIframe = modalIframe || document.getElementById('ogb-iframe');
+    const mWrap = modalIframeWrap || document.getElementById('ogb-iframe-wrap');
+
+    if (mModal) {
+        mModal.classList.add('hidden');
+        mModal.classList.remove('flex');
+        mModal.setAttribute('aria-hidden', 'true');
+    }
     document.body.style.overflow = '';
 
     // Reset contents
-    modalIframeWrap.classList.remove('hidden');
+    if (mWrap) mWrap.classList.remove('hidden');
     if (iframeFallback) iframeFallback.classList.add('hidden');
     const formWrap = document.getElementById('ogb-form-wrap');
     if (formWrap) {
@@ -917,8 +929,8 @@ function closeModal() {
     if (submitBtn) submitBtn.disabled = true;
 
     // Reset iframe
-    modalIframe.src = 'about:blank';
-    modalHeading.textContent = '...';
+    if (mIframe) mIframe.src = 'about:blank';
+    if (mHeading) mHeading.textContent = '...';
 
     const card = document.getElementById('ogb-modal-card');
     if (card) {
