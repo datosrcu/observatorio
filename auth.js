@@ -185,39 +185,14 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// Login function
+// Login function (Redirección directa de navegador)
 async function handleLogin() {
-    console.log("Iniciando login via popup...");
+    console.log("Iniciando login via redirección de navegador...");
     try {
-        const result = await signInWithPopup(auth, provider);
-        console.log("signInWithPopup success:", result.user.email);
+        await signInWithRedirect(auth, provider);
     } catch (error) {
-        console.warn("Error en signInWithPopup:", error.code || error.message);
-        // Si Firebase dice que el popup se cerró, verificamos si el usuario igual se autenticó
-        if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-            const currentUser = auth.currentUser;
-            if (currentUser) {
-                console.log("Usuario ya autenticado a pesar del error:", currentUser.email);
-                return;
-            }
-            // Si no se autenticó, probamos con redirect como fallback
-            console.log("Fallback a redirect...");
-            try {
-                await signInWithRedirect(auth, provider);
-            } catch (redirectErr) {
-                console.error("Redirect fallback error:", redirectErr);
-                alert('No se pudo iniciar sesión con popup ni redirect.');
-            }
-        } else if (error.code === 'auth/popup-blocked') {
-            try {
-                await signInWithRedirect(auth, provider);
-            } catch (redirectErr) {
-                console.error("Redirect fallback error:", redirectErr);
-                alert('Popup bloqueado y redirect falló. Permití popups para este sitio.');
-            }
-        } else {
-            alert('Error al iniciar sesión: ' + (error.message || 'Intenta de nuevo más tarde.'));
-        }
+        console.error("Error en signInWithRedirect:", error);
+        alert('Error al iniciar sesión: ' + (error.message || 'Intenta de nuevo más tarde.'));
     }
 }
 
