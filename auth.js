@@ -282,10 +282,12 @@ async function loadUserPermissions(user) {
         }
 
         // Show registration modal if missing info
-        if (!hasProfileInfo && registrationModal) {
+        const modalEl = registrationModal || document.getElementById('registration-modal');
+        if (!hasProfileInfo && modalEl) {
             console.log("Profile incomplete — showing registration modal");
-            registrationModal.classList.remove('hidden');
-            registrationModal.classList.add('flex');
+            modalEl.classList.remove('hidden');
+            modalEl.classList.add('flex');
+            modalEl.style.display = 'flex';
         } else if (hasProfileInfo && profile) {
             // Check T&C Version for re-acceptance ONLY if profile is complete
             if (profile.terms_accepted_version && profile.terms_accepted_version !== globalTermsVersion) {

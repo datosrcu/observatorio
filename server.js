@@ -595,26 +595,31 @@ app.get('/api/perfil/me', verifyToken, async (req, res) => {
             profile.role = 'admin';
         }
 
+        const isAdminEmail = userEmail === 'datos@riocuarto.gov.ar';
+        const fallbackAdminProfile = {
+            role: 'admin',
+            sector_group: 'Municipalidad de Río Cuarto',
+            organization_name: 'Observatorio de Gestión Municipal',
+            role_position: 'Administrador',
+            terms_accepted_version: '1'
+        };
+
         res.json({
-            profile: profile || {
-                role: 'admin',
-                sector_group: 'Municipalidad de Río Cuarto',
-                organization_name: 'Observatorio de Gestión Municipal',
-                role_position: 'Administrador',
-                terms_accepted_version: '1'
-            },
+            profile: profile || (isAdminEmail ? fallbackAdminProfile : null),
             termsVersion: configRow?.config_value || '1'
         });
     } catch (error) {
         console.warn('DB offline, returning fallback profile:', error.message);
+        const userEmail = (req.user?.email || '').toLowerCase().trim();
+        const isAdminEmail = userEmail === 'datos@riocuarto.gov.ar';
         res.json({
-            profile: {
+            profile: isAdminEmail ? {
                 role: 'admin',
                 sector_group: 'Municipalidad de Río Cuarto',
                 organization_name: 'Observatorio de Gestión Municipal',
                 role_position: 'Administrador',
                 terms_accepted_version: '1'
-            },
+            } : null,
             termsVersion: '1'
         });
     }
