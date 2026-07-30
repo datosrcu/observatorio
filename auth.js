@@ -2019,10 +2019,13 @@ if (registrationForm) {
             console.error('Error updating profile:', error);
             alert('Hubo un error al guardar tu información: ' + (error.code || error.message));
             regSubmitBtn.disabled = false;
-            regSubmitBtn.textContent = 'Guardar y Continuar';
         }
     });
-    const termsLabel = document.querySelector('.tc-version-label');
+}
+
+// --- T&C Re-acceptance Modal Flow ---
+async function showTCReacceptanceModal(newVersion) {
+    const termsModal = document.getElementById('terms-modal');
     if (termsLabel) termsLabel.textContent = newVersion;
 
     if (!termsModal) return;
