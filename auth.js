@@ -288,11 +288,16 @@ async function loadUserPermissions(user) {
             modalEl.classList.remove('hidden');
             modalEl.classList.add('flex');
             modalEl.style.display = 'flex';
-        } else if (hasProfileInfo && profile) {
-            // Check T&C Version for re-acceptance ONLY if profile is complete
-            if (profile.terms_accepted_version && profile.terms_accepted_version !== globalTermsVersion) {
-                console.log("Re-acceptance required: user has", profile.terms_accepted_version, "but current is", globalTermsVersion);
-                showTCReacceptanceModal(globalTermsVersion);
+        } else if (modalEl) {
+            modalEl.classList.add('hidden');
+            modalEl.classList.remove('flex');
+            modalEl.style.display = 'none';
+            if (hasProfileInfo && profile) {
+                // Check T&C Version for re-acceptance ONLY if profile is complete
+                if (profile.terms_accepted_version && profile.terms_accepted_version !== globalTermsVersion) {
+                    console.log("Re-acceptance required: user has", profile.terms_accepted_version, "but current is", globalTermsVersion);
+                    showTCReacceptanceModal(globalTermsVersion);
+                }
             }
         }
 
@@ -1855,7 +1860,6 @@ if (registrationForm) {
         if (!regTermsCheck.checked || !confirmTermsBtn?.dataset.confirmed) {
              // If we want to strictly forbid manual check:
              // e.preventDefault();
-             // openTermsLink.click();
         }
     });
 
@@ -1867,7 +1871,10 @@ if (registrationForm) {
 
     async function getUserIP() {
         try {
-            const response = await fetch('https://api.ipify.org?format=json');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const response = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+            clearTimeout(timeoutId);
             const data = await response.json();
             return data.ip;
         } catch (e) {
@@ -1918,14 +1925,22 @@ if (registrationForm) {
             const userEmail = user.email.toLowerCase();
 
             // Fetch T&C Version from MySQL
-            const tcRes = await fetch('/api/config/terms-version');
-            const tcData = await tcRes.json();
-            const currentTCVersion = tcData.version || "1";
+            let currentTCVersion = "1";
+            try {
+                const tcRes = await fetch('/api/config/terms-version');
+                if (tcRes.ok) {
+                    const tcData = await tcRes.json();
+                    currentTCVersion = tcData.version || "1";
+                }
+            } catch (tcErr) {
+                console.warn("Error fetching terms version:", tcErr);
+            }
             const userIP = await getUserIP();
 
             let legalDocURL = null;
             const legalFileInput = document.getElementById('reg-legal-file');
-            if (!document.getElementById('reg-legal-file-wrap').classList.contains('hidden') && legalFileInput?.files[0]) {
+            const legalWrap = document.getElementById('reg-legal-file-wrap');
+            if (legalWrap && !legalWrap.classList.contains('hidden') && legalFileInput?.files[0]) {
                 const file = legalFileInput.files[0];
                 const storageRef = ref(storage, `legal_docs/${userEmail}_${Date.now()}_${file.name}`);
                 const snapshot = await uploadBytes(storageRef, file);
@@ -1967,35 +1982,38 @@ if (registrationForm) {
                 terms_accepted_date: registrationData.acceptedTCTimestamp
             });
 
-            // Audit Log in consent_logs (MySQL)
-            try {
-                await callApi('/api/rce', 'POST', {
-                    user_email: userEmail,
-                    user_name: registrationData.name,
-                    dni: dni,
-                    terms_version: currentTCVersion
-                });
-            } catch (auditErr) {
-                console.warn("Audit log failed", auditErr);
+            // Audit Log in consent_logs (non-blocking background call)
+            callApi('/api/rce', 'POST', {
+                user_email: userEmail,
+                user_name: registrationData.name,
+                dni: dni,
+                terms_version: currentTCVersion
+            }).catch(auditErr => console.warn("Audit log failed", auditErr));
+
+            // Enviar email de bienvenida con T&C adjuntos (non-blocking background call)
+            callApi('/api/enviar-bienvenida', 'POST', {
+                full_name: registrationData.name,
+                email: userEmail
+            }).catch(emailErr => console.warn('[Email] No se pudo enviar el correo de bienvenida:', emailErr));
+
+            // Ocultar completamente el modal de registro
+            const modalEl = registrationModal || document.getElementById('registration-modal');
+            if (modalEl) {
+                modalEl.classList.add('hidden');
+                modalEl.classList.remove('flex');
+                modalEl.style.display = 'none';
             }
 
-            // Enviar email de bienvenida con T&C adjuntos
-            try {
-                await callApi('/api/enviar-bienvenida', 'POST', {
-                    full_name: registrationData.name,
-                    email: userEmail
-                });
-                console.log('[Email] Correo de bienvenida enviado exitosamente.');
-            } catch (emailErr) {
-                console.warn('[Email] No se pudo enviar el correo de bienvenida:', emailErr);
-                // No bloquear el registro si falla el envío del email
-            }
+            // Restaurar estado del botón de submit
+            regSubmitBtn.disabled = false;
+            regSubmitBtn.textContent = 'Guardar y Continuar';
 
-            registrationModal.classList.add('hidden');
-            registrationModal.classList.remove('flex');
-            alert('¡Perfil completado con éxito!');
-            
+            // Cargar permisos y notificar al usuario permitiendo redibujado de interfaz
             await loadUserPermissions(user);
+
+            setTimeout(() => {
+                alert('¡Perfil completado con éxito!');
+            }, 100);
 
         } catch (error) {
             console.error('Error updating profile:', error);
@@ -2004,11 +2022,6 @@ if (registrationForm) {
             regSubmitBtn.textContent = 'Guardar y Continuar';
         }
     });
-}
-
-// --- T&C Re-acceptance Modal Flow ---
-async function showTCReacceptanceModal(newVersion) {
-    const termsModal = document.getElementById('terms-modal');
     const termsLabel = document.querySelector('.tc-version-label');
     if (termsLabel) termsLabel.textContent = newVersion;
 
