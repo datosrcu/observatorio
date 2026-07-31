@@ -385,6 +385,10 @@
                                     <button class="sub-nav-tab p-4 text-left font-bold text-sm border-l-4 border-transparent text-gray-600 hover:bg-gray-50 transition" data-sub="sub-rce">
                                         Registro (RCE)
                                     </button>
+                                    <button class="sub-nav-tab p-4 text-left font-bold text-sm border-l-4 border-transparent text-gray-600 hover:bg-gray-50 transition flex justify-between items-center" data-sub="sub-atlas-monitores">
+                                        <span>Atlas y Monitores</span>
+                                        <span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">Permisos</span>
+                                    </button>
                                 </nav>
                             </div>
 
@@ -509,6 +513,39 @@
                                             </tbody>
                                         </table>
                                     </div>
+                                </div>
+                            <!-- SUB-TAB: Atlas y Monitores -->
+                            <div id="sub-atlas-monitores" class="sub-pane hidden">
+                                <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+                                    <div>
+                                        <h4 class="text-lg font-bold">Gestión de Permisos: Atlas, Monitores y Tableros</h4>
+                                        <p class="text-[10px] text-gray-500">Administrá manualmente los accesos y usuarios autorizados a todos los tableros, informes, publicaciones, atlas y monitores.</p>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <input type="text" id="filter-atlas-monitores-search" class="text-xs border rounded-lg px-3 py-1.5 w-64 outline-none focus:border-obelisco-blue" placeholder="Buscar recurso por nombre...">
+                                        <select id="filter-atlas-monitores-type" class="text-xs border rounded-lg px-2 py-1.5 outline-none focus:border-obelisco-blue bg-white">
+                                            <option value="all">Todos los recursos</option>
+                                            <option value="atlas_monitor">🗺️ Atlas y Monitores</option>
+                                            <option value="tableros">📊 Tableros</option>
+                                            <option value="informes">📄 Informes</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                    <table class="w-full text-left">
+                                        <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-200">
+                                            <tr>
+                                                <th class="px-4 py-3">Recurso / Título</th>
+                                                <th class="px-4 py-3">Tipo / Categoría</th>
+                                                <th class="px-4 py-3 text-center">Requiere Permiso</th>
+                                                <th class="px-4 py-3">Usuarios Autorizados</th>
+                                                <th class="px-4 py-3 text-right">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="atlas-monitores-tbody" class="divide-y divide-gray-100 text-xs">
+                                            <tr><td colspan="5" class="py-12 text-center text-gray-400">Cargando catálogo de permisos...</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -1175,6 +1212,50 @@
                 <div class="flex space-x-3 pt-4">
                     <button id="cancel-duration-btn" class="flex-1 py-3 px-4 rounded-xl border border-gray-200 text-obelisco-gray font-bold hover:bg-gray-50 transition text-sm">Cancelar</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Gestión Directa de Permisos para Atlas, Monitores, Tableros e Informes -->
+    <div id="permissions-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-[1000] items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-200 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 shrink-0">
+                <div>
+                    <h3 id="permissions-modal-title" class="font-bold text-lg text-obelisco-dark">Gestionar Permisos del Recurso</h3>
+                    <p id="permissions-modal-subtitle" class="text-xs text-obelisco-gray">Asignar o revocar usuarios autorizados</p>
+                </div>
+                <button type="button" id="close-permissions-modal-btn" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow space-y-5 text-xs">
+                <input type="hidden" id="perm-resource-id">
+                <input type="hidden" id="perm-resource-type"> <!-- 'tablero' o 'informe' -->
+
+                <div class="flex items-center justify-between p-3.5 bg-gray-50 border rounded-xl">
+                    <div>
+                        <span class="font-bold text-sm block">Restringir Acceso (Requiere Permiso)</span>
+                        <span class="text-[11px] text-gray-500">Si está activo, sólo usuarios autorizados (o admins/lectores) podrán ingresar.</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="perm-require-login" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-obelisco-blue"></div>
+                    </label>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="font-bold uppercase tracking-wider text-gray-500 text-[10px]">Usuarios Autorizados</label>
+                        <input type="text" id="perm-user-search" class="border border-gray-300 rounded px-3 py-1.5 text-xs outline-none focus:border-obelisco-blue w-64" placeholder="Filtrar o escribir email...">
+                    </div>
+                    <div id="perm-users-checklist" class="border border-gray-200 rounded-xl p-3 max-h-64 overflow-y-auto space-y-1 bg-white">
+                        <p class="text-center text-gray-400 py-4">Cargando usuarios...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3 shrink-0">
+                <button type="button" id="cancel-permissions-btn" class="px-4 py-2 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition">Cancelar</button>
+                <button type="button" id="save-permissions-btn" class="px-5 py-2 text-xs font-bold text-white bg-obelisco-blue hover:bg-blue-700 rounded-lg shadow-sm transition">Guardar Permisos</button>
             </div>
         </div>
     </div>

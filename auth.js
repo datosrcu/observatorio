@@ -406,6 +406,7 @@ async function loadUserPermissions(user) {
 
         console.log("Loaded (MySQL)", allCategories.length, "categories,", allAccessibleBoards.length, "boards,", allInformes.length, "informes");
         renderDashboard();
+        updateStaticButtonsAccess(user);
         if (document.getElementById('satisfaccion-page-container')) {
             renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
         }
@@ -435,6 +436,60 @@ async function loadUserPermissions(user) {
             }
         }
     }
+}
+
+function updateStaticButtonsAccess(user) {
+    const staticButtonIds = ['atlas-estadistico', 'monitor-analisis-comparativo'];
+    staticButtonIds.forEach(buttonId => {
+        const btn = document.querySelector(`[data-button-id="${buttonId}"]`);
+        if (!btn) return;
+
+        const boardObj = allAccessibleBoards.find(b => b.id === buttonId) || {
+            id: buttonId,
+            title: btn.getAttribute('data-heading'),
+            requireLogin: true,
+            allowedUsers: []
+        };
+
+        const hasAccess = checkUserAccess(user, boardObj);
+        btn.setAttribute('data-access', hasAccess ? 'true' : 'false');
+
+        // Verificar si existe una solicitud de acceso pendiente
+        const pendingRequest = currentUserRequests.find(r => 
+            (r.buttonId === buttonId || r.buttonId === boardObj.title || r.buttonName === boardObj.title) && 
+            (r.status === 'pendiente' || r.status === 'pending')
+        );
+        const isUnderReview = !!pendingRequest;
+
+        // Remover badge de candado previo si existe
+        const existingLock = btn.querySelector('.static-lock-badge');
+        if (existingLock) existingLock.remove();
+
+        // Renderizar badge de candado (rojo/revisión/verde)
+        const lockHtml = !hasAccess
+            ? (isUnderReview
+                ? '<div class="static-lock-badge absolute top-3 right-3 text-obelisco-blue bg-blue-50 px-2.5 py-1 rounded-full text-[10px] font-bold border border-blue-200 shadow-sm z-10">En revisión</div>'
+                : '<div class="static-lock-badge absolute top-3 right-3 text-red-500 bg-red-50 p-1.5 rounded-full border border-red-100 shadow-sm z-10" title="Acceso restringido"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg></div>')
+            : '<div class="static-lock-badge absolute top-3 right-3 text-green-600 bg-green-50 p-1.5 rounded-full border border-green-100 shadow-sm z-10" title="Acceso concedido"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg></div>';
+
+        btn.insertAdjacentHTML('afterbegin', lockHtml);
+
+        // Actualizar texto del botón y estilo si está restringido
+        const actionSpan = btn.querySelector('.btn-action-text');
+        if (actionSpan) {
+            if (hasAccess) {
+                const defaultLabel = buttonId === 'atlas-estadistico' ? 'Visualizar Atlas RCU →' : 'Visualizar Monitor RCU →';
+                actionSpan.textContent = defaultLabel;
+                btn.classList.remove('opacity-75', 'border-dashed', 'border-red-200');
+            } else if (isUnderReview) {
+                actionSpan.textContent = 'Solicitud en revisión';
+                btn.classList.add('opacity-75', 'border-dashed', 'border-red-200');
+            } else {
+                actionSpan.textContent = 'Solicitar acceso →';
+                btn.classList.add('opacity-75', 'border-dashed', 'border-red-200');
+            }
+        }
+    });
 }
 
 function checkUserAccess(user, buttonData) {

@@ -455,6 +455,17 @@ const initializeTables = async () => {
             await connection.query('ALTER TABLE tableros ADD COLUMN file_path VARCHAR(500)');
         } catch (e) { /* ignore if exists */ }
 
+        // Seed Atlas Estadístico y Monitor Comparativo si no existen en la tabla tableros
+        try {
+            await connection.query(`
+                INSERT INTO tableros (id, title, icon, iframe_url, enabled, require_login, open_in_new_tab, sort_order, allowed_users, access_expirations, categories)
+                VALUES 
+                ('atlas-estadistico', 'Atlas Estadístico RCU', '🗺️', 'Atlas y Monitor/Atlas Estadístico de Río Cuarto.html', TRUE, TRUE, FALSE, 998, '[]', '{}', '[]'),
+                ('monitor-analisis-comparativo', 'Monitor de Análisis Comparativo RCU', '📊', 'Atlas y Monitor/atlas-analisis-comparativo.html', TRUE, TRUE, FALSE, 999, '[]', '{}', '[]')
+                ON DUPLICATE KEY UPDATE id=id
+            `);
+        } catch (e) { console.warn('Error al seeding atlas y monitor:', e.message); }
+
         console.log('Estructura de base de datos lista.');
         await connection.end();
     } catch (error) {
@@ -1294,6 +1305,35 @@ app.post('/api/tableros', verifyToken, uploadTableros.single('archivo'), async (
     } catch (error) {
         console.error('Error saving board:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Editar tablero parcialmente (Admin)
+app.patch('/api/tableros/:id', verifyToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const fields = { ...req.body };
+
+        Object.keys(fields).forEach(k => { if (fields[k] === undefined || fields[k] === '') delete fields[k]; });
+
+        if (Object.keys(fields).length === 0) return res.json({ success: true });
+
+        if ('enabled' in fields) fields.enabled = (fields.enabled === 'true' || fields.enabled === true || fields.enabled === 1) ? 1 : 0;
+        if ('require_login' in fields) fields.require_login = (fields.require_login === 'true' || fields.require_login === true || fields.require_login === 1) ? 1 : 0;
+        if ('open_in_new_tab' in fields) fields.open_in_new_tab = (fields.open_in_new_tab === 'true' || fields.open_in_new_tab === true || fields.open_in_new_tab === 1) ? 1 : 0;
+        if ('allowed_users' in fields && typeof fields.allowed_users !== 'string') fields.allowed_users = JSON.stringify(fields.allowed_users);
+        if ('access_expirations' in fields && typeof fields.access_expirations !== 'string') fields.access_expirations = JSON.stringify(fields.access_expirations);
+
+        const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
+        const vals = [...Object.values(fields), id];
+
+        const connection = await getDbConnection();
+        await connection.execute(`UPDATE tableros SET ${sets} WHERE id = ?`, vals);
+        await connection.end();
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Error updating board:', e);
+        res.status(500).json({ error: e.message });
     }
 });
 

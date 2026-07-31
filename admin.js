@@ -336,6 +336,7 @@ subNavTabs?.forEach(tab => {
             if (target === 'sub-solicitudes') loadRequests();
             if (target === 'sub-tracking') loadUserTracking();
             if (target === 'sub-directorio') loadUsers();
+            if (target === 'sub-atlas-monitores') loadAtlasAndMonitoresPermissions();
         });
     });
 });
@@ -2490,3 +2491,324 @@ document.getElementById('field-board-file')?.addEventListener('change', (e) => {
 
 window.openInformeModal = openInformeModal;
 window.deleteInforme = deleteInforme;
+
+// ── GESTIÓN DE PERMISOS: ATLAS Y MONITORES ──────────────────────────────────
+let allAtlasMonitoresResources = [];
+let atlasMonitoresSearchQuery = '';
+let atlasMonitoresTypeFilter = 'all';
+
+let currentEditingPermResource = null; // { id, title, resourceType: 'tablero'|'informe', requireLogin, allowedUsers }
+let currentlySelectedPermUsers = [];
+
+async function loadAtlasAndMonitoresPermissions() {
+    const tbody = document.getElementById('atlas-monitores-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="py-12 text-center text-gray-400">Cargando catálogo de permisos...</td></tr>';
+
+    try {
+        if (!allUsersFetched || allUsersFetched.length === 0) {
+            await loadUsers();
+        }
+
+        const [boardsData, informesData] = await Promise.all([
+            callApi('/api/tableros', 'GET').catch(() => []),
+            fetch('/api/informes').then(r => r.json()).catch(() => [])
+        ]);
+
+        // Mapear tableros (incluye atlas-estadistico y monitor-analisis-comparativo)
+        const boardsList = (boardsData || []).map(b => {
+            let allowed = [];
+            try {
+                allowed = typeof b.allowed_users === 'string' ? JSON.parse(b.allowed_users) : (Array.isArray(b.allowed_users) ? b.allowed_users : []);
+            } catch (e) { allowed = []; }
+
+            const isAtlasOrMonitor = b.id === 'atlas-estadistico' || b.id === 'monitor-analisis-comparativo';
+
+            return {
+                id: b.id,
+                title: b.title || b.id,
+                icon: b.icon || (isAtlasOrMonitor ? '🗺️' : '📊'),
+                typeCategory: isAtlasOrMonitor ? '🗺️ Atlas / Monitor RCU' : '📊 Tablero',
+                rawType: isAtlasOrMonitor ? 'atlas_monitor' : 'tableros',
+                resourceType: 'tablero',
+                requireLogin: b.require_login === 1 || b.require_login === true || b.require_login === 'true' || b.require_login === '1',
+                allowedUsers: allowed,
+                rawItem: b
+            };
+        });
+
+        // Mapear informes
+        const informesList = (informesData || []).map(i => {
+            let allowed = [];
+            try {
+                allowed = typeof i.allowed_users === 'string' ? JSON.parse(i.allowed_users) : (Array.isArray(i.allowed_users) ? i.allowed_users : []);
+            } catch (e) { allowed = []; }
+
+            return {
+                id: i.id,
+                title: i.title || i.id,
+                icon: '📄',
+                typeCategory: `📄 Informe (${i.period || i.year || 'General'})`,
+                rawType: 'informes',
+                resourceType: 'informe',
+                requireLogin: i.require_login === 1 || i.require_login === true || i.require_login === 'true' || i.require_login === '1',
+                allowedUsers: allowed,
+                rawItem: i
+            };
+        });
+
+        allAtlasMonitoresResources = [...boardsList, ...informesList];
+
+        renderAtlasMonitoresTable();
+    } catch (e) {
+        console.error("Error al cargar Atlas y Monitores permissions:", e);
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="py-12 text-center text-red-500">Error al cargar el catálogo de permisos.</td></tr>';
+    }
+}
+
+function renderAtlasMonitoresTable() {
+    const tbody = document.getElementById('atlas-monitores-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const filtered = allAtlasMonitoresResources.filter(item => {
+        const matchesSearch = item.title.toLowerCase().includes(atlasMonitoresSearchQuery);
+        let matchesType = true;
+        if (atlasMonitoresTypeFilter === 'atlas_monitor') matchesType = item.rawType === 'atlas_monitor';
+        else if (atlasMonitoresTypeFilter === 'tableros') matchesType = item.rawType === 'tableros';
+        else if (atlasMonitoresTypeFilter === 'informes') matchesType = item.rawType === 'informes';
+
+        return matchesSearch && matchesType;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-12 text-center text-gray-400">No se encontraron recursos con los filtros seleccionados.</td></tr>';
+        return;
+    }
+
+    filtered.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50 transition-colors';
+
+        const isSpecialAtlas = item.id === 'atlas-estadistico' || item.id === 'monitor-analisis-comparativo';
+        const titleBadgeHtml = isSpecialAtlas 
+            ? '<span class="ml-2 text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Atlas/Monitor Destacado</span>'
+            : '';
+
+        const typeBadgeClass = isSpecialAtlas ? 'bg-purple-50 text-purple-700 border-purple-200' : (item.resourceType === 'tablero' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-teal-50 text-teal-700 border-teal-200');
+
+        const reqLoginBadge = item.requireLogin
+            ? '<span class="px-2 py-0.5 bg-red-50 text-red-600 rounded-full font-bold text-[10px] border border-red-100 uppercase">🔒 Restringido</span>'
+            : '<span class="px-2 py-0.5 bg-green-50 text-green-700 rounded-full font-bold text-[10px] border border-green-100 uppercase">🌐 Público</span>';
+
+        const userCount = item.allowedUsers.length;
+        const userPreview = userCount > 0 
+            ? `<div class="flex flex-wrap gap-1">${item.allowedUsers.slice(0, 3).map(u => `<span class="bg-gray-100 border text-[10px] px-1.5 py-0.5 rounded text-gray-600 truncate max-w-[120px]">${u}</span>`).join('')}${userCount > 3 ? `<span class="text-[10px] text-gray-400 font-bold self-center">+${userCount - 3} más</span>` : ''}</div>`
+            : '<span class="text-gray-400 text-[11px] italic">Sin usuarios individuales asignados</span>';
+
+        tr.innerHTML = `
+            <td class="px-4 py-3 font-medium text-gray-900">
+                <div class="flex items-center space-x-2">
+                    <span class="text-base shrink-0">${item.icon}</span>
+                    <span class="font-bold">${item.title}</span>
+                    ${titleBadgeHtml}
+                </div>
+            </td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${typeBadgeClass}">
+                    ${item.typeCategory}
+                </span>
+            </td>
+            <td class="px-4 py-3 text-center">
+                ${reqLoginBadge}
+            </td>
+            <td class="px-4 py-3">
+                ${userPreview}
+            </td>
+            <td class="px-4 py-3 text-right">
+                <button type="button" class="btn-open-perm-modal text-obelisco-blue hover:text-blue-800 font-bold text-xs hover:underline flex items-center justify-end ml-auto">
+                    <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    Gestionar Permisos
+                </button>
+            </td>
+        `;
+
+        tr.querySelector('.btn-open-perm-modal').addEventListener('click', () => openPermissionsModal(item));
+        tbody.appendChild(tr);
+    });
+}
+
+// Listeners de búsqueda y filtro para Atlas y Monitores
+document.getElementById('filter-atlas-monitores-search')?.addEventListener('input', (e) => {
+    atlasMonitoresSearchQuery = e.target.value.toLowerCase().trim();
+    renderAtlasMonitoresTable();
+});
+
+document.getElementById('filter-atlas-monitores-type')?.addEventListener('change', (e) => {
+    atlasMonitoresTypeFilter = e.target.value;
+    renderAtlasMonitoresTable();
+});
+
+// Modal Permisos
+function openPermissionsModal(resource) {
+    currentEditingPermResource = resource;
+    currentlySelectedPermUsers = [...(resource.allowedUsers || [])];
+
+    const modal = document.getElementById('permissions-modal');
+    const titleEl = document.getElementById('permissions-modal-title');
+    const subtitleEl = document.getElementById('permissions-modal-subtitle');
+    const requireLoginCheck = document.getElementById('perm-require-login');
+    const resIdHidden = document.getElementById('perm-resource-id');
+    const resTypeHidden = document.getElementById('perm-resource-type');
+    const searchInput = document.getElementById('perm-user-search');
+
+    if (titleEl) titleEl.textContent = `Permisos: ${resource.title}`;
+    if (subtitleEl) subtitleEl.textContent = `Gestión manual de acceso (${resource.typeCategory})`;
+    if (requireLoginCheck) requireLoginCheck.checked = resource.requireLogin;
+    if (resIdHidden) resIdHidden.value = resource.id;
+    if (resTypeHidden) resTypeHidden.value = resource.resourceType;
+    if (searchInput) searchInput.value = '';
+
+    renderPermUsersChecklist('');
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function closePermissionsModal() {
+    const modal = document.getElementById('permissions-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    currentEditingPermResource = null;
+    currentlySelectedPermUsers = [];
+}
+
+document.getElementById('close-permissions-modal-btn')?.addEventListener('click', closePermissionsModal);
+document.getElementById('cancel-permissions-btn')?.addEventListener('click', closePermissionsModal);
+
+function renderPermUsersChecklist(filterText = '') {
+    const checklistContainer = document.getElementById('perm-users-checklist');
+    if (!checklistContainer) return;
+    checklistContainer.innerHTML = '';
+
+    const filtered = allUsersFetched.filter(u => 
+        (u.email || '').toLowerCase().includes(filterText.toLowerCase()) || 
+        (u.name || '').toLowerCase().includes(filterText.toLowerCase())
+    );
+
+    if (filtered.length === 0 && !filterText) {
+        checklistContainer.innerHTML = '<p class="text-xs text-center text-gray-400 py-4">No hay usuarios registrados aún.</p>';
+        return;
+    }
+
+    filtered.forEach(u => {
+        const userEmail = (u.email || '').toLowerCase();
+        const isAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail);
+        const isLector = u.role === 'lector';
+
+        const isChecked = isAdmin || isLector || currentlySelectedPermUsers.map(e => e.toLowerCase()).includes(userEmail);
+        const disabledAttr = (isAdmin || isLector) ? 'disabled' : '';
+
+        let badgeHtml = '';
+        if (isAdmin) badgeHtml = '<span class="ml-auto text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase shrink-0">Admin (Total)</span>';
+        else if (isLector) badgeHtml = '<span class="ml-auto text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold uppercase shrink-0">Lector (Total)</span>';
+
+        const div = document.createElement('div');
+        div.className = `flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 cursor-pointer transition ${ (isAdmin || isLector) ? 'opacity-70' : ''}`;
+        div.innerHTML = `
+            <input type="checkbox" id="perm-user-${u.email}" value="${u.email}" class="w-4 h-4 text-obelisco-blue rounded border-gray-300 pointer-events-none" ${isChecked ? 'checked' : ''} ${disabledAttr}>
+            <label for="perm-user-${u.email}" class="text-xs font-medium cursor-pointer flex-grow pointer-events-none flex items-center justify-between overflow-hidden">
+                <span class="truncate max-w-[180px] font-bold text-gray-800">${u.name}</span>
+                <span class="text-[10px] text-gray-400 font-mono truncate mx-2">${u.email}</span>
+                ${badgeHtml}
+            </label>
+        `;
+
+        div.addEventListener('click', () => {
+            if (isAdmin || isLector) return;
+            const cb = div.querySelector('input');
+            cb.checked = !cb.checked;
+            const emailLower = userEmail;
+            if (cb.checked) {
+                if (!currentlySelectedPermUsers.map(e => e.toLowerCase()).includes(emailLower)) {
+                    currentlySelectedPermUsers.push(userEmail);
+                }
+            } else {
+                currentlySelectedPermUsers = currentlySelectedPermUsers.filter(e => e.toLowerCase() !== emailLower);
+            }
+        });
+
+        checklistContainer.appendChild(div);
+    });
+
+    // Permite agregar un email manualmente si se escribe un email válido que no está en la lista
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const lowerFilter = filterText.toLowerCase().trim();
+    const alreadyInList = allUsersFetched.some(u => (u.email || '').toLowerCase() === lowerFilter) ||
+        currentlySelectedPermUsers.some(e => e.toLowerCase() === lowerFilter);
+
+    if (emailRegex.test(lowerFilter) && !alreadyInList) {
+        const divManual = document.createElement('div');
+        divManual.className = "mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between cursor-pointer hover:bg-blue-100 transition";
+        divManual.innerHTML = `
+            <div class="flex flex-col">
+                <span class="text-[10px] font-bold text-obelisco-blue uppercase">Email no registrado</span>
+                <span class="text-xs font-medium truncate max-w-[220px]">${lowerFilter}</span>
+            </div>
+            <button type="button" class="bg-obelisco-blue text-white text-[10px] px-3 py-1 rounded font-bold hover:bg-blue-700">
+                Autorizar Email
+            </button>
+        `;
+        divManual.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!currentlySelectedPermUsers.map(u => u.toLowerCase()).includes(lowerFilter)) {
+                currentlySelectedPermUsers.push(lowerFilter);
+                document.getElementById('perm-user-search').value = '';
+                renderPermUsersChecklist('');
+            }
+        });
+        checklistContainer.appendChild(divManual);
+    }
+}
+
+document.getElementById('perm-user-search')?.addEventListener('input', (e) => {
+    renderPermUsersChecklist(e.target.value);
+});
+
+// Guardar cambios de permisos
+document.getElementById('save-permissions-btn')?.addEventListener('click', async () => {
+    if (!currentEditingPermResource) return;
+    const saveBtn = document.getElementById('save-permissions-btn');
+    if (saveBtn) saveBtn.disabled = true;
+
+    try {
+        const resourceId = currentEditingPermResource.id;
+        const resourceType = currentEditingPermResource.resourceType; // 'tablero' o 'informe'
+        const requireLogin = document.getElementById('perm-require-login')?.checked !== false;
+
+        const allowedList = currentlySelectedPermUsers.filter(email =>
+            allUsersFetched.some(u => (u.email || '').toLowerCase() === email.toLowerCase()) ||
+            ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email.toLowerCase()) ||
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+        );
+
+        const endpoint = resourceType === 'informe' ? `/api/informes/${resourceId}` : `/api/tableros/${resourceId}`;
+
+        await callApi(endpoint, 'PATCH', {
+            require_login: requireLogin,
+            allowed_users: allowedList
+        });
+
+        alert(`Permisos para "${currentEditingPermResource.title}" guardados correctamente.`);
+        closePermissionsModal();
+        await loadAtlasAndMonitoresPermissions();
+    } catch (err) {
+        console.error("Error al guardar permisos:", err);
+        alert("Error al guardar los permisos: " + err.message);
+    } finally {
+        if (saveBtn) saveBtn.disabled = false;
+    }
+});
