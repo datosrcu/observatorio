@@ -2500,6 +2500,30 @@ let atlasMonitoresTypeFilter = 'all';
 let currentEditingPermResource = null; // { id, title, resourceType: 'tablero'|'informe', requireLogin, allowedUsers }
 let currentlySelectedPermUsers = [];
 
+function getAtlasMonitorCategoryType(item) {
+    if (!item) return null;
+    const id = String(item.id || '');
+    if (id === 'atlas-estadistico' || id === 'monitor-analisis-comparativo') {
+        return { label: '🗺️ Atlas / Monitor RCU', rawType: 'atlas_monitor' };
+    }
+
+    let cats = item.categories;
+    if (typeof cats === 'string') {
+        try { cats = JSON.parse(cats); } catch (e) { cats = [cats]; }
+    }
+    if (!Array.isArray(cats)) cats = [];
+
+    const catsStr = (cats.join(' ') + ' ' + (item.category || '') + ' ' + (item.category_legacy || '') + ' ' + (item.title || '')).toLowerCase();
+
+    const isCL = cats.includes('_monitor_cl') || catsStr.includes('clima laboral') || catsStr.includes('monitor cl') || catsStr.includes('_monitor_cl');
+    const isCC = cats.includes('_monitor_cc') || catsStr.includes('clima ciudadano') || catsStr.includes('satisfaccion ciudadana') || catsStr.includes('satisfacción ciudadana') || catsStr.includes('monitor cc') || catsStr.includes('_monitor_cc');
+
+    if (isCL) return { label: '💼 Clima Laboral (CL)', rawType: 'clima_laboral' };
+    if (isCC) return { label: '👥 Clima Ciudadano (CC)', rawType: 'clima_ciudadano' };
+
+    return null;
+}
+
 async function loadAtlasAndMonitoresPermissions() {
     const tbody = document.getElementById('atlas-monitores-tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="py-12 text-center text-gray-400">Cargando catálogo de permisos...</td></tr>';
@@ -2517,31 +2541,9 @@ async function loadAtlasAndMonitoresPermissions() {
         const rawBoards = Array.isArray(boardsData) ? boardsData : [];
         const rawInformes = Array.isArray(informesData) ? informesData : [];
 
-        // Mapear tableros (incluye atlas-estadistico y monitor-analisis-comparativo)
-        const boardsList = rawBoards.map(b => {
-            let allowed = [];
-            try {
-                allowed = typeof b.allowed_users === 'string' ? JSON.parse(b.allowed_users) : (Array.isArray(b.allowed_users) ? b.allowed_users : []);
-            } catch (e) { allowed = []; }
-
-            const isAtlasOrMonitor = b.id === 'atlas-estadistico' || b.id === 'monitor-analisis-comparativo';
-
-            return {
-                id: b.id,
-                title: b.title || b.id,
-                icon: b.icon || (isAtlasOrMonitor ? '🗺️' : '📊'),
-                typeCategory: isAtlasOrMonitor ? '🗺️ Atlas / Monitor RCU' : '📊 Tablero',
-                rawType: isAtlasOrMonitor ? 'atlas_monitor' : 'tableros',
-                resourceType: 'tablero',
-                requireLogin: b.require_login === 1 || b.require_login === true || b.require_login === 'true' || b.require_login === '1',
-                allowedUsers: allowed,
-                rawItem: b
-            };
-        });
-
-        // Asegurar que atlas-estadistico y monitor-analisis-comparativo existan siempre en la lista
-        if (!boardsList.some(b => b.id === 'atlas-estadistico')) {
-            boardsList.unshift({
+        // Definir elementos Atlas/Monitor por defecto
+        const staticAtlasItems = [
+            {
                 id: 'atlas-estadistico',
                 title: 'Atlas Estadístico RCU',
                 icon: '🗺️',
@@ -2551,10 +2553,8 @@ async function loadAtlasAndMonitoresPermissions() {
                 requireLogin: true,
                 allowedUsers: [],
                 rawItem: null
-            });
-        }
-        if (!boardsList.some(b => b.id === 'monitor-analisis-comparativo')) {
-            boardsList.unshift({
+            },
+            {
                 id: 'monitor-analisis-comparativo',
                 title: 'Monitor de Análisis Comparativo RCU',
                 icon: '📊',
@@ -2564,30 +2564,67 @@ async function loadAtlasAndMonitoresPermissions() {
                 requireLogin: true,
                 allowedUsers: [],
                 rawItem: null
-            });
-        }
+            }
+        ];
 
-        // Mapear informes
-        const informesList = rawInformes.map(i => {
+        allAtlasMonitoresResources = [];
+
+        // Procesar tableros
+        rawBoards.forEach(b => {
+            const catMeta = getAtlasMonitorCategoryType(b);
+
+            let allowed = [];
+            try {
+                allowed = typeof b.allowed_users === 'string' ? JSON.parse(b.allowed_users) : (Array.isArray(b.allowed_users) ? b.allowed_users : []);
+            } catch (e) { allowed = []; }
+
+            const reqLogin = b.require_login === 1 || b.require_login === true || b.require_login === 'true' || b.require_login === '1';
+
+            const staticIdx = staticAtlasItems.findIndex(s => s.id === b.id);
+            if (staticIdx !== -1) {
+                staticAtlasItems[staticIdx].requireLogin = reqLogin;
+                staticAtlasItems[staticIdx].allowedUsers = allowed;
+                staticAtlasItems[staticIdx].rawItem = b;
+            } else if (catMeta) {
+                allAtlasMonitoresResources.push({
+                    id: b.id,
+                    title: b.title || b.id,
+                    icon: b.icon || '📊',
+                    typeCategory: catMeta.label,
+                    rawType: catMeta.rawType,
+                    resourceType: 'tablero',
+                    requireLogin: reqLogin,
+                    allowedUsers: allowed,
+                    rawItem: b
+                });
+            }
+        });
+
+        // Unir atlas estáticos con los tableros filtrados
+        allAtlasMonitoresResources = [...staticAtlasItems, ...allAtlasMonitoresResources];
+
+        // Procesar informes filtrando por Clima Laboral / Clima Ciudadano
+        rawInformes.forEach(i => {
+            const catMeta = getAtlasMonitorCategoryType(i);
+            if (!catMeta) return;
+
             let allowed = [];
             try {
                 allowed = typeof i.allowed_users === 'string' ? JSON.parse(i.allowed_users) : (Array.isArray(i.allowed_users) ? i.allowed_users : []);
             } catch (e) { allowed = []; }
 
-            return {
+            allAtlasMonitoresResources.push({
                 id: i.id,
                 title: i.title || i.id,
                 icon: '📄',
-                typeCategory: `📄 Informe (${i.period || i.year || 'General'})`,
-                rawType: 'informes',
+                typeCategory: catMeta.label,
+                rawType: catMeta.rawType,
                 resourceType: 'informe',
                 requireLogin: i.require_login === 1 || i.require_login === true || i.require_login === 'true' || i.require_login === '1',
                 allowedUsers: allowed,
                 rawItem: i
-            };
+            });
         });
-
-        allAtlasMonitoresResources = [...boardsList, ...informesList];
 
         renderAtlasMonitoresTable();
     } catch (e) {
@@ -2605,8 +2642,8 @@ function renderAtlasMonitoresTable() {
         const matchesSearch = item.title.toLowerCase().includes(atlasMonitoresSearchQuery);
         let matchesType = true;
         if (atlasMonitoresTypeFilter === 'atlas_monitor') matchesType = item.rawType === 'atlas_monitor';
-        else if (atlasMonitoresTypeFilter === 'tableros') matchesType = item.rawType === 'tableros';
-        else if (atlasMonitoresTypeFilter === 'informes') matchesType = item.rawType === 'informes';
+        else if (atlasMonitoresTypeFilter === 'clima_laboral') matchesType = item.rawType === 'clima_laboral';
+        else if (atlasMonitoresTypeFilter === 'clima_ciudadano') matchesType = item.rawType === 'clima_ciudadano';
 
         return matchesSearch && matchesType;
     });
