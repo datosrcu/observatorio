@@ -288,7 +288,7 @@ navTabs?.forEach(tab => {
         // Reload data for specific tabs and clear badges
         if (target === 'tab-tableros') loadBoards();
         if (target === 'tab-categorias') loadCategories();
-        if (target === 'tab-usuarios') {
+        if (target === 'tab-usuarios' || target === 'tab-usuarios-main') {
             loadUsers();
             localStorage.setItem('ogb_last_seen_users', new Date().toISOString());
             const usersBadge = document.getElementById('users-badge');
@@ -2514,8 +2514,11 @@ async function loadAtlasAndMonitoresPermissions() {
             fetch('/api/informes').then(r => r.json()).catch(() => [])
         ]);
 
+        const rawBoards = Array.isArray(boardsData) ? boardsData : [];
+        const rawInformes = Array.isArray(informesData) ? informesData : [];
+
         // Mapear tableros (incluye atlas-estadistico y monitor-analisis-comparativo)
-        const boardsList = (boardsData || []).map(b => {
+        const boardsList = rawBoards.map(b => {
             let allowed = [];
             try {
                 allowed = typeof b.allowed_users === 'string' ? JSON.parse(b.allowed_users) : (Array.isArray(b.allowed_users) ? b.allowed_users : []);
@@ -2536,8 +2539,36 @@ async function loadAtlasAndMonitoresPermissions() {
             };
         });
 
+        // Asegurar que atlas-estadistico y monitor-analisis-comparativo existan siempre en la lista
+        if (!boardsList.some(b => b.id === 'atlas-estadistico')) {
+            boardsList.unshift({
+                id: 'atlas-estadistico',
+                title: 'Atlas Estadístico RCU',
+                icon: '🗺️',
+                typeCategory: '🗺️ Atlas / Monitor RCU',
+                rawType: 'atlas_monitor',
+                resourceType: 'tablero',
+                requireLogin: true,
+                allowedUsers: [],
+                rawItem: null
+            });
+        }
+        if (!boardsList.some(b => b.id === 'monitor-analisis-comparativo')) {
+            boardsList.unshift({
+                id: 'monitor-analisis-comparativo',
+                title: 'Monitor de Análisis Comparativo RCU',
+                icon: '📊',
+                typeCategory: '🗺️ Atlas / Monitor RCU',
+                rawType: 'atlas_monitor',
+                resourceType: 'tablero',
+                requireLogin: true,
+                allowedUsers: [],
+                rawItem: null
+            });
+        }
+
         // Mapear informes
-        const informesList = (informesData || []).map(i => {
+        const informesList = rawInformes.map(i => {
             let allowed = [];
             try {
                 allowed = typeof i.allowed_users === 'string' ? JSON.parse(i.allowed_users) : (Array.isArray(i.allowed_users) ? i.allowed_users : []);
@@ -2795,12 +2826,27 @@ document.getElementById('save-permissions-btn')?.addEventListener('click', async
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
         );
 
-        const endpoint = resourceType === 'informe' ? `/api/informes/${resourceId}` : `/api/tableros/${resourceId}`;
+        if (resourceType === 'tablero') {
+            const isSpecial = resourceId === 'atlas-estadistico' || resourceId === 'monitor-analisis-comparativo';
+            const iframeUrl = resourceId === 'atlas-estadistico' 
+                ? 'Atlas y Monitor/Atlas Estadístico de Río Cuarto.html' 
+                : (resourceId === 'monitor-analisis-comparativo' ? 'Atlas y Monitor/atlas-analisis-comparativo.html' : '');
 
-        await callApi(endpoint, 'PATCH', {
-            require_login: requireLogin,
-            allowed_users: allowedList
-        });
+            await callApi('/api/tableros', 'POST', {
+                id: resourceId,
+                title: currentEditingPermResource.title,
+                icon: currentEditingPermResource.icon || (isSpecial ? '🗺️' : '📊'),
+                iframe_url: iframeUrl,
+                enabled: true,
+                require_login: requireLogin,
+                allowed_users: allowedList
+            });
+        } else {
+            await callApi(`/api/informes/${resourceId}`, 'PATCH', {
+                require_login: requireLogin,
+                allowed_users: allowedList
+            });
+        }
 
         alert(`Permisos para "${currentEditingPermResource.title}" guardados correctamente.`);
         closePermissionsModal();

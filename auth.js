@@ -220,6 +220,9 @@ function showLoginUI() {
     const gridContainer = document.getElementById('tableros-grid');
     if (gridContainer) gridContainer.innerHTML = '';
 
+    // Actualizar botones estáticos de Atlas y Monitores (mostrar candado rojo)
+    updateStaticButtonsAccess(null);
+
     // Load public content for dedicated satisfaccion page if open
     if (document.getElementById('satisfaccion-page-container')) {
         initSatisfaccionPage();
@@ -241,6 +244,9 @@ function showUserUI(user) {
     // Hide overlay & show filters
     if (unauthOverlay) unauthOverlay.style.display = 'none';
     if (filtersContainer) filtersContainer.classList.remove('hidden');
+
+    // Actualizar botones estáticos de Atlas y Monitores
+    updateStaticButtonsAccess(user);
 }
 
 async function loadUserPermissions(user) {
@@ -725,6 +731,13 @@ function renderCategoryCard(container, category, boardCount, informeCount = 0) {
 
 async function handleAccessRequest(e) {
     e.preventDefault();
+
+    if (!auth.currentUser) {
+        alert("Debés iniciar sesión con tu cuenta para poder solicitar acceso.");
+        handleLogin();
+        return;
+    }
+
     const submitBtn = e.target.querySelector('button[type="submit"]');
     if (submitBtn.disabled) return;
 
@@ -1090,6 +1103,12 @@ function openInformeModal(informe) {
 }
 
 function openAccessRequestForm(title, buttonId) {
+    if (!auth.currentUser) {
+        alert("Debés iniciar sesión con tu cuenta para poder solicitar acceso a este tablero.");
+        handleLogin();
+        return;
+    }
+
     const mainModalEl = document.getElementById('ogb-modal');
     const iframeWrap = document.getElementById('ogb-iframe-wrap');
     const formWrap = document.getElementById('ogb-form-wrap');
