@@ -1366,11 +1366,13 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
             try {
                 // Obtener datos del usuario solicitante
                 const [[userProfile]] = await connection.execute(
-                    'SELECT full_name, dni FROM usuarios_perfiles WHERE email = ? LIMIT 1',
+                    'SELECT full_name, dni, area, subarea, secretaria FROM usuarios_perfiles WHERE email = ? LIMIT 1',
                     [uid]
                 );
                 const userName = userProfile ? userProfile.full_name : uid;
                 const userDni = userProfile ? userProfile.dni : 'No reg.';
+                const userArea = userProfile ? (userProfile.area || userProfile.secretaria || 'No indicada') : 'No indicada';
+                const userSubarea = userProfile ? (userProfile.subarea || 'No indicada') : 'No indicada';
 
                 // Buscar recurso en tableros o informes
                 const [[tablero]] = await connection.execute(
@@ -1428,6 +1430,8 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
                                 userName: userName,
                                 userEmail: uid,
                                 userDni: userDni,
+                                userArea: userArea,
+                                userSubarea: userSubarea,
                                 resourceTitle: dashboard_name,
                                 reason: fullReason
                             });

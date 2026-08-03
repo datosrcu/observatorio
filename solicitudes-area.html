@@ -195,6 +195,8 @@
                     const createdDate = sol.created_at ? new Date(sol.created_at).toLocaleString() : 'N/A';
                     const userName = sol.user_name || sol.user_email || 'Usuario';
                     const userDni = sol.user_dni ? `DNI: ${sol.user_dni}` : 'Sin DNI';
+                    const userArea = sol.user_area || sol.user_secretaria || 'Sin Área';
+                    const userSubarea = sol.user_subarea || 'Sin Subárea';
                     const fullReason = sol.reason_detail ? `${sol.reason} — ${sol.reason_detail}` : sol.reason;
 
                     card.innerHTML = `
@@ -202,8 +204,12 @@
                             <div>
                                 <div class="font-bold text-base text-gray-900">${userName}</div>
                                 <div class="text-xs text-obelisco-blue font-medium mt-0.5">${sol.user_email} · <span class="text-gray-500 font-mono">${userDni}</span></div>
+                                <div class="text-xs text-gray-700 font-semibold mt-1.5 flex flex-wrap gap-1.5">
+                                    <span class="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200">🏛️ Área: ${userArea}</span>
+                                    <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200">🏢 Subárea: ${userSubarea}</span>
+                                </div>
                             </div>
-                            <span class="text-[10px] text-gray-400 font-mono bg-white px-2 py-1 rounded border">${createdDate}</span>
+                            <span class="text-[10px] text-gray-400 font-mono bg-white px-2 py-1 rounded border shrink-0">${createdDate}</span>
                         </div>
 
                         <div class="bg-white p-3 rounded-lg border border-amber-200 space-y-1">
