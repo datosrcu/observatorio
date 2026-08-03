@@ -1662,6 +1662,43 @@ app.patch('/api/usuarios/:email/role', verifyToken, async (req, res) => {
     }
 });
 
+// Actualizar perfil completo de usuario (Admin)
+app.patch('/api/usuarios/editar', verifyToken, async (req, res) => {
+    try {
+        const {
+            email, full_name, dni, sector_group,
+            organization_type, organization_name,
+            secretaria, area, role_position, role
+        } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ error: 'El email es requerido.' });
+        }
+
+        const userEmail = email.toLowerCase();
+        const connection = await getDbConnection();
+
+        await connection.execute(`
+            UPDATE usuarios_perfiles
+            SET full_name = ?, dni = ?, sector_group = ?,
+                organization_type = ?, organization_name = ?,
+                secretaria = ?, area = ?, role_position = ?, role = ?
+            WHERE email = ?
+        `, [
+            full_name || null, dni || null, sector_group || null,
+            organization_type || null, organization_name || null,
+            secretaria || null, area || null, role_position || null,
+            role || 'usuario', userEmail
+        ]);
+
+        await connection.end();
+        res.json({ success: true, message: 'Perfil de usuario actualizado con éxito.' });
+    } catch (error) {
+        console.error('Error editando perfil de usuario:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.delete('/api/usuarios/:email', verifyToken, async (req, res) => {
     try {
         const email = decodeURIComponent(req.params.email).toLowerCase();

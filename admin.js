@@ -447,6 +447,8 @@ async function loadUsers() {
             orgGroup: u.sector_group,
             orgType: u.organization_type,
             orgName: u.organization_name,
+            secretaria: u.secretaria,
+            area: u.area,
             orgRole: u.role_position,
             orgRoleDetail: u.role_detail,
             cuit: u.cuit,
@@ -466,6 +468,69 @@ async function loadUsers() {
     }
 }
 
+const MUNI_RIO_CUARTO_SECRETARIAS = {
+    "Secretaría de Gobierno": [
+        "Coordinación de Gestión en Descentralización",
+        "Junta Municipal de Historia",
+        "Subsecretaría de Gobierno",
+        "Subsecretaria de Empleo y Formación Laboral",
+        "Coordinación de Gestión en Formación",
+        "Subsecretaria de Promoción de Políticas Cooperativas",
+        "Subsecretaria de Comunicación",
+        "Coordinación de Gestión en Prensa"
+    ],
+    "Secretaría de Gestión y Participación Ciudadana": [
+        "Subsecretaría de Participación Ciudadana",
+        "Subsecretaría de Juventud y Derechos Humanos",
+        "Subsecretaría de Educación",
+        "Dirección de Estadisticas, Control de Calidad y Procesos"
+    ],
+    "Secretaria de Obras y Servicios Públicos": [
+        "Coordinación de Gestión Ambiente",
+        "Subsecretaría de Servicios Públicos",
+        "Coordinación de Gestión en Servicios Generales",
+        "Subsecretaría de Planificación y Movilidad Urbana",
+        "Coordinación de Gestión en Movilidad Urbana",
+        "Subsecretaría de Obras Públicas",
+        "Coordinación de Gestión en Mantenimiento Vial",
+        "Coordinación de Gestión de Mantenimiento de Calles de Tierra",
+        "Subsecretaría de Hábitat"
+    ],
+    "Secretaría de Prevención y Convivencia Ciudadana": [
+        "Fiscalías Contravencionales",
+        "Coordinación de Gestión de Defensa Civil",
+        "Coordinación de Gestión en Seguridad",
+        "Coordinación de Gestión de Espectáculos Públicos",
+        "Subsecretaría de Tránsito y Transporte",
+        "Coordinación de Gestión en Tránsito y Transporte"
+    ],
+    "Secretaría de Economía e Innovación": [
+        "Subsecretaría de Hacienda y Gestión Tecnológica"
+    ],
+    "Secretaría de Desarrollo Comunitario": [
+        "Coordinación de Gestión en Zoonosis y Bromatología",
+        "Coordinación de Gestión de Desarrollo Social",
+        "Coordinación de Gestión de Desarrollo Comunitario",
+        "Coordinación de Gestión en Adultos Mayores",
+        "Coordinación de Gestión de Economía Social",
+        "Subsecretaría de Género, Niñez, Adolescencia y Familia",
+        "Coordinación de Gestión de Mujeres, Género y Diversidad",
+        "Subsecretaría de Salud",
+        "Subsecretaría de Discapacidad e Inclusión"
+    ],
+    "Secretaría de Desarrollo y Promoción Local": [
+        "Coordinación de Gestión en Comercio",
+        "Coordinación de Gestión Cultural",
+        "Subsecretaría Deporte",
+        "Subsecretaria de Turismo"
+    ],
+    "Fiscalia": [],
+    "EMOS": [],
+    "Fundación Social Río Cuarto": [],
+    "Fundación por la Cultura": [],
+    "Mercado de Abasto Río Cuarto": []
+};
+
 function renderUsersTable(users) {
     if (!usersTbody) return;
     usersTbody.innerHTML = '';
@@ -482,24 +547,37 @@ function renderUsersTable(users) {
         const registered = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A';
         const role = u.role || 'usuario';
 
+        const roleBadges = {
+            usuario: '<span class="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">Usuario</span>',
+            lector: '<span class="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">Lector</span>',
+            funcionario: '<span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Funcionario</span>',
+            fiscal: '<span class="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">Fiscal</span>',
+            admin: '<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Admin</span>'
+        };
+
         tr.innerHTML = `
             <td class="px-4 py-3">
                 <div class="flex items-center space-x-3">
                     <img src="${u.photoURL || 'https://ui-avatars.com/api/?name='+u.name}" class="w-8 h-8 rounded-full border">
                     <div>
-                        <div class="font-bold text-obelisco-dark">${u.name}</div>
+                        <div class="font-bold text-obelisco-dark flex items-center gap-1.5">
+                            ${u.name}
+                            ${roleBadges[role] || ''}
+                        </div>
                         <div class="text-[10px] text-gray-500">${u.email}</div>
                         <div class="text-[9px] font-mono bg-gray-100 w-fit px-1 rounded mt-1">DNI: ${u.dni || 'No reg.'}</div>
                     </div>
                 </div>
             </td>
             <td class="py-3 px-4">
-                <div class="flex flex-col">
+                <div class="flex flex-col gap-0.5">
                     <span class="text-xs font-bold text-obelisco-blue uppercase">${u.orgType || 'N/A'}</span>
-                    <span class="text-sm font-medium">${u.orgName || '-'}</span>
-                    <span class="text-[10px] text-obelisco-gray uppercase flex flex-col gap-1 items-start">
+                    <span class="text-sm font-medium text-gray-800">${u.orgName || '-'}</span>
+                    ${u.secretaria ? `<span class="text-[10px] text-teal-700 font-bold bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 w-fit">🏛️ ${u.secretaria}</span>` : ''}
+                    ${u.area ? `<span class="text-[9px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded border w-fit">📍 ${u.area}</span>` : ''}
+                    <span class="text-[10px] text-obelisco-gray uppercase flex flex-col gap-1 items-start mt-0.5">
                         ${u.orgRole || '-'}
-                         ${u.legalDocURL ? `<a href="${u.legalDocURL}" target="_blank" class="text-blue-500 hover:text-blue-700 underline normal-case flex items-center mt-1"><svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg> Ver Respaldo</a>` : ''}
+                        ${u.legalDocURL ? `<a href="${u.legalDocURL}" target="_blank" class="text-blue-500 hover:text-blue-700 underline normal-case flex items-center mt-1"><svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg> Ver Respaldo</a>` : ''}
                     </span>
                 </div>
             </td>
@@ -511,9 +589,12 @@ function renderUsersTable(users) {
             </td>
             <td class="py-3 px-4">
                 <div class="flex items-center space-x-2">
-                    <select class="role-select text-xs border border-gray-300 rounded px-2 py-1 bg-white outline-none focus:border-obelisco-blue" data-id="${u.id}" data-original="${role}">
-                        <option value="usuario" ${role === 'usuario' ? 'selected' : ''}>Usuario del Observatorio</option>
+                    <select class="role-select text-xs border border-gray-300 rounded px-2 py-1 bg-white outline-none focus:border-obelisco-blue font-medium" data-id="${u.id}" data-original="${role}">
+                        <option value="usuario" ${role === 'usuario' ? 'selected' : ''}>Usuario</option>
                         <option value="lector" ${role === 'lector' ? 'selected' : ''}>Lector</option>
+                        <option value="funcionario" ${role === 'funcionario' ? 'selected' : ''}>Funcionario</option>
+                        <option value="fiscal" ${role === 'fiscal' ? 'selected' : ''}>Fiscal</option>
+                        ${role === 'admin' ? '<option value="admin" selected>Admin</option>' : ''}
                     </select>
                     <button class="btn-save-role hidden bg-green-500 hover:bg-green-600 text-white p-1 rounded transition-opacity" title="Guardar Cambio de Rol">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -521,7 +602,10 @@ function renderUsersTable(users) {
                 </div>
             </td>
             <td class="py-3 px-4 text-right">
-                <button class="text-red-500 hover:text-red-700 font-medium btn-del-user" data-id="${u.id}">Eliminar</button>
+                <div class="flex items-center justify-end gap-2">
+                    <button class="text-obelisco-blue hover:text-blue-700 font-bold btn-edit-user text-xs" data-id="${u.id}">✏️ Editar</button>
+                    <button class="text-red-500 hover:text-red-700 font-medium btn-del-user text-xs" data-id="${u.id}">Eliminar</button>
+                </div>
             </td>
         `;
         usersTbody.appendChild(tr);
@@ -547,7 +631,7 @@ function renderUsersTable(users) {
                 saveBtn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
                 await callApi(`/api/usuarios/${encodeURIComponent(u.id)}/role`, 'PATCH', { role: newRole });
                 alert("Rol actualizado correctamente.");
-                await loadUsers(); // Refresh the table
+                await loadUsers(); // Refresh table
             } catch (err) {
                 console.error("Error updating role:", err);
                 alert("No se pudo actualizar el rol.");
@@ -556,10 +640,120 @@ function renderUsersTable(users) {
             }
         });
 
+        // Edit user button listener
+        tr.querySelector('.btn-edit-user').addEventListener('click', () => openEditUserModal(u));
+
         // Delete user listener
         tr.querySelector('.btn-del-user').addEventListener('click', () => deleteUser(u.id));
     });
 }
+
+function openEditUserModal(userObj) {
+    const modal = document.getElementById('edit-user-modal');
+    if (!modal) return;
+
+    document.getElementById('edit-user-email').value = userObj.email || '';
+    document.getElementById('edit-user-email-display').value = userObj.email || '';
+    document.getElementById('edit-user-name').value = userObj.name || '';
+    document.getElementById('edit-user-dni').value = userObj.dni || '';
+    document.getElementById('edit-user-group').value = userObj.orgGroup || 'Sector Público Estatal';
+    document.getElementById('edit-user-org-type').value = userObj.orgType || 'Municipalidad de Río Cuarto';
+    document.getElementById('edit-user-org-name').value = userObj.orgName || '';
+    document.getElementById('edit-user-role-position').value = userObj.orgRole || '';
+    document.getElementById('edit-user-system-role').value = userObj.role || 'usuario';
+
+    // Populate secretarías dropdown
+    const secSelect = document.getElementById('edit-user-secretaria');
+    secSelect.innerHTML = '<option value="">-- Sin Secretaría declarada --</option>';
+    Object.keys(MUNI_RIO_CUARTO_SECRETARIAS).forEach(sec => {
+        const opt = document.createElement('option');
+        opt.value = sec;
+        opt.textContent = sec;
+        if (userObj.secretaria === sec) opt.selected = true;
+        secSelect.appendChild(opt);
+    });
+
+    // Populate áreas dropdown
+    updateEditUserAreas(userObj.area);
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function updateEditUserAreas(selectedAreaValue = '') {
+    const secSelect = document.getElementById('edit-user-secretaria');
+    const areaSelect = document.getElementById('edit-user-area');
+    if (!secSelect || !areaSelect) return;
+
+    const currentSec = secSelect.value;
+    const availableAreas = MUNI_RIO_CUARTO_SECRETARIAS[currentSec] || [];
+
+    areaSelect.innerHTML = '<option value="">-- Sin Área declarada --</option>';
+    availableAreas.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a;
+        opt.textContent = a;
+        if (selectedAreaValue && selectedAreaValue === a) opt.selected = true;
+        areaSelect.appendChild(opt);
+    });
+}
+
+// Modal event listeners
+document.getElementById('edit-user-secretaria')?.addEventListener('change', () => updateEditUserAreas());
+
+document.getElementById('close-edit-user-modal-btn')?.addEventListener('click', () => {
+    const modal = document.getElementById('edit-user-modal');
+    modal?.classList.add('hidden');
+    modal?.classList.remove('flex');
+});
+
+document.getElementById('cancel-edit-user-btn')?.addEventListener('click', () => {
+    const modal = document.getElementById('edit-user-modal');
+    modal?.classList.add('hidden');
+    modal?.classList.remove('flex');
+});
+
+document.getElementById('edit-user-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('edit-user-email').value;
+    const full_name = document.getElementById('edit-user-name').value;
+    const dni = document.getElementById('edit-user-dni').value;
+    const sector_group = document.getElementById('edit-user-group').value;
+    const organization_type = document.getElementById('edit-user-org-type').value;
+    const organization_name = document.getElementById('edit-user-org-name').value;
+    const secretaria = document.getElementById('edit-user-secretaria').value;
+    const area = document.getElementById('edit-user-area').value;
+    const role_position = document.getElementById('edit-user-role-position').value;
+    const role = document.getElementById('edit-user-system-role').value;
+
+    const saveBtn = document.getElementById('save-edit-user-btn');
+    try {
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Guardando...';
+        }
+
+        await callApi('/api/usuarios/editar', 'PATCH', {
+            email, full_name, dni, sector_group,
+            organization_type, organization_name,
+            secretaria, area, role_position, role
+        });
+
+        alert('Perfil de usuario actualizado con éxito.');
+        const modal = document.getElementById('edit-user-modal');
+        modal?.classList.add('hidden');
+        modal?.classList.remove('flex');
+        await loadUsers();
+    } catch (err) {
+        console.error('Error al editar usuario:', err);
+        alert('Error al actualizar usuario: ' + (err.message || 'Error del servidor'));
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Guardar Cambios';
+        }
+    }
+});
 
 async function deleteUser(id) {
     if (confirm("¿Estás seguro que querés eliminar este usuario?")) {

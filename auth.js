@@ -500,17 +500,55 @@ function updateStaticButtonsAccess(user) {
     });
 }
 
+function normalizeSecretariaName(str) {
+    if (!str) return '';
+    return str.toLowerCase()
+        .replace(/^secretaría\s+de\s+/i, '')
+        .replace(/^secretaria\s+de\s+/i, '')
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/río/g, 'rio')
+        .replace(/cuarto/g, 'iv')
+        .trim();
+}
+
+function matchesSecretariaCategory(userSecretaria, categoryName) {
+    if (!userSecretaria || !categoryName) return false;
+    const normSec = normalizeSecretariaName(userSecretaria);
+    const normCat = normalizeSecretariaName(categoryName);
+    return normSec === normCat || normSec.includes(normCat) || normCat.includes(normSec);
+}
+
 function checkUserAccess(user, buttonData) {
     if (!buttonData.requireLogin) return true;
     if (!user) return false;
 
     const userEmail = user.email.toLowerCase();
-
     const role = (currentUserRole || '').toLowerCase();
-    // Role status check (Full access for Admin and Lector roles)
-    if (role === 'admin' || role === 'lector' || ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
-        console.log("Access granted: Full privileges (Admin / Lector)");
+
+    // Role status check (Full access for Admin, Lector, and Fiscal roles)
+    if (role === 'admin' || role === 'lector' || role === 'fiscal' || ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
         return true;
+    }
+
+    // Role check for Funcionario (Automatic access to board categories matching user's declared secretaría)
+    if (role === 'funcionario' && currentUserData?.secretaria) {
+        const userSecretaria = currentUserData.secretaria;
+        
+        const boardCategoryIds = buttonData.categories || [];
+        const boardCategoryNames = boardCategoryIds.map(cId => {
+            const catObj = (typeof allCategories !== 'undefined' ? allCategories : []).find(c => c.id === cId);
+            return catObj ? catObj.name : '';
+        }).filter(Boolean);
+
+        if (buttonData.category) boardCategoryNames.push(buttonData.category);
+
+        const hasFuncionarioAccess = boardCategoryNames.some(catName => 
+            matchesSecretariaCategory(userSecretaria, catName)
+        );
+
+        if (hasFuncionarioAccess) {
+            return true;
+        }
     }
 
     const allowedUsers = buttonData.allowedUsers || [];
