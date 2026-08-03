@@ -1319,15 +1319,19 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
                 );
 
                 const item = tablero || informe;
-                if (item && (item.sensitivity_level || 'nivel3') === 'nivel3') {
+                const sensitivity = item ? (item.sensitivity_level || 'nivel3') : 'nivel3';
+
+                if (sensitivity === 'nivel3') {
                     // Buscar categorías
                     const [categorias] = await connection.query('SELECT id, name FROM categorias');
                     let catNames = [];
-                    try {
-                        const ids = typeof item.categories === 'string' ? JSON.parse(item.categories || '[]') : (item.categories || []);
-                        catNames = ids.map(id => (categorias.find(c => c.id === id) || {}).name).filter(Boolean);
-                    } catch(e) {}
-                    if (item.category_legacy) catNames.push(item.category_legacy);
+                    if (item) {
+                        try {
+                            const ids = typeof item.categories === 'string' ? JSON.parse(item.categories || '[]') : (item.categories || []);
+                            catNames = ids.map(id => (categorias.find(c => c.id === id) || {}).name).filter(Boolean);
+                        } catch(e) {}
+                        if (item.category_legacy) catNames.push(item.category_legacy);
+                    }
 
                     // Buscar funcionarios
                     const [funcionarios] = await connection.query(
@@ -1341,7 +1345,7 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
                     }
 
                     const targetFuncionarios = funcionarios.filter(f => 
-                        catNames.some(cn => {
+                        catNames.length === 0 || catNames.some(cn => {
                             const ns = normStr(f.secretaria);
                             const nc = normStr(cn);
                             return ns === nc || ns.includes(nc) || nc.includes(ns);
@@ -1369,8 +1373,12 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
                                 to: func.email,
                                 subject: `📋 Nueva Solicitud de Acceso: ${dashboard_name}`,
                                 html: funcHtml
+                            }).then(data => {
+                                console.log(`Email de solicitud enviado a Funcionario ${func.email} (ID: ${data?.id || data?.data?.id})`);
                             }).catch(err => console.warn('[Resend] Error enviando email a funcionario:', err.message));
                         }
+                    } else {
+                        console.warn(`[Solicitud Acceso] Solicitud registrada para "${dashboard_name}", pero no se encontró ningún Funcionario registrado con la secretaría requerida.`);
                     }
                 }
             } catch(mailErr) {
