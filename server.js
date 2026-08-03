@@ -496,6 +496,21 @@ const initializeTables = async () => {
         try {
             await connection.query("ALTER TABLE tableros ADD COLUMN sensitivity_level VARCHAR(50) DEFAULT 'nivel3'");
         } catch (e) { /* ignore if exists */ }
+        try {
+            await connection.query("ALTER TABLE solicitudes_acceso MODIFY COLUMN status VARCHAR(50) DEFAULT 'pendiente'");
+        } catch (e) { /* ignore if exists */ }
+        try {
+            await connection.query("ALTER TABLE solicitudes_acceso ADD COLUMN fiscal_status VARCHAR(50) DEFAULT 'N/A'");
+        } catch (e) { /* ignore if exists */ }
+        try {
+            await connection.query("ALTER TABLE solicitudes_acceso ADD COLUMN fiscal_user_email VARCHAR(255)");
+        } catch (e) { /* ignore if exists */ }
+        try {
+            await connection.query("ALTER TABLE solicitudes_acceso ADD COLUMN fiscal_comment TEXT");
+        } catch (e) { /* ignore if exists */ }
+        try {
+            await connection.query("ALTER TABLE solicitudes_acceso ADD COLUMN fiscal_approved_at DATETIME");
+        } catch (e) { /* ignore if exists */ }
 
         // Seed Atlas Estadístico y Monitor Comparativo si no existen en la tabla tableros
         try {
@@ -1345,20 +1360,37 @@ app.delete('/api/tableros/:id', verifyToken, async (req, res) => {
 
 // ──────────────────────────────────────────────────────────────────────────
 
-// 2. Registrar solicitud de acceso a tablero
+// 2. Registrar solicitud de acceso a tablero / informe
 app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
     const { email: uid } = req.user; // Usar email como uid para consistencia
     const { dashboard_name, reason, reason_detail, terms_version } = req.body;
 
     try {
         const connection = await getDbConnection();
-        const sql = `
-            INSERT INTO solicitudes_acceso (user_uid, dashboard_name, reason, reason_detail, terms_version)
-            VALUES (?, ?, ?, ?, ?)
-        `;
-        await connection.execute(sql, [uid, dashboard_name, reason, reason_detail, terms_version]);
 
-        // Intentar notificar al Funcionario correspondiente por Resend
+        // Buscar recurso en tableros o informes para determinar nivel de sensibilidad
+        const [[tablero]] = await connection.execute(
+            'SELECT id, title, category_legacy, categories, sensitivity_level FROM tableros WHERE id = ? OR title = ? LIMIT 1',
+            [dashboard_name, dashboard_name]
+        );
+        const [[informe]] = tablero ? [[]] : await connection.execute(
+            'SELECT id, title, category_legacy, categories, sensitivity_level FROM informes WHERE id = ? OR title = ? LIMIT 1',
+            [dashboard_name, dashboard_name]
+        );
+
+        const item = tablero || informe;
+        const sensitivity = item ? (item.sensitivity_level || 'nivel3') : 'nivel3';
+        const isFiscalFlow = sensitivity === 'nivel1' || sensitivity === 'nivel2';
+        const initialStatus = isFiscalFlow ? 'pendiente_fiscal' : 'pendiente_funcionario';
+        const initialFiscalStatus = isFiscalFlow ? 'pendiente' : 'N/A';
+
+        const sql = `
+            INSERT INTO solicitudes_acceso (user_uid, dashboard_name, reason, reason_detail, terms_version, status, fiscal_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        await connection.execute(sql, [uid, dashboard_name, reason, reason_detail, terms_version, initialStatus, initialFiscalStatus]);
+
+        // Intentar notificar por Resend
         if (resend) {
             try {
                 // Obtener datos del usuario solicitante
@@ -1370,22 +1402,54 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
                 const userDni = userProfile ? userProfile.dni : 'No reg.';
                 const userArea = userProfile ? (userProfile.area || userProfile.secretaria || 'No indicada') : 'No indicada';
                 const userSubarea = userProfile ? (userProfile.subarea || 'No indicada') : 'No indicada';
+                const fullReason = reason_detail ? `${reason} (${reason_detail})` : reason;
 
-                // Buscar recurso en tableros o informes
-                const [[tablero]] = await connection.execute(
-                    'SELECT id, title, category_legacy, categories, sensitivity_level FROM tableros WHERE id = ? OR title = ? LIMIT 1',
-                    [dashboard_name, dashboard_name]
-                );
-                const [[informe]] = tablero ? [[]] : await connection.execute(
-                    'SELECT id, title, category_legacy, categories, sensitivity_level FROM informes WHERE id = ? OR title = ? LIMIT 1',
-                    [dashboard_name, dashboard_name]
-                );
+                if (isFiscalFlow) {
+                    // Notificar a usuarios con rol 'fiscal'
+                    const [fiscales] = await connection.query(
+                        "SELECT email, full_name FROM usuarios_perfiles WHERE role = 'fiscal'"
+                    );
 
-                const item = tablero || informe;
-                const sensitivity = item ? (item.sensitivity_level || 'nivel3') : 'nivel3';
+                    if (fiscales.length > 0) {
+                        const tplPath = path.join(__dirname, 'plantilla_solicitud_fiscal.html');
+                        let html = fs.readFileSync(tplPath, 'utf8');
+                        const sensBadge = sensitivity === 'nivel1' ? '🔴 Nivel 1 (Sensible)' : '🟠 Nivel 2 (Confidencial)';
 
-                if (sensitivity === 'nivel3') {
-                    // Buscar categorías
+                        for (const fisc of fiscales) {
+                            const fiscalHtml = replaceTemplateVars(html, {
+                                fiscalName: fisc.full_name || fisc.email,
+                                userName: userName,
+                                userEmail: uid,
+                                userDni: userDni,
+                                userArea: userArea,
+                                userSubarea: userSubarea,
+                                resourceTitle: dashboard_name,
+                                sensitivityBadge: sensBadge,
+                                reason: fullReason
+                            });
+
+                            try {
+                                const { data, error } = await resend.emails.send({
+                                    from: getResendFromEmail(),
+                                    to: fisc.email,
+                                    subject: `⚖️ Nueva Solicitud para Fiscalización: ${dashboard_name}`,
+                                    html: fiscalHtml
+                                });
+
+                                if (error) {
+                                    console.error(`❌ [Resend Error] Falló notificación a Fiscal ${fisc.email}:`, error.message || error);
+                                } else {
+                                    console.log(`✅ [Resend Éxito] Email de fiscalización enviado a Fiscal ${fisc.email} (ID: ${data?.id})`);
+                                }
+                            } catch(err) {
+                                console.error(`❌ [Resend Exception] Error enviando email a Fiscal ${fisc.email}:`, err.message);
+                            }
+                        }
+                    } else {
+                        console.warn(`[Solicitud Acceso] Se registró solicitud Nivel 1/2 para "${dashboard_name}", pero no hay usuarios registrados con el rol 'fiscal'.`);
+                    }
+                } else {
+                    // Notificar a Funcionario de la Secretaría (Nivel 3)
                     const [categorias] = await connection.query('SELECT id, name FROM categorias');
                     let catNames = [];
                     if (item) {
@@ -1396,7 +1460,6 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
                         if (item.category_legacy) catNames.push(item.category_legacy);
                     }
 
-                    // Buscar funcionarios
                     const [funcionarios] = await connection.query(
                         "SELECT email, full_name, secretaria FROM usuarios_perfiles WHERE role = 'funcionario' AND secretaria IS NOT NULL"
                     );
@@ -1418,7 +1481,6 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
                     if (targetFuncionarios.length > 0) {
                         const tplPath = path.join(__dirname, 'plantilla_solicitud_funcionario.html');
                         let html = fs.readFileSync(tplPath, 'utf8');
-                        const fullReason = reason_detail ? `${reason} (${reason_detail})` : reason;
 
                         for (const func of targetFuncionarios) {
                             const funcHtml = replaceTemplateVars(html, {
@@ -1450,8 +1512,6 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
                                 console.error(`❌ [Resend Exception] Error enviando email a funcionario ${func.email}:`, err.message);
                             }
                         }
-                    } else {
-                        console.warn(`[Solicitud Acceso] Solicitud registrada para "${dashboard_name}", pero no se encontró ningún Funcionario registrado con la secretaría requerida.`);
                     }
                 }
             } catch(mailErr) {

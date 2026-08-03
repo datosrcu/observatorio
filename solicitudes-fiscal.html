@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solicitudes de Mi Área – Observatorio RCU</title>
+    <title>Solicitudes para Fiscalización – Observatorio RCU</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
@@ -60,22 +60,22 @@
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         <!-- HERO / HEADER DE SECCIÓN -->
-        <div class="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div class="bg-slate-900 border border-slate-800 text-white rounded-2xl p-6 sm:p-8 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 mb-3">
-                    🏛️ Perfil Funcionario
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 mb-3">
+                    ⚖️ Perfil Fiscal
                 </div>
-                <h1 class="text-2xl sm:text-3xl font-extrabold text-obelisco-dark tracking-tight">
-                    Solicitudes de Acceso de Tu Área
+                <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                    Solicitudes para Fiscalización
                 </h1>
-                <p id="area-subtitle" class="text-sm text-gray-500 mt-1">
-                    Gestión de permisos requeridos para la información Nivel 3 de tu secretaría.
+                <p class="text-sm text-slate-300 mt-1">
+                    Evaluación y revisión inicial obligatoria para solicitudes de información Nivel 1 (Sensible) y Nivel 2 (Confidencial).
                 </p>
             </div>
 
-            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center md:text-right min-w-[200px]">
-                <span class="text-xs font-bold text-amber-800 uppercase block">Secretaría Asignada</span>
-                <span id="secretaria-name-badge" class="text-sm font-extrabold text-amber-900 block mt-0.5">Cargando...</span>
+            <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-4 text-center md:text-right min-w-[200px]">
+                <span class="text-xs font-bold text-amber-400 uppercase block">Filtro de Sensibilidad</span>
+                <span class="text-xs font-semibold text-slate-300 block mt-0.5">🔴 Nivel 1 & 🟠 Nivel 2</span>
             </div>
         </div>
 
@@ -84,8 +84,8 @@
             <!-- TAB BAR -->
             <div class="border-b border-gray-200 px-6 py-4 flex items-center justify-between bg-gray-50">
                 <div class="flex items-center space-x-2">
-                    <span class="font-bold text-sm text-gray-700">Solicitudes Pendientes</span>
-                    <span id="pending-count-badge" class="bg-amber-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-full">0</span>
+                    <span class="font-bold text-sm text-gray-700">Solicitudes Aguardando Fiscalización</span>
+                    <span id="pending-count-badge" class="bg-slate-800 text-white text-xs font-extrabold px-2 py-0.5 rounded-full">0</span>
                 </div>
                 <button id="btn-refresh-solicitudes" class="text-xs text-obelisco-blue hover:text-blue-700 font-bold flex items-center gap-1">
                     🔄 Actualizar
@@ -96,7 +96,7 @@
             <div id="solicitudes-container" class="p-6">
                 <div class="text-center py-12 text-gray-400">
                     <svg class="w-8 h-8 animate-spin mx-auto mb-2 text-obelisco-blue" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    <p class="text-xs font-semibold">Cargando solicitudes de acceso...</p>
+                    <p class="text-xs font-semibold">Cargando solicitudes para fiscalización...</p>
                 </div>
             </div>
         </div>
@@ -112,8 +112,6 @@
     <script type="module">
         import { auth } from './firebase-config.js';
         import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-        let currentFuncionarioData = null;
 
         async function callApi(endpoint, method = 'GET', body = null) {
             const user = auth.currentUser;
@@ -147,17 +145,13 @@
                 const profileData = await callApi('/api/perfil/me', 'GET');
                 const profile = profileData.profile;
 
-                if (!profile || profile.role !== 'funcionario') {
-                    alert('Acceso restringido: Esta sección es exclusiva para el perfil Funcionario.');
+                if (!profile || profile.role !== 'fiscal') {
+                    alert('Acceso restringido: Esta sección es exclusiva para el perfil Fiscal.');
                     window.location.href = 'observatorio-gestion.html';
                     return;
                 }
 
-                currentFuncionarioData = profile;
-                document.getElementById('secretaria-name-badge').textContent = profile.secretaria || 'Sin Secretaría';
-                document.getElementById('area-subtitle').textContent = `Gestión de permisos requeridos para la información Nivel 3 de ${profile.secretaria || 'tu área'}.`;
-
-                await loadAreaSolicitudes();
+                await loadFiscalSolicitudes();
             } catch (err) {
                 console.error(err);
                 alert('Error al verificar perfil de usuario.');
@@ -165,12 +159,12 @@
             }
         });
 
-        async function loadAreaSolicitudes() {
+        async function loadFiscalSolicitudes() {
             const container = document.getElementById('solicitudes-container');
             const countBadge = document.getElementById('pending-count-badge');
 
             try {
-                const solList = await callApi('/api/funcionario/solicitudes', 'GET');
+                const solList = await callApi('/api/fiscal/solicitudes', 'GET');
                 countBadge.textContent = solList.length;
 
                 if (solList.length === 0) {
@@ -178,7 +172,7 @@
                         <div class="text-center py-16 text-gray-500">
                             <p class="text-4xl mb-2">🎉</p>
                             <h3 class="font-bold text-base text-gray-700">¡Todo al día!</h3>
-                            <p class="text-xs text-gray-500 mt-1">No tenés solicitudes de acceso pendientes en tu secretaría.</p>
+                            <p class="text-xs text-gray-500 mt-1">No hay solicitudes Nivel 1 o Nivel 2 aguardando fiscalización en este momento.</p>
                         </div>
                     `;
                     return;
@@ -190,7 +184,7 @@
 
                 solList.forEach(sol => {
                     const card = document.createElement('div');
-                    card.className = "border border-amber-200 rounded-xl p-5 bg-amber-50/40 space-y-4 shadow-sm hover:shadow transition";
+                    card.className = "border border-amber-300 rounded-xl p-5 bg-amber-50/50 space-y-4 shadow-sm hover:shadow transition";
 
                     const createdDate = sol.created_at ? new Date(sol.created_at).toLocaleString() : 'N/A';
                     const userName = sol.user_name || sol.user_email || 'Usuario';
@@ -198,11 +192,10 @@
                     const userArea = sol.user_area || sol.user_secretaria || 'Sin Área';
                     const userSubarea = sol.user_subarea || 'Sin Subárea';
                     const fullReason = sol.reason_detail ? `${sol.reason} — ${sol.reason_detail}` : sol.reason;
-                    const fiscalBadge = sol.fiscal_status === 'aprobado'
-                        ? `<div class="bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-lg p-2 text-xs font-bold flex items-center gap-1.5">
-                             ⚖️ Aprobado Previamente por Fiscalía ${sol.fiscal_user_email ? `<span class="font-mono text-[11px] text-emerald-700">(${sol.fiscal_user_email})</span>` : ''}
-                           </div>`
-                        : '';
+
+                    const sensitivityBadge = sol.sensitivity_level === 'nivel1' 
+                        ? `<span class="bg-red-100 text-red-800 border border-red-300 text-[10px] font-bold px-2 py-0.5 rounded-full">🔴 Nivel 1 - Sensible</span>`
+                        : `<span class="bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full">🟠 Nivel 2 - Confidencial</span>`;
 
                     card.innerHTML = `
                         <div class="flex justify-between items-start">
@@ -214,31 +207,32 @@
                                     <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200">🏢 Subárea: ${userSubarea}</span>
                                 </div>
                             </div>
-                            <span class="text-[10px] text-gray-400 font-mono bg-white px-2 py-1 rounded border shrink-0">${createdDate}</span>
+                            <div class="flex flex-col items-end gap-1 shrink-0">
+                                ${sensitivityBadge}
+                                <span class="text-[10px] text-gray-400 font-mono bg-white px-2 py-0.5 rounded border">${createdDate}</span>
+                            </div>
                         </div>
-
-                        ${fiscalBadge}
 
                         <div class="bg-white p-3 rounded-lg border border-amber-200 space-y-1">
                             <div class="font-extrabold text-xs text-amber-900 flex items-center gap-1">
-                                📊 Recurso Solicitado: <span class="text-gray-800 font-semibold">${sol.dashboard_name}</span>
+                                📊 Recurso Clasificado: <span class="text-gray-800 font-semibold">${sol.dashboard_name}</span>
                             </div>
                             <div class="text-xs text-gray-600 italic">"Motivo: ${fullReason}"</div>
                         </div>
 
                         <div class="flex items-center gap-3 pt-1">
                             <button class="btn-aprobar flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs transition shadow-sm" data-id="${sol.id}">
-                                🟢 Conceder Acceso
+                                🟢 Aprobar y Derivar a Funcionario
                             </button>
                             <button class="btn-toggle-rechazar flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-xl text-xs transition shadow-sm" data-id="${sol.id}">
-                                🔴 Rechazar
+                                🔴 Rechazar (Finalizar)
                             </button>
                         </div>
 
-                        <!-- Formulario de rechazo desplegable con motivo opcional -->
+                        <!-- Formulario de rechazo desplegable opcional -->
                         <div id="reject-form-${sol.id}" class="hidden pt-3 border-t border-amber-200 space-y-2">
                             <label class="block text-xs font-bold text-rose-800">Motivo del Rechazo <span class="text-gray-500 font-normal">(Opcional)</span></label>
-                            <textarea id="reject-reason-${sol.id}" class="w-full border border-rose-300 rounded-lg p-2.5 text-xs outline-none focus:border-rose-500 bg-white" rows="2" placeholder="Escribí un motivo si lo deseas (opcional)..."></textarea>
+                            <textarea id="reject-reason-${sol.id}" class="w-full border border-rose-300 rounded-lg p-2.5 text-xs outline-none focus:border-rose-500 bg-white" rows="2" placeholder="Escribí la razón para el rechazo por parte de la Fiscalía (opcional)..."></textarea>
                             <div class="flex justify-end gap-2">
                                 <button class="btn-cancel-reject px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">Cancelar</button>
                                 <button class="btn-confirm-reject px-4 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm">Confirmar Rechazo</button>
@@ -248,21 +242,21 @@
 
                     grid.appendChild(card);
 
-                    // Handler Aceptar
+                    // Handler Aceptar Fiscal
                     card.querySelector('.btn-aprobar').addEventListener('click', async (e) => {
                         const btn = e.currentTarget;
-                        if (!confirm(`¿Confirmás conceder acceso a ${userName} para el recurso "${sol.dashboard_name}"?`)) return;
+                        if (!confirm(`¿Confirmás la aprobación fiscal para ${userName} en el recurso "${sol.dashboard_name}"? La solicitud se derivará al Funcionario del área.`)) return;
                         try {
                             btn.disabled = true;
                             btn.textContent = 'Procesando...';
-                            await callApi(`/api/funcionario/solicitudes/${sol.id}/aprobar`, 'POST');
-                            alert('🟢 Acceso concedido exitosamente. Se envió una notificación por correo al usuario.');
-                            await loadAreaSolicitudes();
+                            await callApi(`/api/fiscal/solicitudes/${sol.id}/aprobar`, 'POST');
+                            alert('🟢 Solicitud aprobada por Fiscalía. Se notificó al Funcionario del área para su resolución definitiva.');
+                            await loadFiscalSolicitudes();
                         } catch (err) {
                             console.error(err);
-                            alert('Error al aprobar solicitud: ' + err.message);
+                            alert('Error al aprobar solicitud fiscal: ' + err.message);
                             btn.disabled = false;
-                            btn.textContent = '🟢 Conceder Acceso';
+                            btn.textContent = '🟢 Aprobar y Derivar a Funcionario';
                         }
                     });
 
@@ -278,7 +272,7 @@
                         form.classList.add('hidden');
                     });
 
-                    // Handler Confirmar Rechazar
+                    // Handler Confirmar Rechazar Fiscal
                     card.querySelector('.btn-confirm-reject').addEventListener('click', async (e) => {
                         const textarea = card.querySelector(`#reject-reason-${sol.id}`);
                         const reasonText = textarea ? textarea.value.trim() : '';
@@ -287,12 +281,12 @@
                         try {
                             btn.disabled = true;
                             btn.textContent = 'Enviando...';
-                            await callApi(`/api/funcionario/solicitudes/${sol.id}/rechazar`, 'POST', { reason: reasonText });
-                            alert('🔴 Solicitud rechazada. Se notificó al usuario por correo electrónico.');
-                            await loadAreaSolicitudes();
+                            await callApi(`/api/fiscal/solicitudes/${sol.id}/rechazar`, 'POST', { reason: reasonText });
+                            alert('🔴 Solicitud rechazada por Fiscalía. Se notificó directamente al usuario por correo electrónico.');
+                            await loadFiscalSolicitudes();
                         } catch (err) {
                             console.error(err);
-                            alert('Error al rechazar solicitud: ' + err.message);
+                            alert('Error al rechazar solicitud fiscal: ' + err.message);
                             btn.disabled = false;
                             btn.textContent = 'Confirmar Rechazo';
                         }
@@ -302,11 +296,11 @@
                 container.appendChild(grid);
             } catch (err) {
                 console.error(err);
-                container.innerHTML = `<div class="text-center py-8 text-red-500 text-xs">Error al cargar solicitudes: ${err.message}</div>`;
+                container.innerHTML = `<div class="text-center py-8 text-red-500 text-xs">Error al cargar solicitudes para fiscalización: ${err.message}</div>`;
             }
         }
 
-        document.getElementById('btn-refresh-solicitudes')?.addEventListener('click', () => loadAreaSolicitudes());
+        document.getElementById('btn-refresh-solicitudes')?.addEventListener('click', () => loadFiscalSolicitudes());
     </script>
 </body>
 </html>

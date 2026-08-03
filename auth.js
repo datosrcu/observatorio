@@ -425,6 +425,12 @@ async function loadUserPermissions(user) {
             document.getElementById('btn-funcionario-solicitudes')?.classList.add('hidden');
         }
 
+        if (currentUserRole === 'fiscal') {
+            loadFiscalSolicitudesBadge();
+        } else {
+            document.getElementById('btn-fiscal-solicitudes')?.classList.add('hidden');
+        }
+
 
     } catch (error) {
         console.error("Error loading user permissions:", error);
@@ -972,6 +978,29 @@ async function loadFuncionarioSolicitudes() {
 
     } catch (err) {
         console.error("Error loading funcionario solicitudes:", err);
+    }
+}
+
+async function loadFiscalSolicitudesBadge() {
+    const btnFiscal = document.getElementById('btn-fiscal-solicitudes');
+    const badgeFiscal = document.getElementById('badge-fiscal-solicitudes-count');
+
+    if (!btnFiscal) return;
+
+    try {
+        const solList = await callApi('/api/fiscal/solicitudes', 'GET');
+        btnFiscal.classList.remove('hidden');
+
+        if (badgeFiscal) {
+            if (solList.length > 0) {
+                badgeFiscal.textContent = solList.length;
+                badgeFiscal.classList.remove('hidden');
+            } else {
+                badgeFiscal.classList.add('hidden');
+            }
+        }
+    } catch (err) {
+        console.error('Error al cargar solicitudes para fiscal:', err);
     }
 }
 
