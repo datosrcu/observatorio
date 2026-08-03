@@ -862,12 +862,14 @@ function renderButton(container, id, data) {
                 <div class="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                     ${iconStr}
                 </div>
-                <h3 class="text-sm font-bold text-obelisco-dark ml-4 leading-snug break-words flex-grow">${data.title}</h3>
+                <div class="ml-4 flex-grow min-w-0 flex flex-col">
+                    <div class="mb-1 flex items-center gap-1.5 flex-wrap">
+                        ${sensitivityBadge}
+                    </div>
+                    <h3 class="text-sm font-bold text-obelisco-dark leading-snug break-words">${data.title}</h3>
+                </div>
             </div>
-            <div class="flex items-center justify-between gap-2 flex-grow mb-6">
-                <p class="text-obelisco-gray text-xs italic truncate" title="${categoryNames}">${categoryNames}</p>
-                ${sensitivityBadge}
-            </div>
+            <p class="text-obelisco-gray text-xs flex-grow mb-6 italic" title="${categoryNames}">${categoryNames}</p>
             <span class="text-obelisco-blue font-bold text-sm flex items-center">
                 ${hasAccess ? 'Ver tablero' : (isUnderReview ? 'Pendiente' : 'Solicitar acceso')}
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
