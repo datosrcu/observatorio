@@ -65,7 +65,7 @@ if (!resend) {
 }
 
 function getResendFromEmail() {
-    let from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    let from = process.env.RESEND_FROM_EMAIL || 'datos@riocuarto.gov.ar';
     if (from && !from.includes('<')) {
         return `Observatorio RCU <${from}>`;
     }
