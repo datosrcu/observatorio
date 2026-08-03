@@ -1442,7 +1442,8 @@ async function loadBoards() {
                     return Array.isArray(val) ? val : [];
                 } catch (e) { return []; }
             })(),
-            category: b.category_legacy
+            category: b.category_legacy,
+            sensitivity_level: b.sensitivity_level || 'nivel3'
         }));
         filterAndRenderBoards();
     } catch (error) { console.error("Error loading boards from MySQL:", error); }
