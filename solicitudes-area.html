@@ -228,10 +228,10 @@
                             </button>
                         </div>
 
-                        <!-- Formulario de rechazo desplegable con motivo obligatorio -->
+                        <!-- Formulario de rechazo desplegable con motivo opcional -->
                         <div id="reject-form-${sol.id}" class="hidden pt-3 border-t border-amber-200 space-y-2">
-                            <label class="block text-xs font-bold text-rose-800">Motivo del Rechazo <span class="text-red-500">* (Obligatorio)</span></label>
-                            <textarea id="reject-reason-${sol.id}" class="w-full border border-rose-300 rounded-lg p-2.5 text-xs outline-none focus:border-rose-500 bg-white" rows="2" placeholder="Escribí detalladamente el motivo de rechazo para notificar por email al usuario..."></textarea>
+                            <label class="block text-xs font-bold text-rose-800">Motivo del Rechazo <span class="text-gray-500 font-normal">(Opcional)</span></label>
+                            <textarea id="reject-reason-${sol.id}" class="w-full border border-rose-300 rounded-lg p-2.5 text-xs outline-none focus:border-rose-500 bg-white" rows="2" placeholder="Escribí un motivo si lo deseas (opcional)..."></textarea>
                             <div class="flex justify-end gap-2">
                                 <button class="btn-cancel-reject px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">Cancelar</button>
                                 <button class="btn-confirm-reject px-4 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm">Confirmar Rechazo</button>
@@ -276,18 +276,12 @@
                         const textarea = card.querySelector(`#reject-reason-${sol.id}`);
                         const reasonText = textarea ? textarea.value.trim() : '';
 
-                        if (!reasonText) {
-                            alert('⚠️ El motivo del rechazo es obligatorio. Por favor, escribí la razón para notificar al usuario.');
-                            textarea?.focus();
-                            return;
-                        }
-
                         const btn = e.currentTarget;
                         try {
                             btn.disabled = true;
                             btn.textContent = 'Enviando...';
                             await callApi(`/api/funcionario/solicitudes/${sol.id}/rechazar`, 'POST', { reason: reasonText });
-                            alert('🔴 Solicitud rechazada. Se notificó al usuario por correo electrónico con el motivo expresado.');
+                            alert('🔴 Solicitud rechazada. Se notificó al usuario por correo electrónico.');
                             await loadAreaSolicitudes();
                         } catch (err) {
                             console.error(err);

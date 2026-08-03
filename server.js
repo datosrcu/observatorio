@@ -1177,15 +1177,12 @@ app.post('/api/funcionario/solicitudes/:id/aprobar', verifyToken, async (req, re
     }
 });
 
-// Rechazar solicitud Nivel 3 por Funcionario (Con motivo obligatorio)
+// Rechazar solicitud Nivel 3 por Funcionario (Con motivo opcional)
 app.post('/api/funcionario/solicitudes/:id/rechazar', verifyToken, async (req, res) => {
     try {
         const solId = req.params.id;
         const { reason } = req.body;
-
-        if (!reason || !reason.trim()) {
-            return res.status(400).json({ error: 'El motivo del rechazo es obligatorio.' });
-        }
+        const finalReason = (reason && reason.trim()) ? reason.trim() : 'Sin motivo especificado';
 
         const connection = await getDbConnection();
 
@@ -1207,7 +1204,7 @@ app.post('/api/funcionario/solicitudes/:id/rechazar', verifyToken, async (req, r
         // 2. Actualizar estado y comentario de rechazo
         await connection.execute(
             "UPDATE solicitudes_acceso SET status = 'rechazado', admin_comment = ? WHERE id = ?",
-            [reason.trim(), solId]
+            [finalReason, solId]
         );
 
         await connection.end();
@@ -1221,7 +1218,7 @@ app.post('/api/funcionario/solicitudes/:id/rechazar', verifyToken, async (req, r
                     userName: targetName,
                     resourceTitle: resourceName,
                     secretariaName: 'Secretaría de Área',
-                    rejectionReason: reason.trim()
+                    rejectionReason: finalReason
                 });
 
                 const { data, error } = await resend.emails.send({
