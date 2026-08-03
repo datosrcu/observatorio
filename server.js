@@ -1527,6 +1527,255 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
     }
 });
 
+// ──────────────────────────────────────────────────────────────────────────
+// ENDPOINTS PERFIL FISCAL (Revisión Nivel 1 y Nivel 2)
+// ──────────────────────────────────────────────────────────────────────────
+
+// 1. Obtener solicitudes pendientes de fiscalizar (Nivel 1 y 2)
+app.get('/api/fiscal/solicitudes', verifyToken, async (req, res) => {
+    try {
+        const userEmail = req.user.email;
+        const connection = await getDbConnection();
+
+        const [[fiscal]] = await connection.execute(
+            'SELECT role FROM usuarios_perfiles WHERE email = ? LIMIT 1',
+            [userEmail]
+        );
+
+        if (!fiscal || fiscal.role !== 'fiscal') {
+            await connection.end();
+            return res.json([]);
+        }
+
+        const [solicitudes] = await connection.query(`
+            SELECT s.*, u.email as user_email, u.full_name as user_name, u.dni as user_dni, u.area as user_area, u.subarea as user_subarea, u.secretaria as user_secretaria
+            FROM solicitudes_acceso s
+            LEFT JOIN usuarios_perfiles u ON s.user_uid = u.uid OR s.user_uid = u.email
+            WHERE s.status = 'pendiente_fiscal' OR (s.fiscal_status = 'pendiente' AND s.status != 'rechazado')
+            ORDER BY s.created_at DESC
+        `);
+
+        const [tableros] = await connection.query('SELECT id, title, sensitivity_level FROM tableros');
+        const [informes] = await connection.query('SELECT id, title, sensitivity_level FROM informes');
+
+        await connection.end();
+
+        const enriched = solicitudes.map(sol => {
+            const dashboardName = sol.dashboard_name || '';
+            const t = tableros.find(item => item.id === dashboardName || item.title === dashboardName);
+            const inf = informes.find(item => item.id === dashboardName || item.title === dashboardName);
+            const item = t || inf;
+            return {
+                ...sol,
+                sensitivity_level: item ? (item.sensitivity_level || 'nivel1') : 'nivel1'
+            };
+        });
+
+        res.json(enriched);
+    } catch (e) {
+        console.error('Error al obtener solicitudes para fiscal:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 2. Aprobar por Fiscal (Deriva a Funcionario) - Resend Alias: "fiscal-approval-required"
+app.post('/api/fiscal/solicitudes/:id/aprobar', verifyToken, async (req, res) => {
+    try {
+        const solId = req.params.id;
+        const fiscalEmail = req.user.email.toLowerCase();
+        const connection = await getDbConnection();
+
+        const [[fiscal]] = await connection.execute(
+            'SELECT role, full_name FROM usuarios_perfiles WHERE email = ? LIMIT 1',
+            [fiscalEmail]
+        );
+
+        if (!fiscal || fiscal.role !== 'fiscal') {
+            await connection.end();
+            return res.status(403).json({ error: 'Permiso denegado. Exclusivo para el perfil Fiscal.' });
+        }
+
+        const [[solicitud]] = await connection.execute(
+            'SELECT s.*, u.email as user_email, u.full_name as user_name, u.dni as user_dni, u.area as user_area, u.subarea as user_subarea FROM solicitudes_acceso s LEFT JOIN usuarios_perfiles u ON s.user_uid = u.uid OR s.user_uid = u.email WHERE s.id = ? LIMIT 1',
+            [solId]
+        );
+
+        if (!solicitud) {
+            await connection.end();
+            return res.status(404).json({ error: 'Solicitud no encontrada.' });
+        }
+
+        await connection.execute(
+            `UPDATE solicitudes_acceso 
+             SET status = 'pendiente_funcionario', fiscal_status = 'aprobado', fiscal_user_email = ?, fiscal_approved_at = NOW() 
+             WHERE id = ?`,
+            [fiscalEmail, solId]
+        );
+
+        const dashboard_name = solicitud.dashboard_name;
+        const [[tablero]] = await connection.execute(
+            'SELECT id, title, category_legacy, categories, sensitivity_level FROM tableros WHERE id = ? OR title = ? LIMIT 1',
+            [dashboard_name, dashboard_name]
+        );
+        const [[informe]] = tablero ? [[]] : await connection.execute(
+            'SELECT id, title, category_legacy, categories, sensitivity_level FROM informes WHERE id = ? OR title = ? LIMIT 1',
+            [dashboard_name, dashboard_name]
+        );
+
+        const item = tablero || informe;
+
+        if (resend && item) {
+            const [categorias] = await connection.query('SELECT id, name FROM categorias');
+            let catNames = [];
+            try {
+                const ids = typeof item.categories === 'string' ? JSON.parse(item.categories || '[]') : (item.categories || []);
+                catNames = ids.map(id => (categorias.find(c => c.id === id) || {}).name).filter(Boolean);
+            } catch(e) {}
+            if (item.category_legacy) catNames.push(item.category_legacy);
+
+            const [funcionarios] = await connection.query(
+                "SELECT email, full_name, secretaria FROM usuarios_perfiles WHERE role = 'funcionario' AND secretaria IS NOT NULL"
+            );
+
+            function normStr(str) {
+                if (!str) return '';
+                return str.toLowerCase().replace(/^secretaría\s+de\s+/i, '').replace(/^secretaria\s+de\s+/i, '')
+                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/río/g, 'rio').replace(/cuarto/g, 'iv').trim();
+            }
+
+            const targetFuncionarios = funcionarios.filter(f => 
+                catNames.length === 0 || catNames.some(cn => {
+                    const ns = normStr(f.secretaria);
+                    const nc = normStr(cn);
+                    return ns === nc || ns.includes(nc) || nc.includes(ns);
+                })
+            );
+
+            if (targetFuncionarios.length > 0) {
+                const tplPath = path.join(__dirname, 'plantilla_solicitud_funcionario_fiscal_aprobado.html');
+                let html = fs.readFileSync(tplPath, 'utf8');
+                const fullReason = solicitud.reason_detail ? `${solicitud.reason} (${solicitud.reason_detail})` : solicitud.reason;
+                const sensBadge = item.sensitivity_level === 'nivel1' ? '🔴 Nivel 1 (Sensible)' : '🟠 Nivel 2 (Confidencial)';
+
+                for (const func of targetFuncionarios) {
+                    const funcHtml = replaceTemplateVars(html, {
+                        funcionarioName: func.full_name || func.email,
+                        secretariaName: func.secretaria,
+                        fiscalEmail: fiscalEmail,
+                        userName: solicitud.user_name || solicitud.user_email,
+                        userEmail: solicitud.user_email || solicitud.user_uid,
+                        userDni: solicitud.user_dni || 'No reg.',
+                        userArea: solicitud.user_area || 'No indicada',
+                        userSubarea: solicitud.user_subarea || 'No indicada',
+                        resourceTitle: dashboard_name,
+                        sensitivityBadge: sensBadge,
+                        reason: fullReason
+                    });
+
+                    try {
+                        // Alias Resend: "fiscal-approval-required"
+                        const { data, error } = await resend.emails.send({
+                            from: getResendFromEmail(),
+                            to: func.email,
+                            subject: `⚖️ Solicitud Aprobada por Fiscalía: ${dashboard_name}`,
+                            html: funcHtml
+                        });
+
+                        if (error) {
+                            console.error(`❌ [Resend Error] Falló notificación a Funcionario ${func.email}:`, error.message || error);
+                        } else {
+                            console.log(`✅ [Resend Éxito - Alias: fiscal-approval-required] Email derivado a Funcionario ${func.email} (ID: ${data?.id})`);
+                        }
+                    } catch(err) {
+                        console.error(`❌ [Resend Exception] Error enviando email a funcionario ${func.email}:`, err.message);
+                    }
+                }
+            }
+        }
+
+        await connection.end();
+        res.json({ success: true, message: 'Solicitud aprobada por Fiscalía y derivada al Funcionario.' });
+    } catch (e) {
+        console.error('Error al aprobar solicitud por fiscal:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 3. Rechazar por Fiscal (Finaliza y notifica al usuario) - Resend Alias: "solicitud-rechazada"
+app.post('/api/fiscal/solicitudes/:id/rechazar', verifyToken, async (req, res) => {
+    try {
+        const solId = req.params.id;
+        const { reason } = req.body;
+        const fiscalEmail = req.user.email.toLowerCase();
+        const finalReason = (reason && reason.trim()) ? reason.trim() : 'Rechazado en instancia de revisión por la Fiscalía.';
+
+        const connection = await getDbConnection();
+
+        const [[fiscal]] = await connection.execute(
+            'SELECT role FROM usuarios_perfiles WHERE email = ? LIMIT 1',
+            [fiscalEmail]
+        );
+
+        if (!fiscal || fiscal.role !== 'fiscal') {
+            await connection.end();
+            return res.status(403).json({ error: 'Permiso denegado. Exclusivo para el perfil Fiscal.' });
+        }
+
+        const [[solicitud]] = await connection.execute(
+            'SELECT s.*, u.email as user_email, u.full_name as user_name FROM solicitudes_acceso s LEFT JOIN usuarios_perfiles u ON s.user_uid = u.uid OR s.user_uid = u.email WHERE s.id = ? LIMIT 1',
+            [solId]
+        );
+
+        if (!solicitud) {
+            await connection.end();
+            return res.status(404).json({ error: 'Solicitud no encontrada.' });
+        }
+
+        const targetEmail = solicitud.user_email || solicitud.user_uid;
+        const targetName = solicitud.user_name || targetEmail;
+        const resourceName = solicitud.dashboard_name;
+
+        const adminComment = `Rechazado por Fiscalía (${fiscalEmail}): ${finalReason}`;
+        await connection.execute(
+            "UPDATE solicitudes_acceso SET status = 'rechazado', fiscal_status = 'rechazado', fiscal_user_email = ?, admin_comment = ? WHERE id = ?",
+            [fiscalEmail, adminComment, solId]
+        );
+
+        await connection.end();
+
+        if (resend && targetEmail) {
+            try {
+                const tplPath = path.join(__dirname, 'plantilla_solicitud_rechazada.html');
+                let html = fs.readFileSync(tplPath, 'utf8');
+                html = replaceTemplateVars(html, {
+                    userName: targetName,
+                    resourceTitle: resourceName,
+                    secretariaName: 'Fiscalía de Control',
+                    rejectionReason: finalReason
+                });
+
+                // Alias Resend: "solicitud-rechazada"
+                const { data, error } = await resend.emails.send({
+                    from: getResendFromEmail(),
+                    to: targetEmail,
+                    subject: `🔴 Resolución de Solicitud de Acceso: ${resourceName}`,
+                    html
+                });
+                if (error) {
+                    console.error(`❌ [Resend Error] Falló email de rechazo fiscal a ${targetEmail}:`, error.message || error);
+                } else {
+                    console.log(`✅ [Resend Éxito - Alias: solicitud-rechazada] Email de rechazo fiscal enviado a ${targetEmail} (ID: ${data?.id})`);
+                }
+            } catch(e) { console.warn('Error cargando plantilla rechazada:', e.message); }
+        }
+
+        res.json({ success: true, message: 'Solicitud rechazada por Fiscalía y usuario notificado.' });
+    } catch (e) {
+        console.error('Error al rechazar solicitud por fiscal:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 3. Registrar pedido de producto estadístico
 app.post('/api/pedido-estadistico', verifyToken, async (req, res) => {
     const { email: uid } = req.user;
