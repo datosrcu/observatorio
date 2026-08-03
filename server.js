@@ -299,6 +299,8 @@ const initializeTables = async () => {
         await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN role VARCHAR(50) DEFAULT 'usuario'`).catch(() => {});
         await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN secretaria VARCHAR(255)`).catch(() => {});
         await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN area VARCHAR(255)`).catch(() => {});
+        await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN subarea VARCHAR(255)`).catch(() => {});
+        await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN dni VARCHAR(20)`).catch(() => {});
         await connection.query(`UPDATE usuarios_perfiles SET role = 'admin' WHERE email = 'datos@riocuarto.gov.ar'`).catch(() => {});
 
         // 2. Tabla de Solicitudes de Acceso
