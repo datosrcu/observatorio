@@ -64,6 +64,14 @@ if (!resend) {
     console.warn("⚠️ RESEND_API_KEY no configurada. El envío de emails estará deshabilitado.");
 }
 
+function getResendFromEmail() {
+    let from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    if (from && !from.includes('<')) {
+        return `Observatorio RCU <${from}>`;
+    }
+    return from;
+}
+
 function replaceTemplateVars(templateHtml, data) {
     if (!templateHtml) return '';
     let result = templateHtml;
@@ -1148,12 +1156,17 @@ app.post('/api/funcionario/solicitudes/:id/aprobar', verifyToken, async (req, re
                     secretariaName: funcSecretaria
                 });
 
-                resend.emails.send({
-                    from: 'Observatorio RCU <datos@riocuarto.gov.ar>',
+                const { data, error } = await resend.emails.send({
+                    from: getResendFromEmail(),
                     to: targetEmail,
                     subject: `🟢 Solicitud Aprobada: ${resourceName}`,
                     html
-                }).catch(err => console.warn('[Resend] Error enviando email aprobada:', err.message));
+                });
+                if (error) {
+                    console.error(`❌ [Resend Error] Falló email de aprobación a ${targetEmail}:`, error.message || error);
+                } else {
+                    console.log(`✅ [Resend Éxito] Email de aprobación enviado a ${targetEmail} (ID: ${data?.id})`);
+                }
             } catch(e) { console.warn('Error cargando plantilla aprobada:', e.message); }
         }
 
@@ -1204,17 +1217,24 @@ app.post('/api/funcionario/solicitudes/:id/rechazar', verifyToken, async (req, r
             try {
                 const tplPath = path.join(__dirname, 'plantilla_solicitud_rechazada.html');
                 let html = fs.readFileSync(tplPath, 'utf8');
-                html = html.replace(/{{{userName}}}/g, targetName)
-                           .replace(/{{{resourceTitle}}}/g, resourceName)
-                           .replace(/{{{secretariaName}}}/g, 'Secretaría de Área')
-                           .replace(/{{{rejectionReason}}}/g, reason.trim());
+                html = replaceTemplateVars(html, {
+                    userName: targetName,
+                    resourceTitle: resourceName,
+                    secretariaName: 'Secretaría de Área',
+                    rejectionReason: reason.trim()
+                });
 
-                resend.emails.send({
-                    from: 'Observatorio RCU <datos@riocuarto.gov.ar>',
+                const { data, error } = await resend.emails.send({
+                    from: getResendFromEmail(),
                     to: targetEmail,
                     subject: `🔴 Resolución de Solicitud de Acceso: ${resourceName}`,
                     html
-                }).catch(err => console.warn('[Resend] Error enviando email rechazada:', err.message));
+                });
+                if (error) {
+                    console.error(`❌ [Resend Error] Falló email de rechazo a ${targetEmail}:`, error.message || error);
+                } else {
+                    console.log(`✅ [Resend Éxito] Email de rechazo enviado a ${targetEmail} (ID: ${data?.id})`);
+                }
             } catch(e) { console.warn('Error cargando plantilla rechazada:', e.message); }
         }
 
@@ -1412,14 +1432,22 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
                                 reason: fullReason
                             });
 
-                            resend.emails.send({
-                                from: 'Observatorio RCU <datos@riocuarto.gov.ar>',
-                                to: func.email,
-                                subject: `📋 Nueva Solicitud de Acceso: ${dashboard_name}`,
-                                html: funcHtml
-                            }).then(data => {
-                                console.log(`Email de solicitud enviado a Funcionario ${func.email} (ID: ${data?.id || data?.data?.id})`);
-                            }).catch(err => console.warn('[Resend] Error enviando email a funcionario:', err.message));
+                            try {
+                                const { data, error } = await resend.emails.send({
+                                    from: getResendFromEmail(),
+                                    to: func.email,
+                                    subject: `📋 Nueva Solicitud de Acceso: ${dashboard_name}`,
+                                    html: funcHtml
+                                });
+
+                                if (error) {
+                                    console.error(`❌ [Resend Error] Falló notificación a Funcionario ${func.email}:`, error.message || error);
+                                } else {
+                                    console.log(`✅ [Resend Éxito] Email de solicitud enviado a Funcionario ${func.email} (ID: ${data?.id})`);
+                                }
+                            } catch(err) {
+                                console.error(`❌ [Resend Exception] Error enviando email a funcionario ${func.email}:`, err.message);
+                            }
                         }
                     } else {
                         console.warn(`[Solicitud Acceso] Solicitud registrada para "${dashboard_name}", pero no se encontró ningún Funcionario registrado con la secretaría requerida.`);
