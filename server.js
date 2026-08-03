@@ -926,6 +926,247 @@ app.post('/api/solicitudes/:id/aprobar', verifyToken, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── ENDPOINTS SOLICITUDES PARA FUNCIONARIO ─────────────────────────────────
+
+// Obtener solicitudes de acceso Nivel 3 para el área del Funcionario logueado
+app.get('/api/funcionario/solicitudes', verifyToken, async (req, res) => {
+    try {
+        const userEmail = req.user.email.toLowerCase();
+        const connection = await getDbConnection();
+
+        // 1. Obtener el perfil del Funcionario logueado
+        const [[funcionario]] = await connection.execute(
+            'SELECT secretaria, role FROM usuarios_perfiles WHERE email = ? LIMIT 1',
+            [userEmail]
+        );
+
+        if (!funcionario || funcionario.role !== 'funcionario' || !funcionario.secretaria) {
+            await connection.end();
+            return res.json([]);
+        }
+
+        const funcionarioSec = funcionario.secretaria;
+
+        // 2. Obtener todas las solicitudes pendientes
+        const [solicitudes] = await connection.query(`
+            SELECT s.*, u.email as user_email, u.full_name as user_name, u.dni as user_dni
+            FROM solicitudes_acceso s
+            LEFT JOIN usuarios_perfiles u ON s.user_uid = u.uid OR s.user_uid = u.email
+            WHERE s.status = 'pendiente' OR s.status = 'pending'
+            ORDER BY s.created_at DESC
+        `);
+
+        // 3. Obtener tableros e informes para filtrar por categoría y nivel3
+        const [tableros] = await connection.query('SELECT id, title, category_legacy, categories, sensitivity_level FROM tableros');
+        const [informes] = await connection.query('SELECT id, title, category_legacy, categories, sensitivity_level FROM informes');
+        const [categorias] = await connection.query('SELECT id, name FROM categorias');
+
+        await connection.end();
+
+        function normStr(str) {
+            if (!str) return '';
+            return str.toLowerCase()
+                .replace(/^secretaría\s+de\s+/i, '')
+                .replace(/^secretaria\s+de\s+/i, '')
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/río/g, 'rio').replace(/cuarto/g, 'iv').trim();
+        }
+
+        function isMatchSecCat(secName, catName) {
+            if (!secName || !catName) return false;
+            const ns = normStr(secName);
+            const nc = normStr(catName);
+            return ns === nc || ns.includes(nc) || nc.includes(ns);
+        }
+
+        const filtered = solicitudes.filter(sol => {
+            const dashboardName = sol.dashboard_name || '';
+            
+            // Buscar en tableros
+            let item = tableros.find(t => t.id === dashboardName || t.title === dashboardName);
+            let isInforme = false;
+
+            if (!item) {
+                item = informes.find(i => i.id === dashboardName || i.title === dashboardName);
+                isInforme = true;
+            }
+
+            if (!item) return false;
+
+            // Verificar nivel de sensibilidad (nivel3 o no especificado)
+            const level = item.sensitivity_level || 'nivel3';
+            if (level !== 'nivel3') return false;
+
+            // Verificar coincidencia de secretaría
+            const itemCatIds = (() => {
+                try {
+                    const val = item.categories;
+                    return typeof val === 'string' ? JSON.parse(val) : (Array.isArray(val) ? val : []);
+                } catch(e) { return []; }
+            })();
+
+            const itemCatNames = itemCatIds.map(cId => {
+                const c = categorias.find(cat => cat.id === cId);
+                return c ? c.name : '';
+            }).filter(Boolean);
+
+            if (item.category_legacy) itemCatNames.push(item.category_legacy);
+
+            return itemCatNames.some(catName => isMatchSecCat(funcionarioSec, catName));
+        });
+
+        res.json(filtered);
+    } catch (e) {
+        console.error('Error al obtener solicitudes de funcionario:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Aprobar solicitud Nivel 3 por Funcionario
+app.post('/api/funcionario/solicitudes/:id/aprobar', verifyToken, async (req, res) => {
+    try {
+        const solId = req.params.id;
+        const connection = await getDbConnection();
+
+        // 1. Obtener datos de la solicitud
+        const [[solicitud]] = await connection.execute(
+            'SELECT s.*, u.email as user_email, u.full_name as user_name FROM solicitudes_acceso s LEFT JOIN usuarios_perfiles u ON s.user_uid = u.uid OR s.user_uid = u.email WHERE s.id = ? LIMIT 1',
+            [solId]
+        );
+
+        if (!solicitud) {
+            await connection.end();
+            return res.status(404).json({ error: 'Solicitud no encontrada.' });
+        }
+
+        const targetEmail = solicitud.user_email || solicitud.user_uid;
+        const targetName = solicitud.user_name || targetEmail;
+        const resourceName = solicitud.dashboard_name;
+
+        // 2. Conceder acceso en tableros o informes
+        const [[tablero]] = await connection.execute(
+            'SELECT id, allowed_users FROM tableros WHERE id = ? OR title = ? LIMIT 1',
+            [resourceName, resourceName]
+        );
+
+        if (tablero) {
+            let allowed = [];
+            try { allowed = JSON.parse(tablero.allowed_users || '[]'); } catch(e) { allowed = []; }
+            if (!Array.isArray(allowed)) allowed = [];
+            if (!allowed.map(u => u.toLowerCase()).includes(targetEmail.toLowerCase())) {
+                allowed.push(targetEmail);
+            }
+            await connection.execute('UPDATE tableros SET allowed_users = ? WHERE id = ?', [JSON.stringify(allowed), tablero.id]);
+        } else {
+            const [[informe]] = await connection.execute(
+                'SELECT id, allowed_users FROM informes WHERE id = ? OR title = ? LIMIT 1',
+                [resourceName, resourceName]
+            );
+            if (informe) {
+                let allowed = [];
+                try { allowed = JSON.parse(informe.allowed_users || '[]'); } catch(e) { allowed = []; }
+                if (!Array.isArray(allowed)) allowed = [];
+                if (!allowed.map(u => u.toLowerCase()).includes(targetEmail.toLowerCase())) {
+                    allowed.push(targetEmail);
+                }
+                await connection.execute('UPDATE informes SET allowed_users = ? WHERE id = ?', [JSON.stringify(allowed), informe.id]);
+            }
+        }
+
+        // 3. Actualizar estado de solicitud
+        await connection.execute(
+            "UPDATE solicitudes_acceso SET status = 'aprobado', admin_comment = 'Aprobado por Funcionario del área' WHERE id = ?",
+            [solId]
+        );
+
+        await connection.end();
+
+        // 4. Enviar email de notificación al usuario (Resend)
+        if (resend && targetEmail) {
+            try {
+                const tplPath = path.join(__dirname, 'plantilla_solicitud_aprobada.html');
+                let html = fs.readFileSync(tplPath, 'utf8');
+                html = html.replace(/{{{userName}}}/g, targetName)
+                           .replace(/{{{resourceTitle}}}/g, resourceName)
+                           .replace(/{{{secretariaName}}}/g, 'Secretaría de Área');
+
+                resend.emails.send({
+                    from: 'Observatorio RCU <datos@riocuarto.gov.ar>',
+                    to: targetEmail,
+                    subject: `🟢 Solicitud Aprobada: ${resourceName}`,
+                    html
+                }).catch(err => console.warn('[Resend] Error enviando email aprobada:', err.message));
+            } catch(e) { console.warn('Error cargando plantilla aprobada:', e.message); }
+        }
+
+        res.json({ success: true, message: 'Solicitud aprobada correctamente.' });
+    } catch (e) {
+        console.error('Error al aprobar solicitud por funcionario:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Rechazar solicitud Nivel 3 por Funcionario (Con motivo obligatorio)
+app.post('/api/funcionario/solicitudes/:id/rechazar', verifyToken, async (req, res) => {
+    try {
+        const solId = req.params.id;
+        const { reason } = req.body;
+
+        if (!reason || !reason.trim()) {
+            return res.status(400).json({ error: 'El motivo del rechazo es obligatorio.' });
+        }
+
+        const connection = await getDbConnection();
+
+        // 1. Obtener datos de la solicitud
+        const [[solicitud]] = await connection.execute(
+            'SELECT s.*, u.email as user_email, u.full_name as user_name FROM solicitudes_acceso s LEFT JOIN usuarios_perfiles u ON s.user_uid = u.uid OR s.user_uid = u.email WHERE s.id = ? LIMIT 1',
+            [solId]
+        );
+
+        if (!solicitud) {
+            await connection.end();
+            return res.status(404).json({ error: 'Solicitud no encontrada.' });
+        }
+
+        const targetEmail = solicitud.user_email || solicitud.user_uid;
+        const targetName = solicitud.user_name || targetEmail;
+        const resourceName = solicitud.dashboard_name;
+
+        // 2. Actualizar estado y comentario de rechazo
+        await connection.execute(
+            "UPDATE solicitudes_acceso SET status = 'rechazado', admin_comment = ? WHERE id = ?",
+            [reason.trim(), solId]
+        );
+
+        await connection.end();
+
+        // 3. Enviar email de notificación de rechazo al usuario (Resend)
+        if (resend && targetEmail) {
+            try {
+                const tplPath = path.join(__dirname, 'plantilla_solicitud_rechazada.html');
+                let html = fs.readFileSync(tplPath, 'utf8');
+                html = html.replace(/{{{userName}}}/g, targetName)
+                           .replace(/{{{resourceTitle}}}/g, resourceName)
+                           .replace(/{{{secretariaName}}}/g, 'Secretaría de Área')
+                           .replace(/{{{rejectionReason}}}/g, reason.trim());
+
+                resend.emails.send({
+                    from: 'Observatorio RCU <datos@riocuarto.gov.ar>',
+                    to: targetEmail,
+                    subject: `🔴 Resolución de Solicitud de Acceso: ${resourceName}`,
+                    html
+                }).catch(err => console.warn('[Resend] Error enviando email rechazada:', err.message));
+            } catch(e) { console.warn('Error cargando plantilla rechazada:', e.message); }
+        }
+
+        res.json({ success: true, message: 'Solicitud rechazada correctamente.' });
+    } catch (e) {
+        console.error('Error al rechazar solicitud por funcionario:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // ── CONTACTOS ──────────────────────────────────────────────────────────────
 
 // Crear mensaje de contacto
@@ -1041,6 +1282,86 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
             VALUES (?, ?, ?, ?, ?)
         `;
         await connection.execute(sql, [uid, dashboard_name, reason, reason_detail, terms_version]);
+
+        // Intentar notificar al Funcionario correspondiente por Resend
+        if (resend) {
+            try {
+                // Obtener datos del usuario solicitante
+                const [[userProfile]] = await connection.execute(
+                    'SELECT full_name, dni FROM usuarios_perfiles WHERE email = ? LIMIT 1',
+                    [uid]
+                );
+                const userName = userProfile ? userProfile.full_name : uid;
+                const userDni = userProfile ? userProfile.dni : 'No reg.';
+
+                // Buscar recurso en tableros o informes
+                const [[tablero]] = await connection.execute(
+                    'SELECT id, title, category_legacy, categories, sensitivity_level FROM tableros WHERE id = ? OR title = ? LIMIT 1',
+                    [dashboard_name, dashboard_name]
+                );
+                const [[informe]] = tablero ? [[]] : await connection.execute(
+                    'SELECT id, title, category_legacy, categories, sensitivity_level FROM informes WHERE id = ? OR title = ? LIMIT 1',
+                    [dashboard_name, dashboard_name]
+                );
+
+                const item = tablero || informe;
+                if (item && (item.sensitivity_level || 'nivel3') === 'nivel3') {
+                    // Buscar categorías
+                    const [categorias] = await connection.query('SELECT id, name FROM categorias');
+                    let catNames = [];
+                    try {
+                        const ids = typeof item.categories === 'string' ? JSON.parse(item.categories || '[]') : (item.categories || []);
+                        catNames = ids.map(id => (categorias.find(c => c.id === id) || {}).name).filter(Boolean);
+                    } catch(e) {}
+                    if (item.category_legacy) catNames.push(item.category_legacy);
+
+                    // Buscar funcionarios
+                    const [funcionarios] = await connection.query(
+                        "SELECT email, full_name, secretaria FROM usuarios_perfiles WHERE role = 'funcionario' AND secretaria IS NOT NULL"
+                    );
+
+                    function normStr(str) {
+                        if (!str) return '';
+                        return str.toLowerCase().replace(/^secretaría\s+de\s+/i, '').replace(/^secretaria\s+de\s+/i, '')
+                            .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/río/g, 'rio').replace(/cuarto/g, 'iv').trim();
+                    }
+
+                    const targetFuncionarios = funcionarios.filter(f => 
+                        catNames.some(cn => {
+                            const ns = normStr(f.secretaria);
+                            const nc = normStr(cn);
+                            return ns === nc || ns.includes(nc) || nc.includes(ns);
+                        })
+                    );
+
+                    if (targetFuncionarios.length > 0) {
+                        const tplPath = path.join(__dirname, 'plantilla_solicitud_funcionario.html');
+                        let html = fs.readFileSync(tplPath, 'utf8');
+                        const fullReason = reason_detail ? `${reason} (${reason_detail})` : reason;
+
+                        for (const func of targetFuncionarios) {
+                            const funcHtml = html.replace(/{{{funcionarioName}}}/g, func.full_name || func.email)
+                                                 .replace(/{{{secretariaName}}}/g, func.secretaria)
+                                                 .replace(/{{{userName}}}/g, userName)
+                                                 .replace(/{{{userEmail}}}/g, uid)
+                                                 .replace(/{{{userDni}}}/g, userDni)
+                                                 .replace(/{{{resourceTitle}}}/g, dashboard_name)
+                                                 .replace(/{{{reason}}}/g, fullReason);
+
+                            resend.emails.send({
+                                from: 'Observatorio RCU <datos@riocuarto.gov.ar>',
+                                to: func.email,
+                                subject: `📋 Nueva Solicitud de Acceso: ${dashboard_name}`,
+                                html: funcHtml
+                            }).catch(err => console.warn('[Resend] Error enviando email a funcionario:', err.message));
+                        }
+                    }
+                }
+            } catch(mailErr) {
+                console.warn('Error procesando email para funcionario:', mailErr.message);
+            }
+        }
+
         await connection.end();
         res.json({ message: 'Solicitud de acceso registrada.' });
     } catch (error) {

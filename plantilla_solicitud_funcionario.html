@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nueva Solicitud de Acceso – Observatorio RCU</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Inter+Tight:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    @media screen and (max-width: 600px) {
+      .mobile-w100 { width: 100% !important; display: block !important; }
+      .mobile-padding { padding: 20px 16px !important; }
+      .mobile-text-center { text-align: center !important; }
+      .mobile-hide { display: none !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 32px 16px; background-color: #E8F4FA; font-family: 'Inter', Arial, sans-serif; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" max-width="680" align="center" style="max-width: 680px; background-color: #FFFFFF; border-radius: 8px; overflow: hidden; box-shadow: 0 8px 40px rgba(0,119,182,0.13); border-collapse: collapse;">
+    
+    <!-- HEADER -->
+    <tr>
+      <td bgcolor="#023E8A" style="padding: 0;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-bottom: 1px solid rgba(255,255,255,0.12); border-collapse: collapse;">
+          <tr>
+            <td class="mobile-w100 mobile-text-center" style="padding: 22px 32px 18px;" align="left" valign="middle">
+              <img src="https://observatorio.datosriocuarto.gob.ar/recursos/Logo%20DATOS%20R%C3%ADo%20Cuarto%20(2).png?v=2" alt="DATOS Río Cuarto" style="display: block; height: 52px; border: 0; filter: brightness(0) invert(1);" height="52">
+            </td>
+            <td class="mobile-w100 mobile-text-center" style="padding: 22px 32px 18px; font-family: 'Inter Tight', Arial, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #CAF0F8; text-align: right; line-height: 1.5;" align="right" valign="middle">
+              Observatorio de Gestión Municipal<br class="mobile-hide">Río Cuarto · Argentina
+            </td>
+          </tr>
+        </table>
+        
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse: collapse;">
+          <tr>
+            <td style="padding: 36px 32px 32px; border-left: 4px solid #00B4D8;">
+              <div style="font-size: 11px; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: #00B4D8; margin-bottom: 10px;">Gestión de Accesos &nbsp;·&nbsp; Nivel 3 (No sensible)</div>
+              <div style="font-family: 'Inter Tight', Arial, sans-serif; font-size: 32px; font-weight: 700; color: #FFFFFF; line-height: 1.2; margin-bottom: 12px;">Nueva Solicitud de Acceso<br><span style="color: #00B4D8;">en tu Secretaría</span></div>
+              <div style="font-size: 14px; font-weight: 300; color: rgba(255,255,255,0.75); line-height: 1.6;">
+                Un usuario ha solicitado acceso a un contenido de tu área.
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- GREETING BAND -->
+    <tr>
+      <td bgcolor="#0077B6" style="padding: 14px 32px; font-size: 14px; color: #FFFFFF; font-family: 'Inter', Arial, sans-serif;">
+        Estimado/a Funcionario/a: <strong style="font-weight: 700;">{{{funcionarioName}}}</strong> ({{{secretariaName}}})
+      </td>
+    </tr>
+
+    <!-- BODY -->
+    <tr>
+      <td bgcolor="#FFFFFF" class="mobile-padding" style="padding: 36px 32px 28px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse: collapse;">
+          <tr>
+            <td style="font-size: 15px; line-height: 1.75; color: #3A3A3A; padding-bottom: 24px;">
+              Se ha recibido una nueva solicitud para acceder al recurso de información:
+            </td>
+          </tr>
+
+          <!-- DETALLES DE LA SOLICITUD -->
+          <tr>
+            <td style="padding-bottom: 28px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; border-collapse: collapse;">
+                <tr>
+                  <td style="padding-bottom: 10px; font-size: 13px; color: #64748B;">Recurso Solicitado:</td>
+                  <td style="padding-bottom: 10px; font-size: 14px; font-weight: 700; color: #023E8A;" align="right">{{{resourceTitle}}}</td>
+                </tr>
+                <tr>
+                  <td style="padding-bottom: 10px; font-size: 13px; color: #64748B;">Solicitante:</td>
+                  <td style="padding-bottom: 10px; font-size: 14px; font-weight: 600; color: #1E293B;" align="right">{{{userName}}}</td>
+                </tr>
+                <tr>
+                  <td style="padding-bottom: 10px; font-size: 13px; color: #64748B;">Correo Electrónico:</td>
+                  <td style="padding-bottom: 10px; font-size: 13px; color: #0284C7;" align="right">{{{userEmail}}}</td>
+                </tr>
+                <tr>
+                  <td style="padding-bottom: 10px; font-size: 13px; color: #64748B;">DNI / CUIL:</td>
+                  <td style="padding-bottom: 10px; font-size: 13px; color: #334155;" align="right">{{{userDni}}}</td>
+                </tr>
+                <tr>
+                  <td style="font-size: 13px; color: #64748B;">Motivo Declarado:</td>
+                  <td style="font-size: 13px; color: #334155; font-style: italic;" align="right">{{{reason}}}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- BOTÓN DIRECTO -->
+          <tr>
+            <td align="center" style="padding-bottom: 28px;">
+              <a href="https://observatorio.datosriocuarto.gob.ar/observatorio-gestion.html" target="_blank" style="display: inline-block; background-color: #0077B6; color: #FFFFFF; font-family: 'Inter', Arial, sans-serif; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 32px; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,119,182,0.3);">
+                Ingresar a la Plataforma para Gestionar
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- FOOTER -->
+    <tr>
+      <td bgcolor="#F1F5F9" style="padding: 24px 32px; text-align: center; border-top: 1px solid #E2E8F0; font-size: 12px; color: #64748B;">
+        Gobierno de la Ciudad de Río Cuarto · Subsecretaría de Estadística<br>
+        Este es un correo automático, por favor no responda directamente a esta casilla.
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

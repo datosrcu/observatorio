@@ -419,6 +419,12 @@ async function loadUserPermissions(user) {
             renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
         }
 
+        if (currentUserRole === 'funcionario') {
+            loadFuncionarioSolicitudes();
+        } else {
+            document.getElementById('btn-funcionario-solicitudes')?.classList.add('hidden');
+        }
+
 
     } catch (error) {
         console.error("Error loading user permissions:", error);
@@ -828,6 +834,168 @@ async function handleAccessRequest(e) {
         submitBtn.textContent = "Solicitar Aprobación";
     }
 }
+
+async function loadFuncionarioSolicitudes() {
+    const btnFunc = document.getElementById('btn-funcionario-solicitudes');
+    const badgeFunc = document.getElementById('badge-funcionario-solicitudes-count');
+    const listFunc = document.getElementById('funcionario-solicitudes-list');
+
+    if (!btnFunc) return;
+
+    try {
+        const solList = await callApi('/api/funcionario/solicitudes', 'GET');
+        btnFunc.classList.remove('hidden');
+
+        if (badgeFunc) {
+            if (solList.length > 0) {
+                badgeFunc.textContent = solList.length;
+                badgeFunc.classList.remove('hidden');
+            } else {
+                badgeFunc.classList.add('hidden');
+            }
+        }
+
+        if (!listFunc) return;
+
+        if (solList.length === 0) {
+            listFunc.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <p class="text-2xl mb-1">🎉</p>
+                    <p class="font-semibold text-xs">No tenés solicitudes de acceso pendientes en tu área.</p>
+                </div>
+            `;
+            return;
+        }
+
+        listFunc.innerHTML = '';
+        solList.forEach(sol => {
+            const card = document.createElement('div');
+            card.className = "border border-amber-200 rounded-xl p-4 bg-amber-50/40 space-y-3";
+
+            const createdDate = sol.created_at ? new Date(sol.created_at).toLocaleDateString() : 'N/A';
+            const userName = sol.user_name || sol.user_email || 'Usuario';
+            const userDni = sol.user_dni ? `DNI: ${sol.user_dni}` : 'Sin DNI';
+            const fullReason = sol.reason_detail ? `${sol.reason} — ${sol.reason_detail}` : sol.reason;
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="font-bold text-sm text-gray-800">${userName}</div>
+                        <div class="text-[11px] text-obelisco-blue font-medium">${sol.user_email} · <span class="text-gray-500">${userDni}</span></div>
+                    </div>
+                    <span class="text-[10px] text-gray-400 font-mono">${createdDate}</span>
+                </div>
+                <div class="bg-white p-2.5 rounded-lg border border-amber-100 text-xs">
+                    <div class="font-bold text-amber-900 mb-0.5">Recurso: ${sol.dashboard_name}</div>
+                    <div class="text-gray-600 italic">"Motivo: ${fullReason}"</div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                    <button class="btn-func-aprobar flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition" data-id="${sol.id}">
+                        🟢 Aceptar
+                    </button>
+                    <button class="btn-func-toggle-rechazar flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition" data-id="${sol.id}">
+                        🔴 Rechazar
+                    </button>
+                </div>
+
+                <!-- Formulario de rechazo desplegable con motivo obligatorio -->
+                <div id="func-reject-form-${sol.id}" class="hidden pt-2 border-t border-amber-200 space-y-2">
+                    <label class="block text-[11px] font-bold text-rose-800">Motivo del rechazo <span class="text-red-500">* (Obligatorio)</span></label>
+                    <textarea id="func-reject-reason-${sol.id}" class="w-full border border-rose-300 rounded-lg p-2 text-xs outline-none focus:border-rose-500 bg-white" rows="2" placeholder="Escribí detalladamente el motivo de rechazo para el usuario..."></textarea>
+                    <div class="flex justify-end gap-2">
+                        <button class="btn-func-cancel-reject px-3 py-1 text-xs text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100" data-id="${sol.id}">Cancelar</button>
+                        <button class="btn-func-confirm-reject px-3 py-1 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm" data-id="${sol.id}">Enviar Rechazo</button>
+                    </div>
+                </div>
+            `;
+
+            listFunc.appendChild(card);
+
+            // Aceptar handler
+            card.querySelector('.btn-func-aprobar').addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
+                if (!confirm(`¿Confirmás conceder acceso a ${userName} para ${sol.dashboard_name}?`)) return;
+                try {
+                    btn.disabled = true;
+                    btn.textContent = 'Aprobando...';
+                    await callApi(`/api/funcionario/solicitudes/${sol.id}/aprobar`, 'POST');
+                    alert('Solicitud aprobada con éxito. Se ha enviado una notificación por correo al usuario.');
+                    await loadFuncionarioSolicitudes();
+                    if (auth.currentUser) await loadUserPermissions(auth.currentUser);
+                } catch(err) {
+                    console.error(err);
+                    alert('Error al aprobar solicitud: ' + (err.message || 'Error de red'));
+                    btn.disabled = false;
+                    btn.textContent = '🟢 Aceptar';
+                }
+            });
+
+            // Toggle rechazar handler
+            card.querySelector('.btn-func-toggle-rechazar').addEventListener('click', () => {
+                const rejectForm = card.querySelector(`#func-reject-form-${sol.id}`);
+                rejectForm.classList.toggle('hidden');
+            });
+
+            // Cancel rechazar handler
+            card.querySelector('.btn-func-cancel-reject').addEventListener('click', () => {
+                const rejectForm = card.querySelector(`#func-reject-form-${sol.id}`);
+                rejectForm.classList.add('hidden');
+            });
+
+            // Confirm rechazar handler (MANDATORY REASON VALIDATION)
+            card.querySelector('.btn-func-confirm-reject').addEventListener('click', async (e) => {
+                const reasonInput = card.querySelector(`#func-reject-reason-${sol.id}`);
+                const reasonText = reasonInput ? reasonInput.value.trim() : '';
+
+                if (!reasonText) {
+                    alert('⚠️ Por favor, ingresá el motivo del rechazo. Este campo es obligatorio para enviar la notificación.');
+                    reasonInput?.focus();
+                    return;
+                }
+
+                const btn = e.currentTarget;
+                try {
+                    btn.disabled = true;
+                    btn.textContent = 'Enviando...';
+                    await callApi(`/api/funcionario/solicitudes/${sol.id}/rechazar`, 'POST', { reason: reasonText });
+                    alert('Solicitud rechazada. Se ha enviado la notificación por correo al usuario con el motivo expresado.');
+                    await loadFuncionarioSolicitudes();
+                } catch(err) {
+                    console.error(err);
+                    alert('Error al rechazar solicitud: ' + (err.message || 'Error de red'));
+                    btn.disabled = false;
+                    btn.textContent = 'Enviar Rechazo';
+                }
+            });
+        });
+
+    } catch (err) {
+        console.error("Error loading funcionario solicitudes:", err);
+    }
+}
+
+// Modal open/close listeners
+document.getElementById('btn-funcionario-solicitudes')?.addEventListener('click', () => {
+    const modal = document.getElementById('funcionario-solicitudes-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        loadFuncionarioSolicitudes();
+    }
+});
+
+document.getElementById('close-funcionario-modal-btn')?.addEventListener('click', () => {
+    const modal = document.getElementById('funcionario-solicitudes-modal');
+    modal?.classList.add('hidden');
+    modal?.classList.remove('flex');
+});
+
+document.getElementById('close-funcionario-modal-footer-btn')?.addEventListener('click', () => {
+    const modal = document.getElementById('funcionario-solicitudes-modal');
+    modal?.classList.add('hidden');
+    modal?.classList.remove('flex');
+});
 
 function getCardSensitivityBadge(level) {
     switch (level) {
