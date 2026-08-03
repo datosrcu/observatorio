@@ -137,6 +137,40 @@ const ADMIN_EMAILS = [
     'datos@riocuarto.gov.ar'
 ];
 
+// --- Helper de Nivel de Sensibilidad ---
+function getSensitivityBadge(level) {
+    switch (level) {
+        case 'nivel1':
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-200" title="Sensible / Crítico (Máxima protección)"><span class="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>🔴 Nivel 1</span>`;
+        case 'nivel2':
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200" title="Confidencial (Protección media)"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>🟠 Nivel 2</span>`;
+        case 'nivel3':
+        default:
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200" title="Público / No sensible (Acceso libre)"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>🟢 Nivel 3</span>`;
+    }
+}
+
+function updateSensitivityDesc(selectId, descId) {
+    const select = document.getElementById(selectId);
+    const descBox = document.getElementById(descId);
+    if (!select || !descBox) return;
+
+    const val = select.value;
+    if (val === 'nivel1') {
+        descBox.className = 'mt-1.5 p-2 rounded-lg text-[11px] border flex items-center gap-2 transition-all bg-red-50 text-red-800 border-red-200';
+        descBox.innerHTML = '<span>🔴 <strong>Nivel 1: Sensibles / Críticos</strong> — Máxima protección (Salud, abusos, finanzas personales)</span>';
+    } else if (val === 'nivel2') {
+        descBox.className = 'mt-1.5 p-2 rounded-lg text-[11px] border flex items-center gap-2 transition-all bg-amber-50 text-amber-800 border-amber-200';
+        descBox.innerHTML = '<span>🟠 <strong>Nivel 2: Confidenciales</strong> — Protección media (Direcciones, teléfonos, costos del proyecto)</span>';
+    } else {
+        descBox.className = 'mt-1.5 p-2 rounded-lg text-[11px] border flex items-center gap-2 transition-all bg-emerald-50 text-emerald-800 border-emerald-200';
+        descBox.innerHTML = '<span>🟢 <strong>Nivel 3: Públicos / No sensible</strong> — Acceso libre (Estadísticas agregadas, datos anonimizados)</span>';
+    }
+}
+
+document.getElementById('field-board-sensitivity')?.addEventListener('change', () => updateSensitivityDesc('field-board-sensitivity', 'board-sensitivity-desc'));
+document.getElementById('field-informe-sensitivity')?.addEventListener('change', () => updateSensitivityDesc('field-informe-sensitivity', 'informe-sensitivity-desc'));
+
 // --- Helper para llamar a la API del Backend ---
 async function callApi(endpoint, method = 'POST', body = null) {
     const user = auth.currentUser;
@@ -1248,7 +1282,12 @@ function filterAndRenderBoards() {
             <td class="py-3 px-4 cursor-pointer text-center" title="Click para alternar estado" data-toggle="${id}">
                 ${data.enabled ? '<span class="w-3 h-3 bg-green-500 rounded-full inline-block shadow-sm"></span>' : '<span class="w-3 h-3 bg-red-500 rounded-full inline-block shadow-sm"></span>'}
             </td>
-            <td class="py-3 px-4 font-medium"><span class="mr-2">${data.icon || '📌'}</span>${data.title}</td>
+            <td class="py-3 px-4 font-medium">
+                <div class="flex items-center gap-2">
+                    <span>${data.icon || '📌'} ${data.title}</span>
+                    ${getSensitivityBadge(data.sensitivity_level || data.sensitivityLevel)}
+                </div>
+            </td>
             <td class="py-3 px-4 text-obelisco-gray text-xs truncate max-w-[200px]" title="${catNames}">${catNames}</td>
             <td class="py-3 px-4">${accessBadge}</td>
             <td class="py-3 px-4">
@@ -1280,6 +1319,11 @@ function filterAndRenderBoards() {
             fieldBoardIcon.value = data.icon || '';
             fieldBoardReqLogin.value = data.requireLogin !== false ? 'true' : 'false';
             fieldBoardNewTab.checked = data.openInNewTab === true;
+
+            const boardSensEl = document.getElementById('field-board-sensitivity');
+            if (boardSensEl) boardSensEl.value = data.sensitivity_level || data.sensitivityLevel || 'nivel3';
+            updateSensitivityDesc('field-board-sensitivity', 'board-sensitivity-desc');
+
             currentlySelectedUsers = (data.allowedUsers || []).map(u => u.toLowerCase()).filter(email =>
                 allUsersFetched.some(u => u.email.toLowerCase() === email) ||
                 ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email)
@@ -1356,6 +1400,11 @@ addBoardBtn?.addEventListener('click', () => {
     fieldBoardId.value = '';
     fieldBoardReqLogin.value = 'true';
     fieldBoardNewTab.checked = false;
+
+    const boardSensEl = document.getElementById('field-board-sensitivity');
+    if (boardSensEl) boardSensEl.value = 'nivel3';
+    updateSensitivityDesc('field-board-sensitivity', 'board-sensitivity-desc');
+
     currentlySelectedUsers = [];
     userSearchInput.value = '';
     categorySearchInput.value = '';
@@ -1434,6 +1483,7 @@ boardForm?.addEventListener('submit', async (e) => {
         formData.append('access_expirations', JSON.stringify(accessExpirations));
         formData.append('sort_order', fieldBoardId.value ? (allBoardsFetched.find(b => b.id === docId)?.order || 0) : 0);
         formData.append('source_type', sourceType);
+        formData.append('sensitivity_level', document.getElementById('field-board-sensitivity')?.value || 'nivel3');
 
         if (sourceType === 'url') {
             formData.append('iframe_url', urlVal);
@@ -2119,7 +2169,10 @@ function renderInformesTable(informes) {
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${enabled ? 'bg-teal-50 text-teal-700' : 'bg-gray-100 text-gray-400'}">${enabled ? '● Activo' : '○ Inactivo'}</span>
             </td>
             <td class="py-3 px-4">
-                <div class="font-bold text-obelisco-dark text-sm">${inf.title}</div>
+                <div class="font-bold text-obelisco-dark text-sm flex items-center gap-2">
+                    <span>${inf.title}</span>
+                    ${getSensitivityBadge(inf.sensitivity_level || inf.sensitivityLevel)}
+                </div>
                 ${inf.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate max-w-[280px]">${inf.description}</div>` : ''}
             </td>
             <td class="py-3 px-4 text-xs text-gray-500">${catNames}</td>
@@ -2156,6 +2209,10 @@ function openInformeModal(id = null) {
         const currentFileEl = document.getElementById('informe-current-file');
         if (currentFileEl) { currentFileEl.textContent = ''; currentFileEl.classList.add('hidden'); }
 
+        const infSensEl = document.getElementById('field-informe-sensitivity');
+        if (infSensEl) infSensEl.value = 'nivel3';
+        updateSensitivityDesc('field-informe-sensitivity', 'informe-sensitivity-desc');
+
         // Reset source type to URL
         document.getElementById('informe-type-url').checked = true;
         document.getElementById('informe-url-wrap').classList.remove('hidden');
@@ -2181,6 +2238,9 @@ function openInformeModal(id = null) {
             document.getElementById('field-informe-year').value = informe.year || '';
             document.getElementById('field-informe-order').value = informe.sort_order ?? 0;
             document.getElementById('field-informe-req-login').value = informe.require_login ? 'true' : 'false';
+
+            if (infSensEl) infSensEl.value = informe.sensitivity_level || informe.sensitivityLevel || 'nivel3';
+            updateSensitivityDesc('field-informe-sensitivity', 'informe-sensitivity-desc');
 
             // Load users
             const allowedUsersRaw = informe.allowed_users;
@@ -2362,6 +2422,7 @@ async function saveInforme() {
         formData.append('enabled', enabled ? 'true' : 'false');
         formData.append('sort_order', document.getElementById('field-informe-order').value || '0');
         formData.append('require_login', requireLogin ? 'true' : 'false');
+        formData.append('sensitivity_level', document.getElementById('field-informe-sensitivity')?.value || 'nivel3');
         formData.append('allowed_users', JSON.stringify(informeSelectedUsers.filter(email =>
             allUsersFetched.some(u => u.email.toLowerCase() === email.toLowerCase()) ||
             ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email.toLowerCase())

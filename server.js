@@ -367,6 +367,7 @@ const initializeTables = async () => {
                 access_expirations JSON, -- Objeto { email: date }
                 categories JSON, -- Array de IDs de categorías
                 category_legacy VARCHAR(255), -- Para compatibilidad con campo 'category' antiguo
+                sensitivity_level VARCHAR(50) DEFAULT 'nivel3', -- Nivel 1 (Sensible), Nivel 2 (Confidencial), Nivel 3 (Público)
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
@@ -433,6 +434,7 @@ const initializeTables = async () => {
                 allowed_users JSON,
                 access_expirations JSON,
                 category_legacy VARCHAR(255),
+                sensitivity_level VARCHAR(50) DEFAULT 'nivel3',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
@@ -452,7 +454,13 @@ const initializeTables = async () => {
             await connection.query('ALTER TABLE informes ADD COLUMN category_legacy VARCHAR(255)');
         } catch (e) { /* ignore if exists */ }
         try {
+            await connection.query("ALTER TABLE informes ADD COLUMN sensitivity_level VARCHAR(50) DEFAULT 'nivel3'");
+        } catch (e) { /* ignore if exists */ }
+        try {
             await connection.query('ALTER TABLE tableros ADD COLUMN file_path VARCHAR(500)');
+        } catch (e) { /* ignore if exists */ }
+        try {
+            await connection.query("ALTER TABLE tableros ADD COLUMN sensitivity_level VARCHAR(50) DEFAULT 'nivel3'");
         } catch (e) { /* ignore if exists */ }
 
         // Seed Atlas Estadístico y Monitor Comparativo si no existen en la tabla tableros
@@ -1144,7 +1152,7 @@ app.get('/api/tableros', async (req, res) => {
 // 8. Guardar/Actualizar tablero (Admin)
 app.post('/api/tableros', verifyToken, uploadTableros.single('archivo'), async (req, res) => {
     // Aquí podrías validar que req.user.email sea admin
-    const { id, title, icon, iframe_url, enabled, require_login, open_in_new_tab, sort_order, allowed_users, access_expirations, categories, category_legacy, source_type } = req.body;
+    const { id, title, icon, iframe_url, enabled, require_login, open_in_new_tab, sort_order, allowed_users, access_expirations, categories, category_legacy, source_type, sensitivity_level } = req.body;
     try {
         const safeId = id || `board_${Date.now()}`;
         const connection = await getDbConnection();
@@ -1260,13 +1268,16 @@ app.post('/api/tableros', verifyToken, uploadTableros.single('archivo'), async (
             finalIframeUrl = iframe_url || '';
         }
 
+        const safeSensitivityLevel = sensitivity_level || 'nivel3';
+
         const sql = `
-            INSERT INTO tableros (id, title, icon, iframe_url, file_path, enabled, require_login, open_in_new_tab, sort_order, allowed_users, access_expirations, categories, category_legacy)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tableros (id, title, icon, iframe_url, file_path, enabled, require_login, open_in_new_tab, sort_order, allowed_users, access_expirations, categories, category_legacy, sensitivity_level)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
             title=VALUES(title), icon=VALUES(icon), iframe_url=VALUES(iframe_url), file_path=VALUES(file_path), enabled=VALUES(enabled), 
             require_login=VALUES(require_login), open_in_new_tab=VALUES(open_in_new_tab), sort_order=VALUES(sort_order),
-            allowed_users=VALUES(allowed_users), access_expirations=VALUES(access_expirations), categories=VALUES(categories), category_legacy=VALUES(category_legacy)
+            allowed_users=VALUES(allowed_users), access_expirations=VALUES(access_expirations), categories=VALUES(categories), category_legacy=VALUES(category_legacy),
+            sensitivity_level=VALUES(sensitivity_level)
         `;
         
         const safeTitle = title || '';
@@ -1298,7 +1309,7 @@ app.post('/api/tableros', verifyToken, uploadTableros.single('archivo'), async (
 
         await connection.execute(sql, [
             safeId, safeTitle, safeIcon, finalIframeUrl, filePath, safeEnabled, safeRequireLogin, safeOpenInNewTab, safeSortOrder, 
-            safeAllowedUsers, safeAccessExpirations, safeCategories, safeCategoryLegacy
+            safeAllowedUsers, safeAccessExpirations, safeCategories, safeCategoryLegacy, safeSensitivityLevel
         ]);
         await connection.end();
         res.json({ message: 'Tablero guardado.', id: safeId, iframe_url: finalIframeUrl });
@@ -1355,7 +1366,7 @@ app.post('/api/informes', verifyToken, uploadInformes.single('archivo'), async (
         const {
             id, title, description, categories, url,
             period, year, enabled, sort_order,
-            require_login, allowed_users, access_expirations, category_legacy
+            require_login, allowed_users, access_expirations, category_legacy, sensitivity_level
         } = req.body;
 
         let finalUrl = url || null;
@@ -1373,19 +1384,21 @@ app.post('/api/informes', verifyToken, uploadInformes.single('archivo'), async (
             fileType = 'url';
         }
 
+        const safeSensitivityLevel = sensitivity_level || 'nivel3';
         const informeId = id || ('inf-' + Date.now());
         const connection = await getDbConnection();
         const sql = `
             INSERT INTO informes (
                 id, title, description, categories, url, file_path, file_type, 
-                period, year, enabled, sort_order, require_login, allowed_users, access_expirations, category_legacy
+                period, year, enabled, sort_order, require_login, allowed_users, access_expirations, category_legacy, sensitivity_level
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
             title=VALUES(title), description=VALUES(description), categories=VALUES(categories),
             url=VALUES(url), file_path=VALUES(file_path), file_type=VALUES(file_type),
             period=VALUES(period), year=VALUES(year), enabled=VALUES(enabled), sort_order=VALUES(sort_order),
-            require_login=VALUES(require_login), allowed_users=VALUES(allowed_users), access_expirations=VALUES(access_expirations), category_legacy=VALUES(category_legacy)
+            require_login=VALUES(require_login), allowed_users=VALUES(allowed_users), access_expirations=VALUES(access_expirations), category_legacy=VALUES(category_legacy),
+            sensitivity_level=VALUES(sensitivity_level)
         `;
         await connection.execute(sql, [
             informeId, title, description || null,
@@ -1397,7 +1410,8 @@ app.post('/api/informes', verifyToken, uploadInformes.single('archivo'), async (
             require_login === 'true' || require_login === true ? 1 : 0,
             allowed_users || null,
             access_expirations || null,
-            category_legacy || null
+            category_legacy || null,
+            safeSensitivityLevel
         ]);
         await connection.end();
         res.json({ success: true, id: informeId, url: finalUrl });
