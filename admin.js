@@ -773,17 +773,28 @@ async function loadRequests() {
         const rows = await callApi('/api/solicitudes', 'GET');
         const now = new Date();
 
-        allRequestsFetched = rows.map(r => ({
-            id: String(r.id),
-            userEmail: r.user_email || r.user_uid, // Priorizar email del join
-            userName: r.user_name || '',
-            buttonId: r.dashboard_name,
-            buttonName: r.dashboard_name,
-            reason: r.reason,
-            status: (r.status || 'pendiente').toLowerCase(), // Normalizar a minúsculas
-            expiryDate: r.admin_comment?.startsWith('Vence:') ? r.admin_comment.replace('Vence: ', '') : null,
-            createdAt: r.created_at
-        }));
+        allRequestsFetched = rows.map(r => {
+            let parsedExpiry = null;
+            let commentText = r.admin_comment || '';
+
+            if (commentText.includes('Vence:')) {
+                const match = commentText.match(/Vence:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/);
+                if (match) parsedExpiry = match[1];
+            }
+
+            return {
+                id: String(r.id),
+                userEmail: r.user_email || r.user_uid, // Priorizar email del join
+                userName: r.user_name || '',
+                buttonId: r.dashboard_name,
+                buttonName: r.dashboard_name,
+                reason: r.reason,
+                status: (r.status || 'pendiente').toLowerCase(), // Normalizar a minúsculas
+                expiryDate: parsedExpiry,
+                adminComment: commentText,
+                createdAt: r.created_at
+            };
+        });
 
         // Passive auto-expire: mark expired in MySQL if past expiry
         const expirePromises = allRequestsFetched
@@ -910,7 +921,8 @@ function renderRequests(requests) {
                     Solicita: <span class="font-bold text-obelisco-blue">${req.buttonName || 'Tablero restringido'}</span>
                 </div>
                 <div class="text-[10px] text-gray-400 mt-1">
-                    Fecha: ${date} • Vencimiento: <span class="font-mono">${expiryDate}</span>
+                    Fecha: ${date} • Vencimiento: <span class="font-mono font-bold text-gray-700">${expiryDate}</span>
+                    ${req.adminComment ? `<div class="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200 w-fit mt-1">👮 ${req.adminComment}</div>` : ''}
                 </div>
                 <div class="mt-3 text-[11px] text-gray-600 italic bg-gray-50 p-2 rounded-lg border-l-2 border-gray-200 line-clamp-1 truncate hover:line-clamp-none cursor-help" title="${req.reason}">
                     "${req.reason || 'Sin motivo declarado'}"

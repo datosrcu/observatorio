@@ -1038,11 +1038,20 @@ app.get('/api/funcionario/solicitudes', verifyToken, async (req, res) => {
 app.post('/api/funcionario/solicitudes/:id/aprobar', verifyToken, async (req, res) => {
     try {
         const solId = req.params.id;
+        const funcEmail = req.user.email.toLowerCase();
         const connection = await getDbConnection();
 
-        // 1. Obtener datos de la solicitud
+        // 1. Obtener datos del Funcionario aprobador
+        const [[funcionario]] = await connection.execute(
+            'SELECT full_name, secretaria FROM usuarios_perfiles WHERE email = ? LIMIT 1',
+            [funcEmail]
+        );
+        const funcName = funcionario ? (funcionario.full_name || funcEmail) : funcEmail;
+        const funcSecretaria = funcionario ? (funcionario.secretaria || 'Área') : 'Área';
+
+        // 2. Obtener datos de la solicitud y del usuario solicitante
         const [[solicitud]] = await connection.execute(
-            'SELECT s.*, u.email as user_email, u.full_name as user_name FROM solicitudes_acceso s LEFT JOIN usuarios_perfiles u ON s.user_uid = u.uid OR s.user_uid = u.email WHERE s.id = ? LIMIT 1',
+            'SELECT s.*, u.email as user_email, u.full_name as user_name, u.expiry_date as user_expiry_date FROM solicitudes_acceso s LEFT JOIN usuarios_perfiles u ON s.user_uid = u.uid OR s.user_uid = u.email WHERE s.id = ? LIMIT 1',
             [solId]
         );
 
@@ -1055,45 +1064,80 @@ app.post('/api/funcionario/solicitudes/:id/aprobar', verifyToken, async (req, re
         const targetName = solicitud.user_name || targetEmail;
         const resourceName = solicitud.dashboard_name;
 
-        // 2. Conceder acceso en tableros o informes
+        // 3. Calcular fecha de vencimiento (Regla: 1 año por defecto, salvo que fin de cargo sea menor a 1 año)
+        const now = new Date();
+        const oneYearFromNow = new Date();
+        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+        let finalExpiryDate = oneYearFromNow;
+
+        if (solicitud.user_expiry_date) {
+            const userExpiry = new Date(solicitud.user_expiry_date);
+            if (!isNaN(userExpiry.getTime()) && userExpiry > now && userExpiry < oneYearFromNow) {
+                finalExpiryDate = userExpiry;
+            }
+        }
+
+        const expiry_iso = finalExpiryDate.toISOString().split('T')[0];
+
+        // 4. Conceder acceso y guardar fecha de vencimiento en tableros o informes
         const [[tablero]] = await connection.execute(
-            'SELECT id, allowed_users FROM tableros WHERE id = ? OR title = ? LIMIT 1',
+            'SELECT id, allowed_users, access_expirations FROM tableros WHERE id = ? OR title = ? LIMIT 1',
             [resourceName, resourceName]
         );
 
         if (tablero) {
             let allowed = [];
+            let expirations = {};
             try { allowed = JSON.parse(tablero.allowed_users || '[]'); } catch(e) { allowed = []; }
+            try { expirations = JSON.parse(tablero.access_expirations || '{}'); } catch(e) { expirations = {}; }
             if (!Array.isArray(allowed)) allowed = [];
+            if (typeof expirations !== 'object' || expirations === null) expirations = {};
+
             if (!allowed.map(u => u.toLowerCase()).includes(targetEmail.toLowerCase())) {
                 allowed.push(targetEmail);
             }
-            await connection.execute('UPDATE tableros SET allowed_users = ? WHERE id = ?', [JSON.stringify(allowed), tablero.id]);
+            expirations[targetEmail.toLowerCase()] = expiry_iso;
+
+            await connection.execute(
+                'UPDATE tableros SET allowed_users = ?, access_expirations = ? WHERE id = ?',
+                [JSON.stringify(allowed), JSON.stringify(expirations), tablero.id]
+            );
         } else {
             const [[informe]] = await connection.execute(
-                'SELECT id, allowed_users FROM informes WHERE id = ? OR title = ? LIMIT 1',
+                'SELECT id, allowed_users, access_expirations FROM informes WHERE id = ? OR title = ? LIMIT 1',
                 [resourceName, resourceName]
             );
             if (informe) {
                 let allowed = [];
+                let expirations = {};
                 try { allowed = JSON.parse(informe.allowed_users || '[]'); } catch(e) { allowed = []; }
+                try { expirations = JSON.parse(informe.access_expirations || '{}'); } catch(e) { expirations = {}; }
                 if (!Array.isArray(allowed)) allowed = [];
+                if (typeof expirations !== 'object' || expirations === null) expirations = {};
+
                 if (!allowed.map(u => u.toLowerCase()).includes(targetEmail.toLowerCase())) {
                     allowed.push(targetEmail);
                 }
-                await connection.execute('UPDATE informes SET allowed_users = ? WHERE id = ?', [JSON.stringify(allowed), informe.id]);
+                expirations[targetEmail.toLowerCase()] = expiry_iso;
+
+                await connection.execute(
+                    'UPDATE informes SET allowed_users = ?, access_expirations = ? WHERE id = ?',
+                    [JSON.stringify(allowed), JSON.stringify(expirations), informe.id]
+                );
             }
         }
 
-        // 3. Actualizar estado de solicitud
+        // 5. Actualizar estado de solicitud y comentario para Admin
+        const adminComment = `Vence: ${expiry_iso} (Aprobado por Funcionario: ${funcName} - ${funcSecretaria})`;
         await connection.execute(
-            "UPDATE solicitudes_acceso SET status = 'aprobado', admin_comment = 'Aprobado por Funcionario del área' WHERE id = ?",
-            [solId]
+            "UPDATE solicitudes_acceso SET status = 'aprobado', admin_comment = ? WHERE id = ?",
+            [adminComment, solId]
         );
 
         await connection.end();
 
-        // 4. Enviar email de notificación al usuario (Resend)
+        // 6. Enviar email de notificación al usuario (Resend)
         if (resend && targetEmail) {
             try {
                 const tplPath = path.join(__dirname, 'plantilla_solicitud_aprobada.html');
@@ -1101,7 +1145,7 @@ app.post('/api/funcionario/solicitudes/:id/aprobar', verifyToken, async (req, re
                 html = replaceTemplateVars(html, {
                     userName: targetName,
                     resourceTitle: resourceName,
-                    secretariaName: 'Secretaría de Área'
+                    secretariaName: funcSecretaria
                 });
 
                 resend.emails.send({
@@ -1113,7 +1157,7 @@ app.post('/api/funcionario/solicitudes/:id/aprobar', verifyToken, async (req, re
             } catch(e) { console.warn('Error cargando plantilla aprobada:', e.message); }
         }
 
-        res.json({ success: true, message: 'Solicitud aprobada correctamente.' });
+        res.json({ success: true, message: 'Solicitud aprobada correctamente.', expiry: expiry_iso });
     } catch (e) {
         console.error('Error al aprobar solicitud por funcionario:', e);
         res.status(500).json({ error: e.message });
