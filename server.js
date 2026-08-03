@@ -64,6 +64,18 @@ if (!resend) {
     console.warn("⚠️ RESEND_API_KEY no configurada. El envío de emails estará deshabilitado.");
 }
 
+function replaceTemplateVars(templateHtml, data) {
+    if (!templateHtml) return '';
+    let result = templateHtml;
+    for (const [key, val] of Object.entries(data)) {
+        const safeVal = (val !== null && val !== undefined) ? String(val) : '';
+        const regexTriple = new RegExp(`\\{\\{\\{${key}\\}\\}\\}`, 'g');
+        const regexDouble = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+        result = result.replace(regexTriple, safeVal).replace(regexDouble, safeVal);
+    }
+    return result;
+}
+
 let firebaseInitError = null;
 // Inicializar Firebase Admin
 try {
@@ -1086,9 +1098,11 @@ app.post('/api/funcionario/solicitudes/:id/aprobar', verifyToken, async (req, re
             try {
                 const tplPath = path.join(__dirname, 'plantilla_solicitud_aprobada.html');
                 let html = fs.readFileSync(tplPath, 'utf8');
-                html = html.replace(/{{{userName}}}/g, targetName)
-                           .replace(/{{{resourceTitle}}}/g, resourceName)
-                           .replace(/{{{secretariaName}}}/g, 'Secretaría de Área');
+                html = replaceTemplateVars(html, {
+                    userName: targetName,
+                    resourceTitle: resourceName,
+                    secretariaName: 'Secretaría de Área'
+                });
 
                 resend.emails.send({
                     from: 'Observatorio RCU <datos@riocuarto.gov.ar>',
@@ -1340,13 +1354,15 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
                         const fullReason = reason_detail ? `${reason} (${reason_detail})` : reason;
 
                         for (const func of targetFuncionarios) {
-                            const funcHtml = html.replace(/{{{funcionarioName}}}/g, func.full_name || func.email)
-                                                 .replace(/{{{secretariaName}}}/g, func.secretaria)
-                                                 .replace(/{{{userName}}}/g, userName)
-                                                 .replace(/{{{userEmail}}}/g, uid)
-                                                 .replace(/{{{userDni}}}/g, userDni)
-                                                 .replace(/{{{resourceTitle}}}/g, dashboard_name)
-                                                 .replace(/{{{reason}}}/g, fullReason);
+                            const funcHtml = replaceTemplateVars(html, {
+                                funcionarioName: func.full_name || func.email,
+                                secretariaName: func.secretaria,
+                                userName: userName,
+                                userEmail: uid,
+                                userDni: userDni,
+                                resourceTitle: dashboard_name,
+                                reason: fullReason
+                            });
 
                             resend.emails.send({
                                 from: 'Observatorio RCU <datos@riocuarto.gov.ar>',
