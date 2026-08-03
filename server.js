@@ -1384,6 +1384,9 @@ app.post('/api/solicitud-acceso', verifyToken, async (req, res) => {
         const initialStatus = isFiscalFlow ? 'pendiente_fiscal' : 'pendiente_funcionario';
         const initialFiscalStatus = isFiscalFlow ? 'pendiente' : 'N/A';
 
+        console.log(`[Solicitud Acceso] Recurso: "${dashboard_name}" | sensitivity_level en DB: "${item?.sensitivity_level}" | sensitivity calculada: "${sensitivity}" | isFiscalFlow: ${isFiscalFlow} | status inicial: "${initialStatus}"`);
+
+
         const sql = `
             INSERT INTO solicitudes_acceso (user_uid, dashboard_name, reason, reason_detail, terms_version, status, fiscal_status)
             VALUES (?, ?, ?, ?, ?, ?, ?)

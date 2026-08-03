@@ -426,6 +426,8 @@ async function loadUserPermissions(user) {
         }
 
         if (currentUserRole === 'fiscal') {
+            // Mostrar el botón de inmediato y cargar el badge async
+            document.getElementById('btn-fiscal-solicitudes')?.classList.remove('hidden');
             loadFiscalSolicitudesBadge();
         } else {
             document.getElementById('btn-fiscal-solicitudes')?.classList.add('hidden');
@@ -982,15 +984,10 @@ async function loadFuncionarioSolicitudes() {
 }
 
 async function loadFiscalSolicitudesBadge() {
-    const btnFiscal = document.getElementById('btn-fiscal-solicitudes');
     const badgeFiscal = document.getElementById('badge-fiscal-solicitudes-count');
-
-    if (!btnFiscal) return;
-
+    // El botón ya está visible; esta función solo actualiza el badge de cantidad
     try {
         const solList = await callApi('/api/fiscal/solicitudes', 'GET');
-        btnFiscal.classList.remove('hidden');
-
         if (badgeFiscal) {
             if (solList.length > 0) {
                 badgeFiscal.textContent = solList.length;
@@ -1000,7 +997,7 @@ async function loadFiscalSolicitudesBadge() {
             }
         }
     } catch (err) {
-        console.error('Error al cargar solicitudes para fiscal:', err);
+        console.error('Error al cargar badge de solicitudes fiscal:', err);
     }
 }
 
