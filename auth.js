@@ -325,6 +325,7 @@ async function loadUserPermissions(user) {
                         year: i.year,
                         sort_order: i.sort_order || 0,
                         requireLogin: i.require_login === 1 || i.require_login === true || i.require_login === 'true' || i.require_login === '1',
+                        sensitivityLevel: i.sensitivity_level || 'nivel3',
                         allowedUsers: (() => { try { const v = i.allowed_users; return typeof v === 'string' && v.trim() !== '' ? JSON.parse(v) : (Array.isArray(v) ? v : []); } catch(e) { return []; } })(),
                         accessExpirations: (() => { try { const v = i.access_expirations; return typeof v === 'string' && v.trim() !== '' ? JSON.parse(v) : (typeof v === 'object' && v !== null ? v : {}); } catch(e) { return {}; } })()
                     };
@@ -382,6 +383,7 @@ async function loadUserPermissions(user) {
                     requireLogin: data.require_login,
                     openInNewTab: data.open_in_new_tab,
                     sort_order: data.sort_order,
+                    sensitivityLevel: data.sensitivity_level || 'nivel3',
                     allowedUsers: (() => {
                         try {
                             const val = data.allowed_users;
@@ -789,6 +791,18 @@ async function handleAccessRequest(e) {
     }
 }
 
+function getCardSensitivityBadge(level) {
+    switch (level) {
+        case 'nivel1':
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 shrink-0" title="Nivel 1: Sensible / Crítico (Máxima protección)"><span class="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>🔴 Nivel 1</span>`;
+        case 'nivel2':
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shrink-0" title="Nivel 2: Confidencial (Protección media)"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>🟠 Nivel 2</span>`;
+        case 'nivel3':
+        default:
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0" title="Nivel 3: Público / No sensible (Acceso libre)"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>🟢 Nivel 3</span>`;
+    }
+}
+
 function renderButton(container, id, data) {
     // If the board doesn't have an explicit icon string, guess color from categories
     let hexColor = '#009DE0';
@@ -838,17 +852,22 @@ function renderButton(container, id, data) {
             : '<div class="absolute top-2 right-2 text-red-500 bg-red-50 p-1.5 rounded-full border border-red-100"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg></div>')
         : '<div class="absolute top-2 right-2 text-green-600 bg-green-50 p-1.5 rounded-full border border-green-100 shadow-sm" title="Acceso concedido"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg></div>';
 
+    const sensitivityBadge = getCardSensitivityBadge(data.sensitivityLevel || data.sensitivity_level);
+
     const html = `
         <a href="#" data-button-id="${id}" data-iframe="${data.iframeUrl || ''}" data-heading="${data.title}" data-access="${hasAccess}" data-new-tab="${!!data.openInNewTab}"
             class="obelisco-card dashboard-btn bg-white border border-obelisco-border rounded-xl p-6 flex flex-col h-full hover:bg-gray-50 transition drop-shadow-sm relative ${restrictedClass}">
             ${lockIcon}
-            <div class="flex items-center mb-4 w-full">
+            <div class="flex items-center mb-4 w-full pr-6">
                 <div class="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                     ${iconStr}
                 </div>
                 <h3 class="text-sm font-bold text-obelisco-dark ml-4 leading-snug break-words flex-grow">${data.title}</h3>
             </div>
-            <p class="text-obelisco-gray text-xs flex-grow mb-6 italic" title="${categoryNames}">${categoryNames}</p>
+            <div class="flex items-center justify-between gap-2 flex-grow mb-6">
+                <p class="text-obelisco-gray text-xs italic truncate" title="${categoryNames}">${categoryNames}</p>
+                ${sensitivityBadge}
+            </div>
             <span class="text-obelisco-blue font-bold text-sm flex items-center">
                 ${hasAccess ? 'Ver tablero' : (isUnderReview ? 'Pendiente' : 'Solicitar acceso')}
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1040,20 +1059,23 @@ function renderInformeCard(container, informe) {
             : '<div class="absolute top-2 right-2 text-red-500 bg-red-50 p-1.5 rounded-full border border-red-100"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg></div>')
         : '<div class="absolute top-2 right-2 text-green-600 bg-green-50 p-1.5 rounded-full border border-green-100 shadow-sm" title="Acceso concedido"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg></div>';
 
+    const sensitivityBadge = getCardSensitivityBadge(informe.sensitivityLevel || informe.sensitivity_level);
+
     const html = `
         <a href="#" data-informe-id="${informe.id}" data-informe-url="${informe.url || ''}" data-informe-type="${informe.fileType}" data-access="${hasAccess}"
             class="obelisco-card informe-btn bg-white border-2 rounded-xl p-5 flex flex-col h-full hover:bg-teal-50/40 hover:border-teal-300 transition drop-shadow-sm relative cursor-pointer ${restrictedClass}">
             ${lockIcon}
-            <div class="flex items-center mb-3 w-full">
+            <div class="flex items-center mb-3 w-full pr-6">
                 <div class="h-12 w-12 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center flex-shrink-0">
                     <svg class="h-6 w-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                 </div>
                 <div class="ml-3 flex-grow min-w-0">
-                    <div class="flex gap-1 flex-wrap mb-1">
+                    <div class="flex gap-1 flex-wrap items-center mb-1">
                         <span class="text-[10px] font-black uppercase tracking-widest text-teal-600">INFORME</span>
                         ${fileTypeBadge}
+                        ${sensitivityBadge}
                     </div>
                     <h3 class="text-sm font-bold text-obelisco-dark leading-snug break-words">${informe.title}</h3>
                 </div>

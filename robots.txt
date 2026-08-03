@@ -1,9 +1,2 @@
 User-agent: *
-Disallow: /admin.html
-Disallow: /api/
-Disallow: /config/
-Disallow: /requests/
-Allow: /index.html
-Allow: /
-
-Sitemap: https://web-subse.firebaseapp.com/sitemap.xml
+Disallow: /

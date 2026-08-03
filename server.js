@@ -101,6 +101,18 @@ app.get('/__/auth/*', async (req, res) => {
     }
 });
 
+// Middleware anti-indexación para buscadores (Google, Bing, etc.)
+app.use((req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+    next();
+});
+
+// Servir robots.txt explícitamente
+app.get('/robots.txt', (_req, res) => {
+    res.type('text/plain');
+    res.send("User-agent: *\nDisallow: /\n");
+});
+
 // Servir archivos estáticos desde la raíz
 app.use(express.static(path.join(__dirname)));
 
