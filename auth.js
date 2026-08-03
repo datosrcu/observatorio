@@ -1743,6 +1743,68 @@ if (regOrgRoleSelect) {
     });
 }
 
+const MUNI_RIO_CUARTO_SECRETARIAS = {
+    "Secretaría de Gobierno": [
+        "Coordinación de Gestión en Descentralización",
+        "Junta Municipal de Historia",
+        "Subsecretaría de Gobierno",
+        "Subsecretaria de Empleo y Formación Laboral",
+        "Coordinación de Gestión en Formación",
+        "Subsecretaria de Promoción de Políticas Cooperativas",
+        "Subsecretaria de Comunicación",
+        "Coordinación de Gestión en Prensa"
+    ],
+    "Secretaría de Gestión y Participación Ciudadana": [
+        "Subsecretaría de Participación Ciudadana",
+        "Subsecretaría de Juventud y Derechos Humanos",
+        "Subsecretaría de Educación"
+    ],
+    "Secretaria de Obras y Servicios Públicos": [
+        "Coordinación de Gestión Ambiente",
+        "Subsecretaría de Servicios Públicos",
+        "Coordinación de Gestión en Servicios Generales",
+        "Subsecretaría de Planificación y Movilidad Urbana",
+        "Coordinación de Gestión en Movilidad Urbana",
+        "Subsecretaría de Obras Públicas",
+        "Coordinación de Gestión en Mantenimiento Vial",
+        "Coordinación de Gestión de Mantenimiento de Calles de Tierra",
+        "Subsecretaría de Hábitat"
+    ],
+    "Secretaría de Prevención y Convivencia Ciudadana": [
+        "Fiscalías Contravencionales",
+        "Coordinación de Gestión de Defensa Civil",
+        "Coordinación de Gestión en Seguridad",
+        "Coordinación de Gestión de Espectáculos Públicos",
+        "Subsecretaría de Tránsito y Transporte",
+        "Coordinación de Gestión en Tránsito y Transporte"
+    ],
+    "Secretaría de Economía e Innovación": [
+        "Subsecretaría de Hacienda y Gestión Tecnológica"
+    ],
+    "Secretaría de Desarrollo Comunitario": [
+        "Coordinación de Gestión en Zoonosis y Bromatología",
+        "Coordinación de Gestión de Desarrollo Social",
+        "Coordinación de Gestión de Desarrollo Comunitario",
+        "Coordinación de Gestión en Adultos Mayores",
+        "Coordinación de Gestión de Economía Social",
+        "Subsecretaría de Género, Niñez, Adolescencia y Familia",
+        "Coordinación de Gestión de Mujeres, Género y Diversidad",
+        "Subsecretaría de Salud",
+        "Subsecretaría de Discapacidad e Inclusión"
+    ],
+    "Secretaría de Desarrollo y Promoción Local": [
+        "Coordinación de Gestión en Comercio",
+        "Coordinación de Gestión Cultural",
+        "Subsecretaría Deporte",
+        "Subsecretaria de Turismo"
+    ],
+    "Fiscalia": [],
+    "EMOS": [],
+    "Fundación Social Río Cuarto": [],
+    "Fundación por la Cultura": [],
+    "Mercado de Abasto Río Cuarto": []
+};
+
 // --- Registration Form Submission (Refactored) ---
 if (registrationForm) {
     const regGroupSelect = document.getElementById('reg-group');
@@ -1752,6 +1814,11 @@ if (registrationForm) {
     const regRoleDetailWrap = document.getElementById('reg-role-detail-wrap');
     const regNoExpiryCheck = document.getElementById('reg-no-expiry');
     const regExpiryDateInput = document.getElementById('reg-expiry-date');
+
+    const regSecretariaWrap = document.getElementById('reg-secretaria-wrap');
+    const regSecretariaSelect = document.getElementById('reg-secretaria');
+    const regAreaWrap = document.getElementById('reg-area-wrap');
+    const regAreaSelect = document.getElementById('reg-area');
 
     function updateCuitFieldState() {
         const group = regGroupSelect.value;
@@ -1798,13 +1865,18 @@ if (registrationForm) {
         regRoleSelect.innerHTML = '<option value="" disabled selected>Primero seleccioná el tipo de organización</option>';
         regExtraFields.classList.add('hidden');
         regRoleDetailWrap.classList.add('hidden');
+        if (regSecretariaWrap) regSecretariaWrap.classList.add('hidden');
+        if (regAreaWrap) regAreaWrap.classList.add('hidden');
+        if (regSecretariaSelect) { regSecretariaSelect.value = ''; regSecretariaSelect.required = false; }
+        if (regAreaSelect) { regAreaSelect.value = ''; regAreaSelect.required = false; }
         updateCuitFieldState();
     });
 
-    // 2. Type Change -> Populate Roles
+    // 2. Type Change -> Populate Roles & Secretarías if Municipalidad de Río Cuarto
     regTypeSelect?.addEventListener('change', () => {
         const group = regGroupSelect.value;
         const config = REG_FORM_CONFIG[group];
+        const selectedType = regTypeSelect.value;
         
         regRoleSelect.innerHTML = '<option value="" disabled selected>Seleccioná tu rol</option>';
         config.roles.forEach(r => {
@@ -1817,7 +1889,55 @@ if (registrationForm) {
         regRoleSelect.disabled = false;
         regExtraFields.classList.add('hidden');
         regRoleDetailWrap.classList.add('hidden');
+
+        // Dynamic secretaría selection for Municipalidad de Río Cuarto
+        if (selectedType === 'Municipalidad de Río Cuarto') {
+            const regOrgNameInput = document.getElementById('reg-org-name');
+            if (regOrgNameInput) regOrgNameInput.value = 'Municipalidad de Río Cuarto';
+
+            if (regSecretariaWrap && regSecretariaSelect) {
+                regSecretariaSelect.innerHTML = '<option value="" disabled selected>Seleccioná una Secretaría o Ente</option>';
+                Object.keys(MUNI_RIO_CUARTO_SECRETARIAS).forEach(sec => {
+                    const opt = document.createElement('option');
+                    opt.value = sec;
+                    opt.textContent = sec;
+                    regSecretariaSelect.appendChild(opt);
+                });
+                regSecretariaWrap.classList.remove('hidden');
+                regSecretariaSelect.required = true;
+            }
+        } else {
+            if (regSecretariaWrap) regSecretariaWrap.classList.add('hidden');
+            if (regAreaWrap) regAreaWrap.classList.add('hidden');
+            if (regSecretariaSelect) { regSecretariaSelect.value = ''; regSecretariaSelect.required = false; }
+            if (regAreaSelect) { regAreaSelect.value = ''; regAreaSelect.required = false; }
+        }
+
         updateCuitFieldState();
+    });
+
+    // 2b. Secretaría Change -> Populate Áreas if applicable
+    regSecretariaSelect?.addEventListener('change', () => {
+        const sec = regSecretariaSelect.value;
+        const areas = MUNI_RIO_CUARTO_SECRETARIAS[sec] || [];
+
+        if (areas.length > 0 && regAreaWrap && regAreaSelect) {
+            regAreaSelect.innerHTML = '<option value="" disabled selected>Seleccioná un área</option>';
+            areas.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a;
+                opt.textContent = a;
+                regAreaSelect.appendChild(opt);
+            });
+            regAreaWrap.classList.remove('hidden');
+            regAreaSelect.required = true;
+        } else {
+            if (regAreaWrap) regAreaWrap.classList.add('hidden');
+            if (regAreaSelect) {
+                regAreaSelect.value = '';
+                regAreaSelect.required = false;
+            }
+        }
     });
 
     // 3. Role Change -> Conditional Fields
@@ -2003,6 +2123,9 @@ if (registrationForm) {
             return;
         }
 
+        const secretaria = (regSecretariaWrap && !regSecretariaWrap.classList.contains('hidden')) ? (regSecretariaSelect?.value || '') : '';
+        const area = (regAreaWrap && !regAreaWrap.classList.contains('hidden')) ? (regAreaSelect?.value || '') : '';
+
         // Validation for conditional fields
         const config = REG_FORM_CONFIG[group];
         if (config.requiresCUIT.includes(orgRole)) {
@@ -2057,6 +2180,8 @@ if (registrationForm) {
                 orgRoleDetail: orgRole === 'Otro' ? roleDetail : '',
                 cuit: config.requiresCUIT.includes(orgRole) ? cuit : '',
                 expiryDate: (config.requiresCUIT.includes(orgRole) && !noExpiry) ? expiryDate : (noExpiry ? 'No aplica' : ''),
+                secretaria: secretaria,
+                area: area,
                 profileCompleted: true,
                 acceptedTCVersion: currentTCVersion,
                 acceptedTCTimestamp: new Date().toISOString(),
@@ -2077,7 +2202,9 @@ if (registrationForm) {
                 expiry_date: registrationData.expiryDate === 'No aplica' ? null : registrationData.expiryDate,
                 legal_file_url: registrationData.legalDocURL || null,
                 terms_accepted_version: registrationData.acceptedTCVersion,
-                terms_accepted_date: registrationData.acceptedTCTimestamp
+                terms_accepted_date: registrationData.acceptedTCTimestamp,
+                secretaria: registrationData.secretaria,
+                area: registrationData.area
             });
 
             // Audit Log in consent_logs (non-blocking background call)

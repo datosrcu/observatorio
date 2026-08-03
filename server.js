@@ -277,6 +277,8 @@ const initializeTables = async () => {
         `);
         await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN last_login DATETIME`).catch(() => {});
         await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN role VARCHAR(50) DEFAULT 'usuario'`).catch(() => {});
+        await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN secretaria VARCHAR(255)`).catch(() => {});
+        await connection.query(`ALTER TABLE usuarios_perfiles ADD COLUMN area VARCHAR(255)`).catch(() => {});
         await connection.query(`UPDATE usuarios_perfiles SET role = 'admin' WHERE email = 'datos@riocuarto.gov.ar'`).catch(() => {});
 
         // 2. Tabla de Solicitudes de Acceso
@@ -662,7 +664,8 @@ app.post('/api/perfil', verifyToken, async (req, res) => {
         full_name, dni, sector_group, organization_type, 
         organization_name, role_position, role_detail, 
         cuit, expiry_date, legal_file_url, 
-        terms_accepted_version, terms_accepted_date 
+        terms_accepted_version, terms_accepted_date,
+        secretaria, area
     } = req.body;
 
     // Parse dates safely — MySQL DATETIME rejects ISO 8601 strings with T/Z
@@ -675,22 +678,24 @@ app.post('/api/perfil', verifyToken, async (req, res) => {
         // regardless of whether the Firebase UID changed or not
         const sql = `
             INSERT INTO usuarios_perfiles
-            (uid, email, full_name, dni, sector_group, organization_type, organization_name, role_position, role_detail, cuit, expiry_date, legal_file_url, terms_accepted_version, terms_accepted_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (uid, email, full_name, dni, sector_group, organization_type, organization_name, role_position, role_detail, cuit, expiry_date, legal_file_url, terms_accepted_version, terms_accepted_date, secretaria, area)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
             uid=VALUES(uid),
             full_name=VALUES(full_name), dni=VALUES(dni), sector_group=VALUES(sector_group),
             organization_type=VALUES(organization_type), organization_name=VALUES(organization_name),
             role_position=VALUES(role_position), role_detail=VALUES(role_detail),
             cuit=VALUES(cuit), expiry_date=VALUES(expiry_date), legal_file_url=VALUES(legal_file_url),
-            terms_accepted_version=VALUES(terms_accepted_version), terms_accepted_date=VALUES(terms_accepted_date)
+            terms_accepted_version=VALUES(terms_accepted_version), terms_accepted_date=VALUES(terms_accepted_date),
+            secretaria=VALUES(secretaria), area=VALUES(area)
         `;
 
         await connection.execute(sql, [
             uid, req.user.email, full_name, dni, sector_group, organization_type,
             organization_name, role_position, role_detail,
             cuit, parsedExpiryDate, legal_file_url,
-            terms_accepted_version, parsedTermsDate
+            terms_accepted_version, parsedTermsDate,
+            secretaria || null, area || null
         ]);
 
         await connection.end();
