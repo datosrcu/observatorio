@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitudes de Mi Área – Observatorio RCU</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        obelisco: {
+                            blue: '#009DE0',
+                            blueHover: '#0085BF',
+                            dark: '#1E293B',
+                            light: '#F8FAFC',
+                            gray: '#64748B',
+                            yellow: '#FFC72C',
+                            border: '#E2E8F0'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 font-sans antialiased text-gray-800 min-h-screen flex flex-col">
+
+    <!-- CABECERA -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <img src="recursos/Escudo.png" alt="Escudo" class="h-10 sm:h-12">
+                <div class="h-6 w-px bg-gray-300"></div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-sm text-obelisco-dark leading-tight">DATOS Río Cuarto</span>
+                    <span class="text-[10px] text-gray-500 font-medium">Observatorio de Gestión Municipal</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <a href="observatorio-gestion.html" class="inline-flex items-center text-xs font-bold text-obelisco-blue hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2 rounded-lg transition">
+                    ← Volver al Observatorio
+                </a>
+                <div id="user-info-wrap" class="hidden flex items-center space-x-2 border-l border-gray-200 pl-4">
+                    <img id="user-avatar" src="" class="w-8 h-8 rounded-full border border-gray-200">
+                    <span id="user-name" class="text-xs font-bold text-gray-700 hidden sm:inline"></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- HERO / HEADER DE SECCIÓN -->
+        <div class="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 mb-3">
+                    🏛️ Perfil Funcionario
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-obelisco-dark tracking-tight">
+                    Solicitudes de Acceso de Tu Área
+                </h1>
+                <p id="area-subtitle" class="text-sm text-gray-500 mt-1">
+                    Gestión de permisos requeridos para la información Nivel 3 de tu secretaría.
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center md:text-right min-w-[200px]">
+                <span class="text-xs font-bold text-amber-800 uppercase block">Secretaría Asignada</span>
+                <span id="secretaria-name-badge" class="text-sm font-extrabold text-amber-900 block mt-0.5">Cargando...</span>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR DE SOLICITUDES -->
+        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <!-- TAB BAR -->
+            <div class="border-b border-gray-200 px-6 py-4 flex items-center justify-between bg-gray-50">
+                <div class="flex items-center space-x-2">
+                    <span class="font-bold text-sm text-gray-700">Solicitudes Pendientes</span>
+                    <span id="pending-count-badge" class="bg-amber-500 text-white text-xs font-extrabold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <button id="btn-refresh-solicitudes" class="text-xs text-obelisco-blue hover:text-blue-700 font-bold flex items-center gap-1">
+                    🔄 Actualizar
+                </button>
+            </div>
+
+            <!-- LISTADO DE SOLICITUDES -->
+            <div id="solicitudes-container" class="p-6">
+                <div class="text-center py-12 text-gray-400">
+                    <svg class="w-8 h-8 animate-spin mx-auto mb-2 text-obelisco-blue" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <p class="text-xs font-semibold">Cargando solicitudes de acceso...</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-gray-200 py-4 text-center text-xs text-gray-500 mt-auto">
+        Observatorio de Gestión Municipal · Gobierno de la Ciudad de Río Cuarto
+    </footer>
+
+    <!-- LOGIC SCRIPT -->
+    <script type="module">
+        import { auth } from './firebase-config.js';
+        import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        let currentFuncionarioData = null;
+
+        async function callApi(endpoint, method = 'GET', body = null) {
+            const user = auth.currentUser;
+            if (!user) throw new Error("Usuario no autenticado");
+            const token = await user.getIdToken();
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+            const opts = { method, headers };
+            if (body) opts.body = JSON.stringify(body);
+            const res = await fetch(endpoint, opts);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || `Error ${res.status}`);
+            }
+            return res.json();
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'observatorio-gestion.html';
+                return;
+            }
+
+            document.getElementById('user-info-wrap')?.classList.remove('hidden');
+            document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${user.email}`;
+            document.getElementById('user-name').textContent = user.displayName || user.email;
+
+            try {
+                const profileData = await callApi('/api/perfil/me', 'GET');
+                const profile = profileData.profile;
+
+                if (!profile || profile.role !== 'funcionario') {
+                    alert('Acceso restringido: Esta sección es exclusiva para el perfil Funcionario.');
+                    window.location.href = 'observatorio-gestion.html';
+                    return;
+                }
+
+                currentFuncionarioData = profile;
+                document.getElementById('secretaria-name-badge').textContent = profile.secretaria || 'Sin Secretaría';
+                document.getElementById('area-subtitle').textContent = `Gestión de permisos requeridos para la información Nivel 3 de ${profile.secretaria || 'tu área'}.`;
+
+                await loadAreaSolicitudes();
+            } catch (err) {
+                console.error(err);
+                alert('Error al verificar perfil de usuario.');
+                window.location.href = 'observatorio-gestion.html';
+            }
+        });
+
+        async function loadAreaSolicitudes() {
+            const container = document.getElementById('solicitudes-container');
+            const countBadge = document.getElementById('pending-count-badge');
+
+            try {
+                const solList = await callApi('/api/funcionario/solicitudes', 'GET');
+                countBadge.textContent = solList.length;
+
+                if (solList.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-16 text-gray-500">
+                            <p class="text-4xl mb-2">🎉</p>
+                            <h3 class="font-bold text-base text-gray-700">¡Todo al día!</h3>
+                            <p class="text-xs text-gray-500 mt-1">No tenés solicitudes de acceso pendientes en tu secretaría.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = '';
+                const grid = document.createElement('div');
+                grid.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
+
+                solList.forEach(sol => {
+                    const card = document.createElement('div');
+                    card.className = "border border-amber-200 rounded-xl p-5 bg-amber-50/40 space-y-4 shadow-sm hover:shadow transition";
+
+                    const createdDate = sol.created_at ? new Date(sol.created_at).toLocaleString() : 'N/A';
+                    const userName = sol.user_name || sol.user_email || 'Usuario';
+                    const userDni = sol.user_dni ? `DNI: ${sol.user_dni}` : 'Sin DNI';
+                    const fullReason = sol.reason_detail ? `${sol.reason} — ${sol.reason_detail}` : sol.reason;
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-bold text-base text-gray-900">${userName}</div>
+                                <div class="text-xs text-obelisco-blue font-medium mt-0.5">${sol.user_email} · <span class="text-gray-500 font-mono">${userDni}</span></div>
+                            </div>
+                            <span class="text-[10px] text-gray-400 font-mono bg-white px-2 py-1 rounded border">${createdDate}</span>
+                        </div>
+
+                        <div class="bg-white p-3 rounded-lg border border-amber-200 space-y-1">
+                            <div class="font-extrabold text-xs text-amber-900 flex items-center gap-1">
+                                📊 Recurso Solicitado: <span class="text-gray-800 font-semibold">${sol.dashboard_name}</span>
+                            </div>
+                            <div class="text-xs text-gray-600 italic">"Motivo: ${fullReason}"</div>
+                        </div>
+
+                        <div class="flex items-center gap-3 pt-1">
+                            <button class="btn-aprobar flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs transition shadow-sm" data-id="${sol.id}">
+                                🟢 Conceder Acceso
+                            </button>
+                            <button class="btn-toggle-rechazar flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-xl text-xs transition shadow-sm" data-id="${sol.id}">
+                                🔴 Rechazar
+                            </button>
+                        </div>
+
+                        <!-- Formulario de rechazo desplegable con motivo obligatorio -->
+                        <div id="reject-form-${sol.id}" class="hidden pt-3 border-t border-amber-200 space-y-2">
+                            <label class="block text-xs font-bold text-rose-800">Motivo del Rechazo <span class="text-red-500">* (Obligatorio)</span></label>
+                            <textarea id="reject-reason-${sol.id}" class="w-full border border-rose-300 rounded-lg p-2.5 text-xs outline-none focus:border-rose-500 bg-white" rows="2" placeholder="Escribí detalladamente el motivo de rechazo para notificar por email al usuario..."></textarea>
+                            <div class="flex justify-end gap-2">
+                                <button class="btn-cancel-reject px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">Cancelar</button>
+                                <button class="btn-confirm-reject px-4 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm">Confirmar Rechazo</button>
+                            </div>
+                        </div>
+                    `;
+
+                    grid.appendChild(card);
+
+                    // Handler Aceptar
+                    card.querySelector('.btn-aprobar').addEventListener('click', async (e) => {
+                        const btn = e.currentTarget;
+                        if (!confirm(`¿Confirmás conceder acceso a ${userName} para el recurso "${sol.dashboard_name}"?`)) return;
+                        try {
+                            btn.disabled = true;
+                            btn.textContent = 'Procesando...';
+                            await callApi(`/api/funcionario/solicitudes/${sol.id}/aprobar`, 'POST');
+                            alert('🟢 Acceso concedido exitosamente. Se envió una notificación por correo al usuario.');
+                            await loadAreaSolicitudes();
+                        } catch (err) {
+                            console.error(err);
+                            alert('Error al aprobar solicitud: ' + err.message);
+                            btn.disabled = false;
+                            btn.textContent = '🟢 Conceder Acceso';
+                        }
+                    });
+
+                    // Handler Toggle Rechazar
+                    card.querySelector('.btn-toggle-rechazar').addEventListener('click', () => {
+                        const form = card.querySelector(`#reject-form-${sol.id}`);
+                        form.classList.toggle('hidden');
+                    });
+
+                    // Handler Cancelar Rechazar
+                    card.querySelector('.btn-cancel-reject').addEventListener('click', () => {
+                        const form = card.querySelector(`#reject-form-${sol.id}`);
+                        form.classList.add('hidden');
+                    });
+
+                    // Handler Confirmar Rechazar
+                    card.querySelector('.btn-confirm-reject').addEventListener('click', async (e) => {
+                        const textarea = card.querySelector(`#reject-reason-${sol.id}`);
+                        const reasonText = textarea ? textarea.value.trim() : '';
+
+                        if (!reasonText) {
+                            alert('⚠️ El motivo del rechazo es obligatorio. Por favor, escribí la razón para notificar al usuario.');
+                            textarea?.focus();
+                            return;
+                        }
+
+                        const btn = e.currentTarget;
+                        try {
+                            btn.disabled = true;
+                            btn.textContent = 'Enviando...';
+                            await callApi(`/api/funcionario/solicitudes/${sol.id}/rechazar`, 'POST', { reason: reasonText });
+                            alert('🔴 Solicitud rechazada. Se notificó al usuario por correo electrónico con el motivo expresado.');
+                            await loadAreaSolicitudes();
+                        } catch (err) {
+                            console.error(err);
+                            alert('Error al rechazar solicitud: ' + err.message);
+                            btn.disabled = false;
+                            btn.textContent = 'Confirmar Rechazo';
+                        }
+                    });
+                });
+
+                container.appendChild(grid);
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<div class="text-center py-8 text-red-500 text-xs">Error al cargar solicitudes: ${err.message}</div>`;
+            }
+        }
+
+        document.getElementById('btn-refresh-solicitudes')?.addEventListener('click', () => loadAreaSolicitudes());
+    </script>
+</body>
+</html>
