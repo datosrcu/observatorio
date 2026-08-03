@@ -141,12 +141,12 @@ const ADMIN_EMAILS = [
 function getSensitivityBadge(level) {
     switch (level) {
         case 'nivel1':
-            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-200" title="Sensible / Crítico (Máxima protección)"><span class="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>🔴 Nivel 1</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-200" title="Sensible / Crítico (Máxima protección)"><span class="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>🔴 Sensible / Crítico</span>`;
         case 'nivel2':
-            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200" title="Confidencial (Protección media)"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>🟠 Nivel 2</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200" title="Confidencial (Protección media)"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>🟠 Confidencial</span>`;
         case 'nivel3':
         default:
-            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200" title="Público / No sensible (Acceso libre)"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>🟢 Nivel 3</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200" title="No sensible (Acceso libre)"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>🟢 No sensible</span>`;
     }
 }
 
@@ -158,13 +158,13 @@ function updateSensitivityDesc(selectId, descId) {
     const val = select.value;
     if (val === 'nivel1') {
         descBox.className = 'mt-1.5 p-2 rounded-lg text-[11px] border flex items-center gap-2 transition-all bg-red-50 text-red-800 border-red-200';
-        descBox.innerHTML = '<span>🔴 <strong>Nivel 1: Sensibles / Críticos</strong> — Máxima protección (Salud, abusos, finanzas personales)</span>';
+        descBox.innerHTML = '<span>🔴 <strong>Sensible / Crítico</strong> — Máxima protección (Salud, abusos, finanzas personales)</span>';
     } else if (val === 'nivel2') {
         descBox.className = 'mt-1.5 p-2 rounded-lg text-[11px] border flex items-center gap-2 transition-all bg-amber-50 text-amber-800 border-amber-200';
-        descBox.innerHTML = '<span>🟠 <strong>Nivel 2: Confidenciales</strong> — Protección media (Direcciones, teléfonos, costos del proyecto)</span>';
+        descBox.innerHTML = '<span>🟠 <strong>Confidencial</strong> — Protección media (Direcciones, teléfonos, costos del proyecto)</span>';
     } else {
         descBox.className = 'mt-1.5 p-2 rounded-lg text-[11px] border flex items-center gap-2 transition-all bg-emerald-50 text-emerald-800 border-emerald-200';
-        descBox.innerHTML = '<span>🟢 <strong>Nivel 3: Públicos / No sensible</strong> — Acceso libre (Estadísticas agregadas, datos anonimizados)</span>';
+        descBox.innerHTML = '<span>🟢 <strong>No sensible</strong> — Acceso libre (Estadísticas agregadas, datos anonimizados)</span>';
     }
 }
 

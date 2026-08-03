@@ -794,12 +794,12 @@ async function handleAccessRequest(e) {
 function getCardSensitivityBadge(level) {
     switch (level) {
         case 'nivel1':
-            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 shrink-0" title="Nivel 1: Sensible / Crítico (Máxima protección)"><span class="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>🔴 Nivel 1</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 shrink-0" title="Sensible / Crítico (Máxima protección)"><span class="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>🔴 Sensible</span>`;
         case 'nivel2':
-            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shrink-0" title="Nivel 2: Confidencial (Protección media)"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>🟠 Nivel 2</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shrink-0" title="Confidencial (Protección media)"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>🟠 Confidencial</span>`;
         case 'nivel3':
         default:
-            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0" title="Nivel 3: Público / No sensible (Acceso libre)"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>🟢 Nivel 3</span>`;
+            return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0" title="No sensible (Acceso libre)"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>🟢 No sensible</span>`;
     }
 }
 
