@@ -95,7 +95,7 @@
                 <div id="auth-section"
                     class="flex items-center space-x-3 ml-2 md:ml-4 md:border-l md:pl-4 border-gray-300">
                     <!-- Botón Solicitudes para Perfil Funcionario -->
-                    <button id="btn-funcionario-solicitudes" class="hidden text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg px-3 py-1.5 flex items-center gap-1.5 transition shadow-sm">
+                    <button id="btn-funcionario-solicitudes" onclick="openFuncionarioModal()" class="hidden text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg px-3 py-1.5 flex items-center gap-1.5 transition shadow-sm cursor-pointer">
                         📋 Solicitudes de Mi Área
                         <span id="badge-funcionario-solicitudes-count" class="hidden bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-extrabold">0</span>
                     </button>
@@ -1889,24 +1889,29 @@
                             dropdownMenu.classList.remove('hidden');
                             setTimeout(() => {
                                 dropdownMenu.classList.remove('scale-95', 'opacity-0');
-                                dropdownMenu.classList.add('scale-100', 'opacity-100');
-                            }, 10);
-                            chevron.classList.add('rotate-180');
-                        } else {
-                            // Ocultar con animación
-                            dropdownMenu.classList.remove('scale-100', 'opacity-100');
-                            dropdownMenu.classList.add('scale-95', 'opacity-0');
-                            chevron.classList.remove('rotate-180');
-                            setTimeout(() => {
-                                dropdownMenu.classList.add('hidden');
-                            }, 200);
-                        }
-                    }
 
-                    dropdownBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        toggleDropdown();
-                    });
+                    if (dropdownBtn && dropdownMenu) {
+                        dropdownBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const isHidden = dropdownMenu.classList.contains('hidden');
+
+                            if (isHidden) {
+                                dropdownMenu.classList.remove('hidden');
+                                setTimeout(() => {
+                                    dropdownMenu.classList.remove('scale-95', 'opacity-0');
+                                    dropdownMenu.classList.add('scale-100', 'opacity-100');
+                                    chevron.classList.add('rotate-180');
+                                }, 10);
+                            } else {
+                                dropdownMenu.classList.remove('scale-100', 'opacity-100');
+                                dropdownMenu.classList.add('scale-95', 'opacity-0');
+                                chevron.classList.remove('rotate-180');
+                                setTimeout(() => {
+                                    dropdownMenu.classList.add('hidden');
+                                }, 200);
+                            }
+                        });
+                    }
 
                     // Cerrar si hace clic fuera
                     document.addEventListener('click', (e) => {
@@ -1932,7 +1937,7 @@
                     </h3>
                     <p id="funcionario-modal-subtitle" class="text-xs text-amber-700">Gestioná los permisos solicitados para contenidos Nivel 3</p>
                 </div>
-                <button type="button" id="close-funcionario-modal-btn" class="text-gray-400 hover:text-gray-600 transition">
+                <button type="button" id="close-funcionario-modal-btn" onclick="closeFuncionarioModal()" class="text-gray-400 hover:text-gray-600 transition">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
@@ -1942,7 +1947,7 @@
                 </div>
             </div>
             <div class="px-6 py-3 border-t border-gray-200 bg-gray-50 flex justify-end shrink-0">
-                <button type="button" id="close-funcionario-modal-footer-btn" class="px-4 py-2 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition">Cerrar</button>
+                <button type="button" id="close-funcionario-modal-footer-btn" onclick="closeFuncionarioModal()" class="px-4 py-2 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition">Cerrar</button>
             </div>
         </div>
     </div>

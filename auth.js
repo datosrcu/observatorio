@@ -975,27 +975,29 @@ async function loadFuncionarioSolicitudes() {
     }
 }
 
-// Modal open/close listeners
-document.getElementById('btn-funcionario-solicitudes')?.addEventListener('click', () => {
+window.openFuncionarioModal = function() {
     const modal = document.getElementById('funcionario-solicitudes-modal');
     if (modal) {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
+        modal.style.display = 'flex';
         loadFuncionarioSolicitudes();
     }
-});
+};
 
-document.getElementById('close-funcionario-modal-btn')?.addEventListener('click', () => {
+window.closeFuncionarioModal = function() {
     const modal = document.getElementById('funcionario-solicitudes-modal');
-    modal?.classList.add('hidden');
-    modal?.classList.remove('flex');
-});
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        modal.style.display = 'none';
+    }
+};
 
-document.getElementById('close-funcionario-modal-footer-btn')?.addEventListener('click', () => {
-    const modal = document.getElementById('funcionario-solicitudes-modal');
-    modal?.classList.add('hidden');
-    modal?.classList.remove('flex');
-});
+// Modal open/close listeners
+document.getElementById('btn-funcionario-solicitudes')?.addEventListener('click', window.openFuncionarioModal);
+document.getElementById('close-funcionario-modal-btn')?.addEventListener('click', window.closeFuncionarioModal);
+document.getElementById('close-funcionario-modal-footer-btn')?.addEventListener('click', window.closeFuncionarioModal);
 
 function getCardSensitivityBadge(level) {
     switch (level) {
