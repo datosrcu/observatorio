@@ -1757,7 +1757,8 @@ const MUNI_RIO_CUARTO_SECRETARIAS = {
     "Secretaría de Gestión y Participación Ciudadana": [
         "Subsecretaría de Participación Ciudadana",
         "Subsecretaría de Juventud y Derechos Humanos",
-        "Subsecretaría de Educación"
+        "Subsecretaría de Educación",
+        "Dirección de Estadisticas, Control de Calidad y Procesos"
     ],
     "Secretaria de Obras y Servicios Públicos": [
         "Coordinación de Gestión Ambiente",
