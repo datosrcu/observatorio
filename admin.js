@@ -1662,15 +1662,21 @@ function renderStatisticalRequests() {
                     </span>
                 </td>
                 <td class="px-6 py-4 text-right">
-                    <div class="flex items-center justify-end space-x-2">
+                    <div class="flex items-center justify-end space-x-1.5">
                         <select onchange="window.updateRequestStatus('${req.id}', this.value)" class="text-xs border border-gray-200 rounded px-2 py-1 outline-none bg-white font-medium">
                             <option value="Pendiente" ${req.status === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
                             <option value="En Proceso" ${req.status === 'En Proceso' ? 'selected' : ''}>En Proceso</option>
                             <option value="Completado" ${req.status === 'Completado' ? 'selected' : ''}>Completado</option>
                             <option value="Rechazado" ${req.status === 'Rechazado' ? 'selected' : ''}>Rechazado</option>
                         </select>
-                        <button onclick="window.viewRequestDetails('${req.id}')" class="p-1.5 text-obelisco-blue hover:bg-blue-50 rounded transition shadow-sm border border-blue-100" title="Ver detalles completo">
+                        <button onclick="window.viewRequestDetails('${req.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition shadow-sm border border-blue-200" title="Ver detalles completo">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
+                        <button onclick="window.openEditRequestModal('${req.id}')" class="p-1.5 text-amber-600 hover:bg-amber-50 rounded transition shadow-sm border border-amber-200" title="Editar pedido">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        </button>
+                        <button onclick="window.deleteRequest('${req.id}')" class="p-1.5 text-red-600 hover:bg-red-50 rounded transition shadow-sm border border-red-200" title="Eliminar pedido">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
                     </div>
                 </td>
@@ -1868,6 +1874,75 @@ window.deleteRequest = async (id) => {
         alert("Error al eliminar el pedido: " + (error.message || error));
     }
 };
+
+window.openEditRequestModal = (id) => {
+    const req = statisticalRequests.find(r => String(r.id) === String(id));
+    if (!req) return;
+
+    document.getElementById('edit-req-id').value = req.id;
+    document.getElementById('edit-req-title').value = req.requestTitle || '';
+    document.getElementById('edit-req-client-name').value = req.clientName || '';
+    document.getElementById('edit-req-area').value = req.clientArea || '';
+    document.getElementById('edit-req-status').value = req.status || 'Pendiente';
+    document.getElementById('edit-req-due-date').value = req.dueDate || '';
+    document.getElementById('edit-req-additional-info').value = req.additionalInfo || '';
+
+    const modal = document.getElementById('modal-edit-request');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+};
+
+window.closeEditRequestModal = () => {
+    const modal = document.getElementById('modal-edit-request');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+};
+
+document.getElementById('form-edit-request')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-req-id').value;
+    const title = document.getElementById('edit-req-title').value;
+    const clientName = document.getElementById('edit-req-client-name').value;
+    const area = document.getElementById('edit-req-area').value;
+    const status = document.getElementById('edit-req-status').value;
+    const dueDate = document.getElementById('edit-req-due-date').value;
+    const additionalInfo = document.getElementById('edit-req-additional-info').value;
+
+    const mysqlStatus = status.toLowerCase().replace(' ', '_');
+
+    try {
+        await callApi(`/api/productos-estadisticos/${id}`, 'PATCH', {
+            title,
+            client_name: clientName,
+            area,
+            status: mysqlStatus,
+            due_date: dueDate,
+            additional_info: additionalInfo
+        });
+
+        const req = statisticalRequests.find(r => String(r.id) === String(id));
+        if (req) {
+            req.requestTitle = title;
+            req.clientName = clientName;
+            req.clientArea = area;
+            req.status = status;
+            req.dueDate = dueDate;
+            req.additionalInfo = additionalInfo;
+        }
+
+        updateStatisticalSummary();
+        renderStatisticalRequests();
+        window.closeEditRequestModal();
+        alert("Pedido actualizado correctamente.");
+    } catch (error) {
+        console.error("Error actualizando pedido:", error);
+        alert("Error al actualizar el pedido: " + (error.message || error));
+    }
+});
 
 // Listeners
 filterReqSearch?.addEventListener('input', (e) => {

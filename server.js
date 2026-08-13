@@ -1553,6 +1553,34 @@ app.delete('/api/productos-estadisticos/:id', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+app.patch('/api/productos-estadisticos/:id', async (req, res) => {
+    const { id } = req.params;
+    const { title, client_name, area, due_date, status, additional_info } = req.body;
+    try {
+        const connection = await getDbConnection();
+        const updates = [];
+        const values = [];
+
+        if (title !== undefined) { updates.push('title = ?'); values.push(title); }
+        if (client_name !== undefined) { updates.push('client_name = ?'); values.push(client_name); }
+        if (area !== undefined) { updates.push('area = ?'); values.push(area); }
+        if (due_date !== undefined) { updates.push('due_date = ?'); values.push(due_date); }
+        if (status !== undefined) { updates.push('status = ?'); values.push(status); }
+        if (additional_info !== undefined) { updates.push('additional_info = ?'); values.push(additional_info); }
+
+        if (updates.length === 0) {
+            await connection.end();
+            return res.json({ success: true, message: 'Nada que actualizar.' });
+        }
+
+        values.push(id);
+        const sql = `UPDATE productos_estadisticos SET ${updates.join(', ')} WHERE id = ?`;
+        await connection.execute(sql, values);
+        await connection.end();
+        res.json({ success: true, message: 'Pedido actualizado correctamente.' });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
 // --- LOGS DE ACTIVIDAD ---
 app.get('/api/logs', verifyToken, async (req, res) => {
     try {
