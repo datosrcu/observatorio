@@ -996,9 +996,9 @@ function ogbEnsurePBIToolbar(url) {
         if (!/(\.|^)powerbi\.com$/.test(host)) return url;
 
         var u = new URL(url, window.location.origin);
-        u.searchParams.set('navContentPaneEnabled', 'true');
-        u.searchParams.set('filterPaneEnabled', 'true');
-        u.searchParams.delete('chromeless');
+        u.searchParams.set('chromeless', 'true');
+        u.searchParams.set('navContentPaneEnabled', 'false');
+        u.searchParams.set('filterPaneEnabled', 'false');
         u.searchParams.set('displayMode', 'fitToPage');
         return u.toString();
     } catch (e) {

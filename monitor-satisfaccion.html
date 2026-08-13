@@ -159,13 +159,56 @@
         <div id="ogb-modal-card" class="relative w-[min(96vw,1100px)] h-[min(94vh,820px)] bg-white rounded-xl overflow-hidden shadow-2xl flex flex-col transition-all duration-300">
             <div class="flex items-center justify-between p-4 px-6 border-b border-gray-200 shrink-0 bg-gray-50">
                 <h2 id="ogb-heading" class="text-xl font-bold text-obelisco-dark truncate flex-grow mr-4">...</h2>
-                <button class="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-red-500 hover:text-white rounded-full transition" id="ogb-close" data-ogb-close aria-label="Cerrar">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+                <div class="flex items-center space-x-2 shrink-0">
+                    <button id="ogb-full" class="p-2 hover:bg-gray-200 rounded-md transition text-obelisco-gray"
+                        aria-label="Pantalla completa" title="Expandir">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                        </svg>
+                    </button>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-red-500 hover:text-white rounded-full transition ml-2"
+                        id="ogb-close" data-ogb-close aria-label="Cerrar" title="Cerrar">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div id="ogb-iframe-wrap" class="flex flex-col h-full min-h-0 overflow-auto bg-gray-100 relative">
+                <!-- Loader inside framing -->
+                <div id="iframe-loader" class="absolute inset-0 flex items-center justify-center bg-white z-0">
+                    <div class="text-center">
+                        <svg class="animate-spin h-10 w-10 text-obelisco-blue mx-auto mb-4"
+                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                            </circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
+                        <p class="text-xs text-obelisco-gray font-medium animate-pulse">Cargando tablero...</p>
+                    </div>
+                </div>
+
+                <!-- Fallback UI for restricted sites -->
+                <div id="iframe-fallback"
+                    class="hidden absolute inset-0 flex-col items-center justify-center bg-white z-[5] p-10 text-center">
+                    <div class="p-4 bg-amber-50 rounded-full mb-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-amber-600" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-obelisco-dark mb-2">Este sitio no permite ser incrustado directamente</h3>
+                    <p class="text-xs text-obelisco-gray max-w-md mb-6">El contenido original bloquea la visualización dentro de otras páginas por sus políticas de seguridad.</p>
+                </div>
+
                 <iframe id="ogb-iframe" class="flex-1 w-full h-full min-h-[500px] border-0 z-10 relative" allowfullscreen loading="lazy"></iframe>
             </div>
 

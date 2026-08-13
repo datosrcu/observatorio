@@ -150,18 +150,18 @@ jQuery(function($){
   $(document).on('click','[data-ogb-close], .ogb-modal__backdrop',function(e){e.preventDefault();closeModal();});
   $(document).on('keydown',function(e){ if(e.key==='Escape' && $modal.attr('aria-hidden')==='false'){ closeModal(); }});
 
-  // --- Forzar barra/tabs de Power BI si están apagados en el URL (se usará solo si el host es powerbi.com) ---
+  // --- Ocultar barra/tabs de Power BI en el URL (se usará solo si el host es powerbi.com) ---
   function ogbEnsurePBIToolbar(url){
     try{
       var u = new URL(url, window.location.origin);
-      u.searchParams.set('navContentPaneEnabled', 'true');
-      u.searchParams.set('filterPaneEnabled', 'true');
-      u.searchParams.delete('chromeless');
+      u.searchParams.set('chromeless', 'true');
+      u.searchParams.set('navContentPaneEnabled', 'false');
+      u.searchParams.set('filterPaneEnabled', 'false');
       u.searchParams.set('displayMode', 'fitToPage');
       return u.toString();
     }catch(e){
       var sep = url.indexOf('?')>-1 ? '&' : '?';
-      return url + sep + 'navContentPaneEnabled=true&filterPaneEnabled=true&displayMode=fitToPage';
+      return url + sep + 'chromeless=true&navContentPaneEnabled=false&filterPaneEnabled=false&displayMode=fitToPage';
     }
   }
 
