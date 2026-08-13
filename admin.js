@@ -895,69 +895,99 @@ function renderCategoryChecklist(filterText = '') {
     categoriesChecklist.innerHTML = '';
     const lowerFilter = filterText.toLowerCase().trim();
 
-    // Options virtuales (Gestores Externos + Monitores de Satisfacción)
-    const virtualOptions = [
-        { id: '_ge_direct', icon: '🌐', label: 'Gestores Externos', sub: 'sin categoría específica', textClass: 'text-obelisco-blue' },
-        { id: '_monitor_cl', icon: '📊', label: 'Monitor de satisfacción CL', sub: 'Clima Laboral', textClass: 'text-purple-700' },
-        { id: '_monitor_cc', icon: '📊', label: 'Monitor de satisfacción CC', sub: 'Clima Ciudadano', textClass: 'text-purple-700' }
+    const groups = [
+        {
+            title: '🌐 Gestores Externos',
+            badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+            virtuals: [
+                { id: '_ge_direct', icon: '🌐', label: 'Gestores Externos', sub: 'sin categoría específica', textClass: 'text-obelisco-blue' }
+            ],
+            categories: globalCategories.filter(c => c.type === 'Gestores Externos')
+        },
+        {
+            title: '🏢 Gestores Internos',
+            badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            virtuals: [],
+            categories: globalCategories.filter(c => c.type === 'Gestores Internos')
+        },
+        {
+            title: '📌 Categorías Temáticas',
+            badgeClass: 'bg-slate-50 text-slate-700 border-slate-200',
+            virtuals: [],
+            categories: globalCategories.filter(c => !c.type || c.type === 'Categorías')
+        },
+        {
+            title: '📊 Monitores de Satisfacción',
+            badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+            virtuals: [
+                { id: '_monitor_cl', icon: '📊', label: 'Monitor de satisfacción CL', sub: 'Clima Laboral', textClass: 'text-purple-700' },
+                { id: '_monitor_cc', icon: '📊', label: 'Monitor de satisfacción CC', sub: 'Clima Ciudadano', textClass: 'text-purple-700' }
+            ],
+            categories: []
+        }
     ];
 
-    virtualOptions.forEach(opt => {
-        const vIsChecked = currentlySelectedCategories.includes(opt.id);
-        const optLabel = opt.label.toLowerCase();
-        if (!lowerFilter || optLabel.includes(lowerFilter)) {
+    let totalMatches = 0;
+
+    groups.forEach(group => {
+        const matchingVirtuals = group.virtuals.filter(opt => !lowerFilter || opt.label.toLowerCase().includes(lowerFilter) || group.title.toLowerCase().includes(lowerFilter));
+        const matchingCats = group.categories.filter(c => !lowerFilter || (c.name || '').toLowerCase().includes(lowerFilter) || (c.type || '').toLowerCase().includes(lowerFilter) || group.title.toLowerCase().includes(lowerFilter));
+
+        if (matchingVirtuals.length === 0 && matchingCats.length === 0) return;
+
+        totalMatches += (matchingVirtuals.length + matchingCats.length);
+
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'text-[11px] font-black uppercase tracking-wider text-gray-500 bg-gray-100/80 px-2.5 py-1 rounded-md mt-2 mb-1.5 flex items-center justify-between border border-gray-200/60 select-none';
+        groupHeader.innerHTML = `<span>${group.title}</span> <span class="text-[9px] font-bold px-1.5 py-0.5 rounded border ${group.badgeClass}">${matchingVirtuals.length + matchingCats.length}</span>`;
+        categoriesChecklist.appendChild(groupHeader);
+
+        matchingVirtuals.forEach(opt => {
+            const vIsChecked = currentlySelectedCategories.includes(opt.id);
             const vDiv = document.createElement('div');
-            vDiv.className = `flex items-center space-x-2 p-2 rounded border cursor-pointer transition mb-1 ${vIsChecked ? 'border-purple-300 bg-purple-50' : 'border-dashed border-gray-300 hover:bg-gray-50'}`;
+            vDiv.className = `flex items-center space-x-2 p-2 rounded border cursor-pointer transition mb-1 text-xs ${vIsChecked ? 'border-purple-300 bg-purple-50' : 'border-dashed border-gray-300 hover:bg-gray-50'}`;
             vDiv.innerHTML = `
-                <input type="checkbox" class="w-4 h-4 text-purple-600 rounded border-gray-300 pointer-events-none" ${vIsChecked ? 'checked' : ''}>
+                <input type="checkbox" class="w-3.5 h-3.5 text-purple-600 rounded border-gray-300 pointer-events-none" ${vIsChecked ? 'checked' : ''}>
                 <span class="pointer-events-none">${opt.icon}</span>
-                <span class="text-sm font-semibold pointer-events-none ${opt.textClass}">${opt.label} <span class="text-xs text-gray-400 font-normal">· ${opt.sub}</span></span>
+                <span class="font-semibold pointer-events-none ${opt.textClass}">${opt.label} <span class="text-[10px] text-gray-400 font-normal">· ${opt.sub}</span></span>
             `;
             vDiv.addEventListener('click', () => {
                 const cb = vDiv.querySelector('input');
                 cb.checked = !cb.checked;
-                vDiv.className = `flex items-center space-x-2 p-2 rounded border cursor-pointer transition mb-1 ${cb.checked ? 'border-purple-300 bg-purple-50' : 'border-dashed border-gray-300 hover:bg-gray-50'}`;
+                vDiv.className = `flex items-center space-x-2 p-2 rounded border cursor-pointer transition mb-1 text-xs ${cb.checked ? 'border-purple-300 bg-purple-50' : 'border-dashed border-gray-300 hover:bg-gray-50'}`;
                 if (cb.checked) { if (!currentlySelectedCategories.includes(opt.id)) currentlySelectedCategories.push(opt.id); }
                 else { currentlySelectedCategories = currentlySelectedCategories.filter(id => id !== opt.id); }
             });
             categoriesChecklist.appendChild(vDiv);
-        }
+        });
+
+        matchingCats.forEach(c => {
+            const isChecked = currentlySelectedCategories.includes(c.id);
+            const div = document.createElement('div');
+            div.className = `flex items-center space-x-2 p-1.5 hover:bg-gray-50 rounded border transition cursor-pointer text-xs mb-1 ${isChecked ? 'border-blue-300 bg-blue-50/60 font-semibold' : 'border-gray-200'}`;
+            div.innerHTML = `
+                <input type="checkbox" id="cat-${c.id}" value="${c.id}" class="cat-checkbox w-3.5 h-3.5 text-obelisco-blue rounded border-gray-300 pointer-events-none" ${isChecked ? 'checked' : ''}>
+                <span class="w-2.5 h-2.5 rounded-full border border-gray-300 inline-block pointer-events-none shrink-0" style="background-color: ${c.color}"></span>
+                <span class="pointer-events-none">${c.icon ? c.icon + ' ' : ''}${c.name}</span>
+            `;
+            div.addEventListener('click', () => {
+                const cb = div.querySelector('input');
+                cb.checked = !cb.checked;
+                div.className = `flex items-center space-x-2 p-1.5 hover:bg-gray-50 rounded border transition cursor-pointer text-xs mb-1 ${cb.checked ? 'border-blue-300 bg-blue-50/60 font-semibold' : 'border-gray-200'}`;
+                if (cb.checked) {
+                    if (!currentlySelectedCategories.includes(c.id)) currentlySelectedCategories.push(c.id);
+                } else currentlySelectedCategories = currentlySelectedCategories.filter(id => id !== c.id);
+            });
+            categoriesChecklist.appendChild(div);
+        });
     });
 
-    const filteredCategories = globalCategories.filter(c => {
-        const name = (c.name || '').toLowerCase();
-        const type = (c.type || '').toLowerCase();
-        return name.includes(lowerFilter) || type.includes(lowerFilter);
-    });
-
-    const anyVirtualMatches = virtualOptions.some(opt => !lowerFilter || opt.label.toLowerCase().includes(lowerFilter));
-    if (filteredCategories.length === 0 && !anyVirtualMatches) {
+    if (totalMatches === 0) {
         const p = document.createElement('p');
         p.className = 'text-xs text-center text-gray-500 py-4';
         p.textContent = lowerFilter ? 'No se encontraron categorías.' : 'No hay categorías creadas aún.';
         categoriesChecklist.appendChild(p);
-        return;
     }
-
-    filteredCategories.forEach(c => {
-        const isChecked = currentlySelectedCategories.includes(c.id) ? 'checked' : '';
-        const div = document.createElement('div');
-        div.className = "flex items-center space-x-2 p-2 hover:bg-gray-50 rounded border border-transparent hover:border-gray-200 cursor-pointer transition";
-        div.innerHTML = `
-            <input type="checkbox" id="cat-${c.id}" value="${c.id}" class="cat-checkbox w-4 h-4 text-obelisco-blue rounded border-gray-300 pointer-events-none" ${isChecked}>
-            <span class="w-3 h-3 rounded-full border border-gray-300 inline-block pointer-events-none" style="background-color: ${c.color}"></span>
-            <span class="text-sm font-medium pointer-events-none" style="margin-left: 0.25rem;">${c.icon ? c.icon + ' ' : ''}${c.name}</span>
-            <span class="text-xs text-obelisco-gray ml-auto pointer-events-none">(${c.type || 'Categorías'})</span>
-        `;
-        div.addEventListener('click', () => {
-            const cb = div.querySelector('input');
-            cb.checked = !cb.checked;
-            if (cb.checked) {
-                if (!currentlySelectedCategories.includes(c.id)) currentlySelectedCategories.push(c.id);
-            } else currentlySelectedCategories = currentlySelectedCategories.filter(id => id !== c.id);
-        });
-        categoriesChecklist.appendChild(div);
-    });
 }
 
 // --- CATEGORIES CRUD ---
@@ -988,16 +1018,60 @@ function updateBoardCategoryFilterOptions() {
     if (!filterBoardCategory) return;
     const currentVal = filterBoardCategory.value;
     filterBoardCategory.innerHTML = '<option value="all">Todas las categorías</option>';
-    filterBoardCategory.innerHTML += '<option value="_ge_direct">🌐 Gestores Externos (Directos)</option>';
-    filterBoardCategory.innerHTML += '<option value="_monitor_cl">📊 Monitor de satisfacción CL</option>';
-    filterBoardCategory.innerHTML += '<option value="_monitor_cc">📊 Monitor de satisfacción CC</option>';
 
-    globalCategories.forEach(cat => {
+    // Gestores Externos
+    const optgroupGE = document.createElement('optgroup');
+    optgroupGE.label = '🌐 Gestores Externos';
+    const geDirectOpt = document.createElement('option');
+    geDirectOpt.value = '_ge_direct';
+    geDirectOpt.textContent = '🌐 Gestores Externos (Todos / General)';
+    optgroupGE.appendChild(geDirectOpt);
+
+    const geCats = globalCategories.filter(c => c.type === 'Gestores Externos');
+    geCats.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id;
+        option.textContent = `${cat.icon || '🌐'} ${cat.name}`;
+        optgroupGE.appendChild(option);
+    });
+    filterBoardCategory.appendChild(optgroupGE);
+
+    // Gestores Internos
+    const optgroupGI = document.createElement('optgroup');
+    optgroupGI.label = '🏢 Gestores Internos';
+    const giCats = globalCategories.filter(c => c.type === 'Gestores Internos');
+    giCats.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id;
+        option.textContent = `${cat.icon || '🏢'} ${cat.name}`;
+        optgroupGI.appendChild(option);
+    });
+    if (giCats.length > 0) filterBoardCategory.appendChild(optgroupGI);
+
+    // Categorías Temáticas
+    const optgroupTem = document.createElement('optgroup');
+    optgroupTem.label = '📌 Categorías Temáticas';
+    const temCats = globalCategories.filter(c => !c.type || c.type === 'Categorías');
+    temCats.forEach(cat => {
         const option = document.createElement('option');
         option.value = cat.id;
         option.textContent = `${cat.icon || '📁'} ${cat.name}`;
-        filterBoardCategory.appendChild(option);
+        optgroupTem.appendChild(option);
     });
+    if (temCats.length > 0) filterBoardCategory.appendChild(optgroupTem);
+
+    // Monitores de Satisfacción
+    const optgroupMon = document.createElement('optgroup');
+    optgroupMon.label = '📊 Monitores de Satisfacción';
+    const optionCL = document.createElement('option');
+    optionCL.value = '_monitor_cl';
+    optionCL.textContent = '📊 Monitor de satisfacción CL';
+    optgroupMon.appendChild(optionCL);
+    const optionCC = document.createElement('option');
+    optionCC.value = '_monitor_cc';
+    optionCC.textContent = '📊 Monitor de satisfacción CC';
+    optgroupMon.appendChild(optionCC);
+    filterBoardCategory.appendChild(optgroupMon);
 
     if ([...filterBoardCategory.options].some(o => o.value === currentVal)) {
         filterBoardCategory.value = currentVal;
@@ -1153,7 +1227,12 @@ function boardMatchesFilter(data, search, catId, status) {
     let matchesCat = true;
     if (catId !== 'all') {
         if (catId === '_ge_direct') {
-            matchesCat = (data.category === 'Gestores Externos');
+            matchesCat = (data.category === 'Gestores Externos') ||
+                         (data.categories || []).includes('_ge_direct') ||
+                         (data.categories || []).some(id => {
+                             const c = globalCategories.find(cat => cat.id === id);
+                             return c && c.type === 'Gestores Externos';
+                         });
         } else {
             matchesCat = (data.categories || []).includes(catId);
         }
@@ -2444,42 +2523,76 @@ function populateInformeCategories(selectedIds = []) {
     if (!container) return;
 
     const cats = globalCategories || [];
-    const geChecked = selectedIds.includes('_ge_direct');
-    const clChecked = selectedIds.includes('_monitor_cl');
-    const ccChecked = selectedIds.includes('_monitor_cc');
 
-    let html = `
-        <label class="flex items-center gap-2 p-1.5 hover:bg-teal-50/40 border border-dashed border-teal-200 rounded cursor-pointer mb-1 ${geChecked ? 'bg-teal-50 border-teal-300' : ''}">
-            <input type="checkbox" name="informe-cat" value="_ge_direct" ${geChecked ? 'checked' : ''}
-                class="w-3.5 h-3.5 text-teal-600 rounded focus:ring-teal-500">
-            <span class="text-xs font-semibold text-teal-700">🌐 Gestores Externos <span class="text-[10px] text-gray-400 font-normal">· sin categoría específica</span></span>
-        </label>
-        <label class="flex items-center gap-2 p-1.5 hover:bg-purple-50/40 border border-dashed border-purple-200 rounded cursor-pointer mb-1 ${clChecked ? 'bg-purple-50 border-purple-300' : ''}">
-            <input type="checkbox" name="informe-cat" value="_monitor_cl" ${clChecked ? 'checked' : ''}
-                class="w-3.5 h-3.5 text-purple-600 rounded focus:ring-purple-500">
-            <span class="text-xs font-semibold text-purple-700">📊 Monitor de satisfacción CL <span class="text-[10px] text-gray-400 font-normal">· Clima Laboral</span></span>
-        </label>
-        <label class="flex items-center gap-2 p-1.5 hover:bg-purple-50/40 border border-dashed border-purple-200 rounded cursor-pointer mb-1 ${ccChecked ? 'bg-purple-50 border-purple-300' : ''}">
-            <input type="checkbox" name="informe-cat" value="_monitor_cc" ${ccChecked ? 'checked' : ''}
-                class="w-3.5 h-3.5 text-purple-600 rounded focus:ring-purple-500">
-            <span class="text-xs font-semibold text-purple-700">📊 Monitor de satisfacción CC <span class="text-[10px] text-gray-400 font-normal">· Clima Ciudadano</span></span>
-        </label>
-    `;
+    const groups = [
+        {
+            title: '🌐 Gestores Externos',
+            badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+            virtuals: [
+                { id: '_ge_direct', icon: '🌐', label: 'Gestores Externos', sub: 'sin categoría específica', textClass: 'text-teal-700' }
+            ],
+            categories: cats.filter(c => c.type === 'Gestores Externos')
+        },
+        {
+            title: '🏢 Gestores Internos',
+            badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            virtuals: [],
+            categories: cats.filter(c => c.type === 'Gestores Internos')
+        },
+        {
+            title: '📌 Categorías Temáticas',
+            badgeClass: 'bg-slate-50 text-slate-700 border-slate-200',
+            virtuals: [],
+            categories: cats.filter(c => !c.type || c.type === 'Categorías')
+        },
+        {
+            title: '📊 Monitores de Satisfacción',
+            badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+            virtuals: [
+                { id: '_monitor_cl', icon: '📊', label: 'Monitor de satisfacción CL', sub: 'Clima Laboral', textClass: 'text-purple-700' },
+                { id: '_monitor_cc', icon: '📊', label: 'Monitor de satisfacción CC', sub: 'Clima Ciudadano', textClass: 'text-purple-700' }
+            ],
+            categories: []
+        }
+    ];
 
-    if (cats.length === 0) {
-        container.innerHTML = html + '<p class="text-xs text-center text-gray-400 py-4">No hay categorías disponibles.</p>';
-        return;
-    }
+    let html = '';
 
-    html += cats.map(cat => `
-        <label class="flex items-center gap-2 p-1.5 hover:bg-gray-50 rounded cursor-pointer">
-            <input type="checkbox" name="informe-cat" value="${cat.id}" ${selectedIds.includes(cat.id) ? 'checked' : ''}
-                class="w-3.5 h-3.5 text-teal-600 rounded focus:ring-teal-500">
-            <span class="text-xs flex items-center gap-1">${cat.icon || ''} ${cat.name} <span class="text-[10px] text-gray-400 font-normal">(${cat.type || 'Categorías'})</span></span>
-        </label>
-    `).join('');
+    groups.forEach(group => {
+        if (group.virtuals.length === 0 && group.categories.length === 0) return;
 
-    container.innerHTML = html;
+        html += `
+            <div class="text-[11px] font-black uppercase tracking-wider text-gray-500 bg-gray-100/80 px-2.5 py-1 rounded-md mt-2 mb-1.5 flex items-center justify-between border border-gray-200/60 select-none">
+                <span>${group.title}</span>
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded border ${group.badgeClass}">${group.virtuals.length + group.categories.length}</span>
+            </div>
+        `;
+
+        group.virtuals.forEach(opt => {
+            const isChecked = selectedIds.includes(opt.id);
+            html += `
+                <label class="flex items-center gap-2 p-1.5 hover:bg-teal-50/40 border border-dashed border-teal-200 rounded cursor-pointer mb-1 ${isChecked ? 'bg-teal-50 border-teal-300 font-semibold' : ''}">
+                    <input type="checkbox" name="informe-cat" value="${opt.id}" ${isChecked ? 'checked' : ''}
+                        class="w-3.5 h-3.5 text-teal-600 rounded focus:ring-teal-500">
+                    <span class="text-xs ${opt.textClass}">${opt.icon} ${opt.label} <span class="text-[10px] text-gray-400 font-normal">· ${opt.sub}</span></span>
+                </label>
+            `;
+        });
+
+        group.categories.forEach(cat => {
+            const isChecked = selectedIds.includes(cat.id);
+            html += `
+                <label class="flex items-center gap-2 p-1.5 hover:bg-gray-50 border border-gray-200 rounded cursor-pointer mb-1 ${isChecked ? 'bg-teal-50/60 border-teal-300 font-semibold' : ''}">
+                    <input type="checkbox" name="informe-cat" value="${cat.id}" ${isChecked ? 'checked' : ''}
+                        class="w-3.5 h-3.5 text-teal-600 rounded focus:ring-teal-500">
+                    <span class="w-2.5 h-2.5 rounded-full border border-gray-300 inline-block shrink-0" style="background-color: ${cat.color}"></span>
+                    <span class="text-xs flex items-center gap-1">${cat.icon || ''} ${cat.name}</span>
+                </label>
+            `;
+        });
+    });
+
+    container.innerHTML = html || '<p class="text-xs text-center text-gray-400 py-4">No hay categorías disponibles.</p>';
 }
 
 function renderInformeUserChecklist(filterText = '') {
