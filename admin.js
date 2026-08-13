@@ -225,34 +225,33 @@ function showAdminUI(user) {
     adminAvatar.src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=212529&color=fff`;
     adminName.textContent = user.displayName || user.email;
 
-    // Al entrar, siempre mostrar el Dashboard
-    showDashboard();
+    // Al entrar, ir directamente al panel único de administración
+    showOGSection();
 }
 
 function showDashboard() {
-    adminDashboard.classList.remove('hidden');
-    sectionAdminOG.classList.add('hidden');
-    sectionAdminPedidos.classList.add('hidden');
+    showOGSection();
 }
 
 function showOGSection() {
-    adminDashboard.classList.add('hidden');
-    sectionAdminOG.classList.remove('hidden');
-    sectionAdminPedidos.classList.add('hidden');
-    // Forzar carga de la primera pestaña si es necesario
+    if (adminDashboard) adminDashboard.classList.add('hidden');
+    if (sectionAdminOG) sectionAdminOG.classList.remove('hidden');
+    if (sectionAdminPedidos) sectionAdminPedidos.classList.add('hidden');
     loadBoards();
+    loadStatisticalRequests();
 }
 
 function showPedidosSection() {
-    adminDashboard.classList.add('hidden');
-    sectionAdminOG.classList.add('hidden');
-    sectionAdminPedidos.classList.remove('hidden');
-    loadStatisticalRequests();
+    showOGSection();
 }
 
 // Navigation dashboard listeners
 btnGotoOG?.addEventListener('click', showOGSection);
-btnGotoPedidos?.addEventListener('click', showPedidosSection);
+btnGotoPedidos?.addEventListener('click', () => {
+    showOGSection();
+    const pedidosTab = document.querySelector('[data-target="tab-pedidos"]');
+    if (pedidosTab) pedidosTab.click();
+});
 btnsBackDashboard?.forEach(btn => btn?.addEventListener('click', showDashboard));
 
 function showError(msg) {
@@ -295,6 +294,7 @@ navTabs?.forEach(tab => {
             if (usersBadge) usersBadge.classList.add('hidden');
         }
         if (target === 'tab-solicitudes') loadRequests();
+        if (target === 'tab-pedidos') loadStatisticalRequests();
         if (target === 'tab-tracking') loadUserTracking();
         if (target === 'tab-feedback') {
             loadFeedback();
@@ -1609,6 +1609,16 @@ function updateStatisticalSummary() {
     countReqTotal.textContent = total;
     countReqPending.textContent = pending;
     countReqCompleted.textContent = completed;
+
+    const pedidosBadge = document.getElementById('pedidos-badge');
+    if (pedidosBadge) {
+        if (pending > 0) {
+            pedidosBadge.textContent = pending;
+            pedidosBadge.classList.remove('hidden');
+        } else {
+            pedidosBadge.classList.add('hidden');
+        }
+    }
 }
 
 function renderStatisticalRequests() {
@@ -1686,7 +1696,7 @@ window.updateRequestStatus = async (id, newStatus) => {
         await callApi(`/api/productos-estadisticos/${id}/status`, 'POST', { status: mysqlStatus });
         
         // Local update
-        const req = statisticalRequests.find(r => r.id === id);
+        const req = statisticalRequests.find(r => String(r.id) === String(id));
         if (req) req.status = newStatus;
         updateStatisticalSummary();
         renderStatisticalRequests();
@@ -1697,44 +1707,166 @@ window.updateRequestStatus = async (id, newStatus) => {
 };
 
 window.viewRequestDetails = (id) => {
-    const req = statisticalRequests.find(r => r.id === id);
-    if (!req) return;
+    const req = statisticalRequests.find(r => String(r.id) === String(id));
+    if (!req) {
+        console.warn("No request found with ID:", id);
+        return;
+    }
 
-    let details = `DETALLES DEL PEDIDO\n\n`;
-    details += `• CLIENTE: ${req.clientName}\n`;
-    details += `• CARGO: ${req.clientPosition} - ${req.clientArea}\n`;
-    details += `• JURISDICCIÓN: ${Array.isArray(req.jurisdictions) ? req.jurisdictions.join(', ') : (req.jurisdiction || 'N/A')}\n`;
-    details += `• EMAIL: ${req.clientEmail}\n`;
-    details += `• TELÉFONO: ${req.clientPhone}\n\n`;
+    const modal = document.getElementById('modal-request-details');
+    const content = document.getElementById('req-detail-content');
+    const titleEl = document.getElementById('req-detail-title');
+    const subtitleEl = document.getElementById('req-detail-subtitle');
+    const statusSelect = document.getElementById('req-detail-status-select');
+    const deleteBtn = document.getElementById('req-detail-delete-btn');
 
-    details += `• PRODUCTO(S): ${Array.isArray(req.productTypes) ? req.productTypes.join(', ') : (req.productType || 'N/A')}\n`;
-    details += `• TÍTULO: ${req.requestTitle}\n`;
-    details += `• DESCRIPCIÓN: ${req.description}\n`;
-    details += `• PERIODICIDAD: ${req.periodicity}\n`;
-    details += `• FECHA LÍMITE: ${req.dueDate}\n\n`;
+    if (!modal || !content) return;
 
-    details += `• FORMATO(S): ${Array.isArray(req.formats) ? req.formats.join(', ') : (req.format || 'N/A')}\n`;
-    details += `• PRIORIDAD: ${req.priority === '3' ? 'Alta' : req.priority === '2' ? 'Media' : 'Baja'}\n`;
-    details += `• CONTACTO TÉCNICO: ${req.hasTechContact === 'si' ? 'Sí' : 'No'}\n`;
+    titleEl.textContent = req.requestTitle || 'Solicitud sin título';
+    subtitleEl.textContent = `Solicitado por ${req.clientName || 'N/A'} • ${req.clientArea || 'N/A'}`;
+
+    if (statusSelect) {
+        statusSelect.value = req.status || 'Pendiente';
+        statusSelect.onchange = (e) => {
+            window.updateRequestStatus(req.id, e.target.value);
+        };
+    }
+
+    if (deleteBtn) {
+        deleteBtn.onclick = () => {
+            window.deleteRequest(req.id);
+        };
+    }
+
+    const jurisdictionsText = Array.isArray(req.jurisdictions) ? req.jurisdictions.join(', ') : (req.jurisdictions || 'N/A');
+    const productTypesText = Array.isArray(req.productTypes) ? req.productTypes.join(', ') : (req.productTypes || 'N/A');
+    const formatsText = Array.isArray(req.formats) ? req.formats.join(', ') : (req.formats || 'N/A');
+    const statusClass = getStatusBadgeClass(req.status);
+
+    let html = `
+        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div>
+                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Estado de la Solicitud</span>
+                <span class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${statusClass}">${req.status}</span>
+            </div>
+            <div class="text-right">
+                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Fecha de Registro</span>
+                <span class="text-xs font-bold text-gray-700">${req.createdAt?.toDate ? req.createdAt.toDate().toLocaleString() : 'N/A'}</span>
+            </div>
+        </div>
+
+        <!-- SOLICITANTE -->
+        <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-3">
+            <h4 class="text-xs font-black uppercase tracking-widest text-obelisco-blue flex items-center">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                Datos del Solicitante
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div><span class="font-bold text-gray-500 block">Nombre / Usuario:</span> <span class="text-gray-800 font-semibold">${req.clientName || 'N/A'}</span></div>
+                <div><span class="font-bold text-gray-500 block">Cargo:</span> <span class="text-gray-800 font-semibold">${req.clientPosition || 'N/A'}</span></div>
+                <div><span class="font-bold text-gray-500 block">Área / Secretaría:</span> <span class="text-gray-800 font-semibold">${req.clientArea || 'N/A'}</span></div>
+                <div><span class="font-bold text-gray-500 block">Jurisdicción:</span> <span class="text-gray-800 font-semibold">${jurisdictionsText}</span></div>
+                <div><span class="font-bold text-gray-500 block">Correo Electrónico:</span> <a href="mailto:${req.clientEmail}" class="text-obelisco-blue font-semibold underline">${req.clientEmail || 'N/A'}</a></div>
+                <div><span class="font-bold text-gray-500 block">Teléfono / WhatsApp:</span> <span class="text-gray-800 font-semibold">${req.clientPhone || 'N/A'}</span></div>
+            </div>
+        </div>
+
+        <!-- DETALLES DE PRODUCTO / INFORME -->
+        <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-3">
+            <h4 class="text-xs font-black uppercase tracking-widest text-obelisco-blue flex items-center">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Especificaciones del Producto Solicitado
+            </h4>
+            <div class="space-y-3 text-xs">
+                <div><span class="font-bold text-gray-500 block">Tipo de Producto:</span> <span class="text-gray-800 font-semibold">${productTypesText}</span></div>
+                <div><span class="font-bold text-gray-500 block">Título / Objeto:</span> <span class="text-gray-800 font-semibold">${req.requestTitle || 'Sin título'}</span></div>
+                <div><span class="font-bold text-gray-500 block">Descripción del Requerimiento:</span>
+                    <p class="mt-1 p-3 bg-gray-50 rounded-lg text-gray-700 leading-relaxed border border-gray-200">${req.description || 'Sin descripción provista.'}</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                    <div><span class="font-bold text-gray-500 block">Periodicidad:</span> <span class="text-gray-800 font-semibold">${req.periodicity || 'Única vez'}</span></div>
+                    <div><span class="font-bold text-gray-500 block">Fecha Límite Deseada:</span> <span class="text-gray-800 font-semibold">${req.dueDate || 'No especificada'}</span></div>
+                    <div><span class="font-bold text-gray-500 block">Formatos Solicitados:</span> <span class="text-gray-800 font-semibold">${formatsText}</span></div>
+                </div>
+            </div>
+        </div>
+    `;
+
     if (req.hasTechContact === 'si') {
-        details += `  - Nombre: ${req.techContactName || 'N/A'}\n`;
-        details += `  - Email: ${req.techContactEmail || 'N/A'}\n`;
-        details += `  - Tel: ${req.techContactPhone || 'N/A'}\n`;
-    }
-    details += `\n• INFO ADICIONAL: ${req.additionalInfo || 'N/A'}\n`;
-    if (req.attachments && req.attachments.length > 0) {
-        details += `\n• ARCHIVOS ADJUNTOS:\n`;
-        req.attachments.forEach(file => {
-            if (typeof file === 'object' && file.url) {
-                details += `  - ${file.name}\n    Enlace: ${file.url}\n`;
-            } else {
-                // Backward compatibility if it was just a string
-                details += `  - ${file}\n`;
-            }
-        });
+        html += `
+            <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                <h4 class="text-xs font-black uppercase tracking-widest text-obelisco-blue flex items-center">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                    Contacto Técnico de Enlace
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div><span class="font-bold text-gray-500 block">Nombre:</span> <span class="text-gray-800 font-semibold">${req.techContactName || 'N/A'}</span></div>
+                    <div><span class="font-bold text-gray-500 block">Email:</span> <a href="mailto:${req.techContactEmail}" class="text-obelisco-blue font-semibold underline">${req.techContactEmail || 'N/A'}</a></div>
+                    <div><span class="font-bold text-gray-500 block">Teléfono:</span> <span class="text-gray-800 font-semibold">${req.techContactPhone || 'N/A'}</span></div>
+                </div>
+            </div>
+        `;
     }
 
-    alert(details);
+    if (req.additionalInfo) {
+        html += `
+            <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-2 text-xs">
+                <h4 class="text-xs font-black uppercase tracking-widest text-obelisco-blue">Información Adicional</h4>
+                <p class="p-3 bg-gray-50 rounded-lg text-gray-700 leading-relaxed border border-gray-200">${req.additionalInfo}</p>
+            </div>
+        `;
+    }
+
+    if (req.attachments && req.attachments.length > 0) {
+        html += `
+            <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-3 text-xs">
+                <h4 class="text-xs font-black uppercase tracking-widest text-obelisco-blue flex items-center">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                    Archivos Adjuntos (${req.attachments.length})
+                </h4>
+                <div class="space-y-2">
+        `;
+        req.attachments.forEach(file => {
+            const fileName = typeof file === 'object' ? file.name : file;
+            const fileUrl = typeof file === 'object' ? file.url : file;
+            html += `
+                <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 bg-blue-50/60 hover:bg-blue-100 border border-blue-200 rounded-lg transition group">
+                    <span class="font-medium text-obelisco-blue truncate mr-2">${fileName}</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider bg-white text-obelisco-blue px-2 py-1 rounded shadow-xs group-hover:bg-obelisco-blue group-hover:text-white transition shrink-0">Abrir / Descargar</span>
+                </a>
+            `;
+        });
+        html += `
+                </div>
+            </div>
+        `;
+    }
+
+    content.innerHTML = html;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+};
+
+window.closeRequestModal = () => {
+    const modal = document.getElementById('modal-request-details');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+};
+
+window.deleteRequest = async (id) => {
+    if (!confirm("¿Estás seguro de que querés eliminar este pedido de producto estadístico? Esta acción es irreversible.")) return;
+    try {
+        await callApi(`/api/productos-estadisticos/${id}`, 'DELETE');
+        statisticalRequests = statisticalRequests.filter(r => String(r.id) !== String(id));
+        updateStatisticalSummary();
+        renderStatisticalRequests();
+        window.closeRequestModal();
+    } catch (error) {
+        console.error("Error al eliminar el pedido:", error);
+        alert("Error al eliminar el pedido: " + (error.message || error));
+    }
 };
 
 // Listeners

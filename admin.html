@@ -142,7 +142,7 @@
             <!-- Navigation Tabs -->
             <div class="bg-white border-b border-gray-200">
                 <div class="max-w-[1600px] mx-auto px-6">
-                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                    <nav class="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
                         <button
                             class="nav-tab border-obelisco-blue text-obelisco-blue whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
                             data-target="tab-tableros">Tableros</button>
@@ -158,6 +158,13 @@
                             class="nav-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
                             data-target="tab-usuarios-main">
                             Usuarios
+                        </button>
+                        <button
+                            class="nav-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative"
+                            data-target="tab-pedidos">
+                            Pedidos
+                            <span id="pedidos-badge"
+                                class="ml-2 hidden bg-amber-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">0</span>
                         </button>
                         <button
                             class="nav-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm relative"
@@ -973,10 +980,109 @@
                     Guardar Tablero
                 </button>
             </div>
-        </div>
-    </div>
+            
+            <!-- CONTENIDO PEDIDOS -->
+            <div id="tab-pedidos" class="tab-pane hidden text-sm">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-1">Pedidos Estadísticos</h2>
+                        <p class="text-obelisco-gray text-sm">Administrá las solicitudes de informes detallados, mapas, recortes de datos y productos estadísticos.</p>
+                    </div>
+                </div>
 
-    </div>
+                <!-- Tarjetas de Resumen de Pedidos -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white p-4 rounded-xl border-l-4 border-blue-500 shadow-sm flex items-center space-x-4">
+                        <div class="p-3 rounded-full bg-blue-50 text-blue-500 shadow-inner"><svg class="h-6 w-6" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg></div>
+                        <div>
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Pedidos</p>
+                            <p id="count-req-total" class="text-2xl font-black text-gray-800 leading-none mt-1">0</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border-l-4 border-yellow-500 shadow-sm flex items-center space-x-4">
+                        <div class="p-3 rounded-full bg-yellow-50 text-yellow-600 shadow-inner"><svg class="h-6 w-6"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg></div>
+                        <div>
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pendientes</p>
+                            <p id="count-req-pending" class="text-2xl font-black text-gray-800 leading-none mt-1">0</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border-l-4 border-green-500 shadow-sm flex items-center space-x-4">
+                        <div class="p-3 rounded-full bg-green-50 text-green-600 shadow-inner"><svg class="h-6 w-6"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg></div>
+                        <div>
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Completados</p>
+                            <p id="count-req-completed" class="text-2xl font-black text-gray-800 leading-none mt-1">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-obelisco-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+                    <!-- Buscador y Filtro -->
+                    <div class="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row gap-4">
+                        <div class="relative flex-grow">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </span>
+                            <input type="text" id="filter-req-search"
+                                class="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2 text-sm focus:border-obelisco-blue outline-none transition"
+                                placeholder="Buscar por título, área o solicitante...">
+                        </div>
+                        <select id="filter-req-status"
+                            class="border border-gray-200 rounded-lg px-4 py-2 text-sm focus:border-obelisco-blue outline-none bg-white transition min-w-[180px]">
+                            <option value="todos">Todos los estados</option>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="En Proceso">En Proceso</option>
+                            <option value="Completado">Completado</option>
+                            <option value="Rechazado">Rechazado</option>
+                        </select>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead
+                                class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-200">
+                                <tr>
+                                    <th class="px-6 py-4">Fecha</th>
+                                    <th class="px-6 py-4">Solicitante / Área</th>
+                                    <th class="px-6 py-4">Producto / Título</th>
+                                    <th class="px-6 py-4">Estado</th>
+                                    <th class="px-6 py-4 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pedidos-table-body" class="divide-y divide-gray-100 text-sm">
+                                <tr>
+                                    <td colspan="5" class="px-6 py-16 text-center text-gray-400">
+                                        <div class="flex flex-col items-center">
+                                            <svg class="animate-spin h-8 w-8 text-obelisco-blue mb-4" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                    stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                </path>
+                                            </svg>
+                                            <p class="font-medium">Cargando pedidos de productos estadísticos...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div> <!-- Fin de section-admin-og -->
 
     <!-- SECCIÓN PEDIDOS ESTADÍSTICOS -->
@@ -995,102 +1101,6 @@
                 <div
                     class="text-xs font-bold text-orange-400 uppercase tracking-widest px-3 py-1 bg-orange-50 rounded-full border border-orange-200">
                     Pedidos Estadísticos
-                </div>
-            </div>
-        </div>
-
-        <div class="flex-grow p-6 max-w-[1600px] mx-auto w-full relative">
-
-            <!-- Tarjetas de Resumen de Pedidos -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white p-4 rounded-xl border-l-4 border-blue-500 shadow-sm flex items-center space-x-4">
-                    <div class="p-3 rounded-full bg-blue-50 text-blue-500 shadow-inner"><svg class="h-6 w-6" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg></div>
-                    <div>
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Pedidos</p>
-                        <p id="count-req-total" class="text-2xl font-black text-gray-800 leading-none mt-1">0</p>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-xl border-l-4 border-yellow-500 shadow-sm flex items-center space-x-4">
-                    <div class="p-3 rounded-full bg-yellow-50 text-yellow-600 shadow-inner"><svg class="h-6 w-6"
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg></div>
-                    <div>
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pendientes</p>
-                        <p id="count-req-pending" class="text-2xl font-black text-gray-800 leading-none mt-1">0</p>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-xl border-l-4 border-green-500 shadow-sm flex items-center space-x-4">
-                    <div class="p-3 rounded-full bg-green-50 text-green-600 shadow-inner"><svg class="h-6 w-6"
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg></div>
-                    <div>
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Completados</p>
-                        <p id="count-req-completed" class="text-2xl font-black text-gray-800 leading-none mt-1">0</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white border border-obelisco-border rounded-xl shadow-sm overflow-hidden flex flex-col">
-                <!-- Buscador y Filtro -->
-                <div class="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row gap-4">
-                    <div class="relative flex-grow">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </span>
-                        <input type="text" id="filter-req-search"
-                            class="w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2 text-sm focus:border-obelisco-blue outline-none transition"
-                            placeholder="Buscar por título, área o solicitante...">
-                    </div>
-                    <select id="filter-req-status"
-                        class="border border-gray-200 rounded-lg px-4 py-2 text-sm focus:border-obelisco-blue outline-none bg-white transition min-w-[180px]">
-                        <option value="todos">Todos los estados</option>
-                        <option value="Pendiente">Pendiente</option>
-                        <option value="En Proceso">En Proceso</option>
-                        <option value="Completado">Completado</option>
-                        <option value="Rechazado">Rechazado</option>
-                    </select>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead
-                            class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-200">
-                            <tr>
-                                <th class="px-6 py-4">Fecha</th>
-                                <th class="px-6 py-4">Solicitante / Área</th>
-                                <th class="px-6 py-4">Producto / Título</th>
-                                <th class="px-6 py-4">Estado</th>
-                                <th class="px-6 py-4 text-right">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pedidos-table-body" class="divide-y divide-gray-100 text-sm">
-                            <!-- Se llena dinámicamente -->
-                            <tr>
-                                <td colspan="5" class="px-6 py-16 text-center text-gray-400">
-                                    <div class="flex flex-col items-center">
-                                        <svg class="animate-spin h-8 w-8 text-obelisco-blue mb-4" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                                stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor"
-                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                            </path>
-                                        </svg>
-                                        <p class="font-medium">Cargando pedidos de productos estadísticos...</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </div>
@@ -1258,6 +1268,47 @@
             <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3 shrink-0">
                 <button type="button" id="cancel-permissions-btn" class="px-4 py-2 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition">Cancelar</button>
                 <button type="button" id="save-permissions-btn" class="px-5 py-2 text-xs font-bold text-white bg-obelisco-blue hover:bg-blue-700 rounded-lg shadow-sm transition">Guardar Permisos</button>
+            </div>
+        </div>
+    <!-- Modal Detalles de Pedido Estadístico -->
+    <div id="modal-request-details" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-[1000] items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-200 flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2.5 bg-blue-50 text-obelisco-blue rounded-xl">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <div>
+                        <h3 id="req-detail-title" class="font-bold text-lg text-obelisco-dark leading-tight">Detalles del Pedido</h3>
+                        <p id="req-detail-subtitle" class="text-xs text-obelisco-gray">Información completa de la solicitud</p>
+                    </div>
+                </div>
+                <button type="button" onclick="window.closeRequestModal()" class="text-gray-400 hover:text-gray-600 transition p-1.5 rounded-lg hover:bg-gray-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-grow space-y-6 text-sm" id="req-modal-scroll">
+                <!-- Secciones de detalles dinámicos -->
+                <div id="req-detail-content" class="space-y-6">
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between shrink-0">
+                <button type="button" id="req-detail-delete-btn" class="px-4 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition flex items-center shadow-sm">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    Eliminar Pedido
+                </button>
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs font-medium text-gray-500">Estado:</span>
+                    <select id="req-detail-status-select" class="text-xs border border-gray-300 rounded-lg px-3 py-2 outline-none font-bold bg-white focus:border-obelisco-blue transition">
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="En Proceso">En Proceso</option>
+                        <option value="Completado">Completado</option>
+                        <option value="Rechazado">Rechazado</option>
+                    </select>
+                    <button type="button" onclick="window.closeRequestModal()" class="px-4 py-2 text-xs font-bold text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition shadow-sm">Cerrar</button>
+                </div>
             </div>
         </div>
     </div>

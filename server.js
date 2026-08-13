@@ -310,6 +310,7 @@ const initializeTables = async () => {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        await connection.query("DELETE FROM productos_estadisticos WHERE client_name LIKE '%pablo%' OR area LIKE '%15. Innovación%'").catch(() => {});
 
         // 4. Tabla de Logs de Actividad
         await connection.query(`
@@ -1539,6 +1540,16 @@ app.post('/api/productos-estadisticos/:id/status', async (req, res) => {
         await connection.execute('UPDATE productos_estadisticos SET status = ? WHERE id = ?', [status, id]);
         await connection.end();
         res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.delete('/api/productos-estadisticos/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const connection = await getDbConnection();
+        await connection.execute('DELETE FROM productos_estadisticos WHERE id = ?', [id]);
+        await connection.end();
+        res.json({ success: true, message: 'Pedido eliminado correctamente.' });
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
