@@ -83,6 +83,8 @@ add_action('wp_enqueue_scripts', function () {
   min-height:0;                 /* clave para que el hijo pueda usar todo el alto */
   overflow:auto;                /* si falta un poco de alto, aparece scroll y se ve la barra */
 }
+#ogb-iframe-wrap.ogb-pbi-crop { overflow: hidden !important; }
+#ogb-iframe-wrap.ogb-pbi-crop iframe#ogb-iframe { height: calc(100% + 38px) !important; min-height: calc(100% + 38px) !important; max-height: none !important; }
 
 /* Si jQuery hizo .show() y puso display:block inline, lo forzamos a flex */
 #ogb-iframe-wrap[style*="display: block"]{ display:flex !important; }
@@ -139,7 +141,7 @@ jQuery(function($){
   }
 
   function openModal(){ $modal.attr('aria-hidden','false').css('display','flex'); }
-  function closeModal(){ $iframe.attr('src','about:blank'); $modal.attr('aria-hidden','true').hide(); $iframeW.hide(); $formW.hide(); }
+  function closeModal(){ $iframe.attr('src','about:blank'); $modal.attr('aria-hidden','true').hide(); $iframeW.hide().removeClass('ogb-pbi-crop'); $formW.hide(); }
   function setLoading($btn,on){
     if(!$btn||!$btn.length) return;
     if(on){ $btn.data('ogb-old-html',$btn.html()); $btn.html('<span class="stk--inner-svg">⏳</span><span class="stk-button__inner-text">Cargando...</span>'); $btn.attr('aria-busy','true'); }
@@ -295,6 +297,9 @@ jQuery(function($){
             var host = new URL(finalSrc, window.location.origin).hostname;
             if (/(\.|^)powerbi\.com$/.test(host)) {
               finalSrc = ogbEnsurePBIToolbar(finalSrc);
+              $iframeW.addClass('ogb-pbi-crop');
+            } else {
+              $iframeW.removeClass('ogb-pbi-crop');
             }
           } catch(e){ /* no-op */ }
 

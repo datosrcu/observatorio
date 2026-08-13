@@ -885,6 +885,32 @@ function openModal(title, url) {
     finalSrc = ogbFixLookerUrl(finalSrc);
     finalSrc = ogbEnsurePBIToolbar(finalSrc);
 
+    // Inject CSS for cropping Power BI bottom bar if not present
+    if (!document.getElementById('ogb-pbi-crop-style')) {
+        const style = document.createElement('style');
+        style.id = 'ogb-pbi-crop-style';
+        style.textContent = `
+            #ogb-iframe-wrap.ogb-pbi-crop {
+                overflow: hidden !important;
+            }
+            #ogb-iframe-wrap.ogb-pbi-crop iframe#ogb-iframe {
+                height: calc(100% + 38px) !important;
+                min-height: calc(100% + 38px) !important;
+                max-height: none !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    const isPowerBI = finalSrc.includes('powerbi.com');
+    if (mWrap) {
+        if (isPowerBI) {
+            mWrap.classList.add('ogb-pbi-crop');
+        } else {
+            mWrap.classList.remove('ogb-pbi-crop');
+        }
+    }
+
     // Adjust security based on source
     const isLocalUpload = finalSrc.startsWith('/uploads/');
     const isPdf = finalSrc.toLowerCase().includes('.pdf');
@@ -964,7 +990,10 @@ function closeModal() {
     document.body.style.overflow = '';
 
     // Reset contents
-    if (mWrap) mWrap.classList.remove('hidden');
+    if (mWrap) {
+        mWrap.classList.remove('hidden');
+        mWrap.classList.remove('ogb-pbi-crop');
+    }
     if (iframeFallback) iframeFallback.classList.add('hidden');
     const formWrap = document.getElementById('ogb-form-wrap');
     if (formWrap) {
