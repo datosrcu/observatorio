@@ -1577,7 +1577,7 @@ async function loadStatisticalRequests() {
             clientPhone: r.client_phone,
             requestTitle: r.title,
             description: r.description,
-            status: r.status.charAt(0).toUpperCase() + r.status.slice(1).replace('_', ' '),
+            status: r.status ? (r.status.charAt(0).toUpperCase() + r.status.slice(1).replace('_', ' ')) : 'Pendiente',
             createdAt: { toDate: () => new Date(r.created_at) },
             jurisdictions: typeof r.jurisdictions === 'string' ? JSON.parse(r.jurisdictions) : r.jurisdictions,
             productTypes: typeof r.product_types === 'string' ? JSON.parse(r.product_types) : r.product_types,
