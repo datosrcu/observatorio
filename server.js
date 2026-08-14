@@ -232,6 +232,47 @@ const getDbConnection = async () => {
     });
 };
 
+// Middleware para verificar el rol del usuario en la Base de Datos MySQL (RBAC)
+const requireRole = (...allowedRoles) => {
+    return async (req, res, next) => {
+        if (!req.user || !req.user.email) {
+            return res.status(401).json({ error: 'Usuario no autenticado o email no presente en el token.' });
+        }
+
+        let connection;
+        try {
+            connection = await getDbConnection();
+            const [rows] = await connection.query(
+                'SELECT role FROM usuarios_perfiles WHERE LOWER(email) = LOWER(?)',
+                [req.user.email]
+            );
+            await connection.end();
+
+            if (!rows || rows.length === 0) {
+                return res.status(403).json({ error: 'Acceso denegado: Usuario no registrado en la base de datos.' });
+            }
+
+            const userRole = (rows[0].role || 'usuario').toLowerCase();
+            const normalizedAllowed = allowedRoles.map(r => r.toLowerCase());
+
+            if (!normalizedAllowed.includes(userRole)) {
+                return res.status(403).json({ 
+                    error: `Acceso denegado: Se requieren privilegios de ${allowedRoles.join(' o ')}.` 
+                });
+            }
+
+            req.userRole = userRole;
+            next();
+        } catch (error) {
+            if (connection) {
+                try { await connection.end(); } catch (e) {}
+            }
+            console.error('Error al verificar rol de usuario en DB:', error);
+            return res.status(500).json({ error: 'Error interno al verificar permisos de acceso.' });
+        }
+    };
+};
+
 // Servir archivos de informes subidos
 // (se registra después de crear app, antes de rutas)
 
@@ -683,7 +724,7 @@ app.post('/api/perfil', verifyToken, async (req, res) => {
 });
 
 // ── ENVÍO DE EMAIL DE BIENVENIDA (Resend) ──────────────────────────────────
-app.post('/api/enviar-bienvenida', verifyToken, async (req, res) => {
+app.post('/api/enviar-bienvenida', verifyToken, requireRole('admin'), async (req, res) => {
     const { full_name, email } = req.body;
 
     if (!email) {
@@ -772,8 +813,8 @@ app.post('/api/enviar-bienvenida', verifyToken, async (req, res) => {
 
 // ── SOLICITUDES DE ACCESO ──────────────────────────────────────────────────
 
-// Listar todas las solicitudes (admin)
-app.get('/api/solicitudes', verifyToken, async (_req, res) => {
+// Listar todas las solicitudes (admin / fiscal)
+app.get('/api/solicitudes', verifyToken, requireRole('admin', 'fiscal'), async (_req, res) => {
     try {
         const connection = await getDbConnection();
         // Join with profiles to get the email and name even if user_uid is an old Firebase UID
@@ -803,7 +844,7 @@ app.get('/api/solicitudes/me', verifyToken, async (req, res) => {
 });
 
 // Actualizar estado de solicitud (reject/expire)
-app.patch('/api/solicitudes/:id/status', verifyToken, async (req, res) => {
+app.patch('/api/solicitudes/:id/status', verifyToken, requireRole('admin', 'fiscal'), async (req, res) => {
     try {
         const { status, admin_comment } = req.body;
         const connection = await getDbConnection();
@@ -817,7 +858,7 @@ app.patch('/api/solicitudes/:id/status', verifyToken, async (req, res) => {
 });
 
 // Aprobar solicitud: actualiza solicitud + allowed_users del tablero
-app.post('/api/solicitudes/:id/aprobar', verifyToken, async (req, res) => {
+app.post('/api/solicitudes/:id/aprobar', verifyToken, requireRole('admin', 'fiscal'), async (req, res) => {
     try {
         const { email, tablero_id, expiry_iso } = req.body;
         const connection = await getDbConnection();
@@ -919,7 +960,7 @@ app.post('/api/contactos', async (req, res) => {
 });
 
 // Eliminar contacto
-app.delete('/api/contactos/:id', verifyToken, async (req, res) => {
+app.delete('/api/contactos/:id', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const connection = await getDbConnection();
         await connection.execute('DELETE FROM mensajes_contacto WHERE id = ?', [req.params.id]);
@@ -931,7 +972,7 @@ app.delete('/api/contactos/:id', verifyToken, async (req, res) => {
 // ── FEEDBACK ───────────────────────────────────────────────────────────────
 
 // Eliminar feedback
-app.delete('/api/feedback/:id', verifyToken, async (req, res) => {
+app.delete('/api/feedback/:id', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const connection = await getDbConnection();
         await connection.execute('DELETE FROM feedback_web WHERE id = ?', [req.params.id]);
@@ -942,7 +983,7 @@ app.delete('/api/feedback/:id', verifyToken, async (req, res) => {
 
 // ── CATEGORÍAS (PATCH + DELETE) ────────────────────────────────────────────
 
-app.patch('/api/categorias/:id', verifyToken, async (req, res) => {
+app.patch('/api/categorias/:id', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const fields = req.body; // { visible, sort_order, name, ... }
         const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
@@ -954,7 +995,7 @@ app.patch('/api/categorias/:id', verifyToken, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/categorias/:id', verifyToken, async (req, res) => {
+app.delete('/api/categorias/:id', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const connection = await getDbConnection();
         await connection.execute('DELETE FROM categorias WHERE id = ?', [req.params.id]);
@@ -965,7 +1006,7 @@ app.delete('/api/categorias/:id', verifyToken, async (req, res) => {
 
 // ── TABLEROS (PATCH + DELETE) ──────────────────────────────────────────────
 
-app.patch('/api/tableros/:id', verifyToken, async (req, res) => {
+app.patch('/api/tableros/:id', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const fields = req.body;
         const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
@@ -977,7 +1018,7 @@ app.patch('/api/tableros/:id', verifyToken, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/tableros/:id', verifyToken, async (req, res) => {
+app.delete('/api/tableros/:id', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const connection = await getDbConnection();
         const [[row]] = await connection.execute('SELECT file_path FROM tableros WHERE id = ?', [req.params.id]);
@@ -1110,7 +1151,7 @@ app.get('/api/categorias', async (req, res) => {
 });
 
 // 6b. Guardar/Actualizar categoría (Admin)
-app.post('/api/categorias', verifyToken, async (req, res) => {
+app.post('/api/categorias', verifyToken, requireRole('admin'), async (req, res) => {
     const { id, name, description, icon, type, color, visible, sort_order } = req.body;
     try {
         const connection = await getDbConnection();
@@ -1143,7 +1184,7 @@ app.get('/api/tableros', async (req, res) => {
 });
 
 // 8. Guardar/Actualizar tablero (Admin)
-app.post('/api/tableros', verifyToken, uploadTableros.single('archivo'), async (req, res) => {
+app.post('/api/tableros', verifyToken, requireRole('admin'), uploadTableros.single('archivo'), async (req, res) => {
     // Aquí podrías validar que req.user.email sea admin
     const { id, title, icon, iframe_url, enabled, require_login, open_in_new_tab, sort_order, allowed_users, access_expirations, categories, category_legacy, source_type } = req.body;
     try {
@@ -1523,7 +1564,7 @@ app.get('/api/feedback', async (req, res) => {
 });
 
 // --- PRODUCTOS ESTADÍSTICOS / PEDIDOS ---
-app.get('/api/productos-estadisticos', async (req, res) => {
+app.get('/api/productos-estadisticos', verifyToken, requireRole('admin', 'fiscal'), async (req, res) => {
     try {
         const connection = await getDbConnection();
         const [rows] = await connection.execute('SELECT * FROM productos_estadisticos ORDER BY created_at DESC');
@@ -1532,7 +1573,7 @@ app.get('/api/productos-estadisticos', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/api/productos-estadisticos/:id/status', async (req, res) => {
+app.post('/api/productos-estadisticos/:id/status', verifyToken, requireRole('admin', 'fiscal'), async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     try {
@@ -1543,7 +1584,7 @@ app.post('/api/productos-estadisticos/:id/status', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.delete('/api/productos-estadisticos/:id', async (req, res) => {
+app.delete('/api/productos-estadisticos/:id', verifyToken, requireRole('admin'), async (req, res) => {
     const { id } = req.params;
     try {
         const connection = await getDbConnection();
@@ -1553,7 +1594,7 @@ app.delete('/api/productos-estadisticos/:id', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.patch('/api/productos-estadisticos/:id', async (req, res) => {
+app.patch('/api/productos-estadisticos/:id', verifyToken, requireRole('admin', 'fiscal'), async (req, res) => {
     const { id } = req.params;
     const { title, client_name, area, due_date, status, additional_info } = req.body;
     try {
@@ -1582,7 +1623,7 @@ app.patch('/api/productos-estadisticos/:id', async (req, res) => {
 });
 
 // --- LOGS DE ACTIVIDAD ---
-app.get('/api/logs', verifyToken, async (req, res) => {
+app.get('/api/logs', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const connection = await getDbConnection();
         const sql = `
@@ -1598,7 +1639,7 @@ app.get('/api/logs', verifyToken, async (req, res) => {
 });
 
 // --- RCE ALL ---
-app.get('/api/rce-all', verifyToken, async (req, res) => {
+app.get('/api/rce-all', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const connection = await getDbConnection();
         const [rows] = await connection.execute('SELECT * FROM rce_consentimientos ORDER BY timestamp DESC');
@@ -1608,7 +1649,7 @@ app.get('/api/rce-all', verifyToken, async (req, res) => {
 });
 
 // --- CONFIGURACIÓN GENÉRICA ---
-app.post('/api/config/:key', verifyToken, async (req, res) => {
+app.post('/api/config/:key', verifyToken, requireRole('admin'), async (req, res) => {
     const { key } = req.params;
     const { value } = req.body;
     try {
@@ -1623,7 +1664,7 @@ app.post('/api/config/:key', verifyToken, async (req, res) => {
 });
 
 // --- CONTACTOS ---
-app.get('/api/contactos', verifyToken, async (req, res) => {
+app.get('/api/contactos', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const connection = await getDbConnection();
         const [rows] = await connection.execute('SELECT * FROM mensajes_contacto ORDER BY created_at DESC');
@@ -1638,7 +1679,7 @@ app.get('/', (req, res) => {
 });
 
 // Listar todos los usuarios (admin)
-app.get('/api/usuarios', verifyToken, async (_req, res) => {
+app.get('/api/usuarios', verifyToken, requireRole('admin'), async (_req, res) => {
     try {
         const connection = await getDbConnection();
         const [rows] = await connection.query(
@@ -1653,7 +1694,7 @@ app.get('/api/usuarios', verifyToken, async (_req, res) => {
 });
 
 // Actualizar rol de usuario
-app.patch('/api/usuarios/:email/role', verifyToken, async (req, res) => {
+app.patch('/api/usuarios/:email/role', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const email = decodeURIComponent(req.params.email).toLowerCase();
         const { role } = req.body;
@@ -1670,7 +1711,7 @@ app.patch('/api/usuarios/:email/role', verifyToken, async (req, res) => {
     }
 });
 
-app.delete('/api/usuarios/:email', verifyToken, async (req, res) => {
+app.delete('/api/usuarios/:email', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const email = decodeURIComponent(req.params.email).toLowerCase();
         const connection = await getDbConnection();
