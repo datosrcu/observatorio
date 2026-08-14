@@ -101,7 +101,71 @@ app.get('/__/auth/*', async (req, res) => {
     }
 });
 
-// Servir archivos estáticos desde la raíz
+// Lista blanca de archivos públicos permitidos desde la raíz
+const PUBLIC_STATIC_ALLOWLIST = new Set([
+    '/',
+    '/index.html',
+    '/admin.html',
+    '/observatorio-gestion.html',
+    '/monitor-satisfaccion.html',
+    '/solicitudes-area.html',
+    '/plantilla_bienvenida_ogm.html',
+    '/admin.js',
+    '/auth.js',
+    '/firebase-config.js',
+    '/requests.js',
+    '/robots.txt',
+    '/flujo_de_trabajo_observatorio.svg',
+    '/flujo_de_trabajo_observatorio.html',
+    '/brief_agente_auditoria_ogm.md'
+]);
+
+const PUBLIC_STATIC_PREFIXES = [
+    '/recursos/',
+    '/normativas/',
+    '/atlas y monitor/'
+];
+
+// Filtro de seguridad para restringir entrega de estáticos de la raíz
+app.use((req, res, next) => {
+    // Permitir pasaje de rutas de API, proxy de auth y /uploads
+    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.startsWith('/__/auth/')) {
+        return next();
+    }
+
+    const reqPathLower = req.path.toLowerCase();
+
+    // 1. Bloqueo explícito de scripts de servidor y configuraciones
+    const BLOCKED_FILES = [
+        '/server.js', '/migrate.js', '/evaluar-db.js', '/test-admin.js', 
+        '/test-mock.js', '/generate_security_doc.py', '/.env', '/package.json', 
+        '/package-lock.json', '/.gitignore', '/dockerfile', '/docker-compose.yml'
+    ];
+
+    if (BLOCKED_FILES.includes(reqPathLower)) {
+        return res.status(404).send('Not Found');
+    }
+
+    // 2. Bloquear cualquier script .js, .py, .sh o .sql que NO esté en la lista blanca
+    if ((reqPathLower.endsWith('.js') || reqPathLower.endsWith('.py') || reqPathLower.endsWith('.sh') || reqPathLower.endsWith('.sql')) 
+        && !PUBLIC_STATIC_ALLOWLIST.has(reqPathLower)) {
+        return res.status(404).send('Not Found');
+    }
+
+    // 3. Permitir si está en la lista blanca o pertenece a un prefijo público
+    if (PUBLIC_STATIC_ALLOWLIST.has(reqPathLower) || PUBLIC_STATIC_PREFIXES.some(prefix => reqPathLower.startsWith(prefix))) {
+        return next();
+    }
+
+    // 4. Permitir documentos HTML legítimos
+    if (reqPathLower.endsWith('.html') || reqPathLower.endsWith('.htm')) {
+        return next();
+    }
+
+    next();
+});
+
+// Servir archivos estáticos filtrados desde la raíz
 app.use(express.static(path.join(__dirname)));
 
 // Servir archivos de informes subidos
