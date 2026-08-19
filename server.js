@@ -137,18 +137,26 @@ app.use((req, res, next) => {
 
     // 1. Bloqueo explícito de scripts de servidor y configuraciones
     const BLOCKED_FILES = [
-        '/server.js', '/migrate.js', '/evaluar-db.js', '/test-admin.js', 
-        '/test-mock.js', '/generate_security_doc.py', '/.env', '/package.json', 
-        '/package-lock.json', '/.gitignore', '/dockerfile', '/docker-compose.yml'
+        '/server.js', '/migrate.js', '/evaluar-db.js', '/test-admin.js',
+        '/test-mock.js', '/generate_security_doc.py', '/.env', '/package.json',
+        '/package-lock.json', '/.gitignore', '/dockerfile', '/docker-compose.yml',
+        '/php-buttons.code-snippets (1).php'
     ];
 
     if (BLOCKED_FILES.includes(reqPathLower)) {
         return res.status(404).send('Not Found');
     }
 
-    // 2. Bloquear cualquier script .js, .py, .sh o .sql que NO esté en la lista blanca
-    if ((reqPathLower.endsWith('.js') || reqPathLower.endsWith('.py') || reqPathLower.endsWith('.sh') || reqPathLower.endsWith('.sql')) 
-        && !PUBLIC_STATIC_ALLOWLIST.has(reqPathLower)) {
+    // 2. Bloquear cualquier script/config que NO esté en la lista blanca.
+    // Lista ampliada respecto de la original (.js, .py, .sh, .sql) para cubrir otros
+    // lenguajes de servidor, backups y archivos de credenciales que no deberían
+    // quedar accesibles por el simple hecho de existir en la raíz del proyecto.
+    const BLOCKED_EXTENSIONS = [
+        '.js', '.py', '.sh', '.sql', '.php', '.rb', '.pl', '.cgi',
+        '.bak', '.backup', '.old', '.log', '.yml', '.yaml', '.ini',
+        '.conf', '.config', '.pem', '.key', '.crt', '.swp'
+    ];
+    if (BLOCKED_EXTENSIONS.some(ext => reqPathLower.endsWith(ext)) && !PUBLIC_STATIC_ALLOWLIST.has(reqPathLower)) {
         return res.status(404).send('Not Found');
     }
 
@@ -157,9 +165,12 @@ app.use((req, res, next) => {
         return next();
     }
 
-    // 4. Permitir documentos HTML legítimos
+    // 4. Cualquier .html/.htm que no haya pasado la regla 3 no es un documento
+    // reconocido del sitio: se bloquea en vez de permitirse por defecto.
+    // (Verificado: todos los .html legítimos del proyecto están cubiertos por la
+    // lista blanca o por PUBLIC_STATIC_PREFIXES; esta regla no rompe ninguno de ellos.)
     if (reqPathLower.endsWith('.html') || reqPathLower.endsWith('.htm')) {
-        return next();
+        return res.status(404).send('Not Found');
     }
 
     next();
