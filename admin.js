@@ -1535,10 +1535,14 @@ boardForm?.addEventListener('submit', async (e) => {
             const [owner, name] = repoVal.split('/');
             const selectedRepoOpt = document.getElementById('field-board-github-repo')?.options[document.getElementById('field-board-github-repo').selectedIndex];
             const hasPages = selectedRepoOpt?.getAttribute('data-pages') === 'true';
+            const isPrivate = selectedRepoOpt?.text?.includes('🔒');
 
             let ghUrl = `https://${owner}.github.io/${name}/${pathVal}`;
-            if (!hasPages) {
-                ghUrl = `https://raw.githack.com/${repoVal}/${branchVal}/${pathVal}`;
+            if (!hasPages || isPrivate) {
+                ghUrl = `/api/github/proxy/${owner}/${name}/${branchVal}/${pathVal}`;
+                if (githubToken) {
+                    ghUrl += `?token=${encodeURIComponent(githubToken)}`;
+                }
             }
 
             formData.append('iframe_url', ghUrl);
@@ -3301,6 +3305,10 @@ function initGitHubBoardControls() {
         } catch (err) {
             console.warn("Could not fetch branches:", err);
         }
+    });
+
+    document.getElementById('github-refresh-repos-btn')?.addEventListener('click', () => {
+        loadGitHubRepos();
     });
 }
 

@@ -2034,6 +2034,85 @@ app.get('/api/github/branches', async (req, res) => {
     }
 });
 
+// 5. Proxy para servir archivos de repositorios públicos o privados de GitHub dentro del iframe
+app.get('/api/github/proxy/:owner/:repo/:branch/*', async (req, res) => {
+    const { owner, repo, branch } = req.params;
+    let filePath = req.params[0] || 'index.html';
+
+    if (filePath.startsWith('/')) filePath = filePath.substring(1);
+    if (!filePath) filePath = 'index.html';
+
+    let token = req.query.token || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : null);
+
+    const headers = {
+        'User-Agent': 'Observatorio-RioCuarto-App',
+        'Accept': 'application/vnd.github.v3.raw'
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+        const ghUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${filePath}?ref=${encodeURIComponent(branch)}`;
+        const ghRes = await fetch(ghUrl, { headers });
+
+        if (!ghRes.ok) {
+            return res.status(ghRes.status).send(`
+                <div style="font-family: system-ui, sans-serif; padding: 40px; text-align: center; color: #e11d48; background: #fff1f2; border-radius: 12px; margin: 20px;">
+                    <h3 style="margin-top:0;">Error al cargar archivo desde GitHub (${ghRes.status})</h3>
+                    <p>No se pudo acceder a <code>${filePath}</code> en el repositorio <strong>${owner}/${repo}</strong> (rama: <em>${branch}</em>).</p>
+                    <p style="font-size: 13px; color: #475569;">Verifica que la app esté conectada con GitHub y que el archivo exista en la rama seleccionada.</p>
+                </div>
+            `);
+        }
+
+        const ext = filePath.split('.').pop().toLowerCase();
+        const mimeTypes = {
+            'html': 'text/html; charset=utf-8',
+            'htm': 'text/html; charset=utf-8',
+            'css': 'text/css; charset=utf-8',
+            'js': 'application/javascript; charset=utf-8',
+            'mjs': 'application/javascript; charset=utf-8',
+            'json': 'application/json; charset=utf-8',
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'gif': 'image/gif',
+            'svg': 'image/svg+xml',
+            'webp': 'image/webp',
+            'ico': 'image/x-icon',
+            'woff': 'font/woff',
+            'woff2': 'font/woff2',
+            'ttf': 'font/ttf'
+        };
+
+        const contentType = mimeTypes[ext] || ghRes.headers.get('content-type') || 'text/plain';
+        res.setHeader('Content-Type', contentType);
+
+        if (ext === 'html' || ext === 'htm') {
+            let htmlText = await ghRes.text();
+            const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+            const pathDir = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/') + 1) : '';
+            const baseTag = `<base href="/api/github/proxy/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(branch)}/${pathDir}${tokenQuery}">`;
+            
+            if (htmlText.includes('<head>')) {
+                htmlText = htmlText.replace('<head>', `<head>\n  ${baseTag}`);
+            } else if (htmlText.includes('<HEAD>')) {
+                htmlText = htmlText.replace('<HEAD>', `<HEAD>\n  ${baseTag}`);
+            } else {
+                htmlText = baseTag + htmlText;
+            }
+            return res.send(htmlText);
+        }
+
+        const buffer = await ghRes.arrayBuffer();
+        return res.send(Buffer.from(buffer));
+    } catch (err) {
+        console.error("Error en GitHub proxy:", err);
+        res.status(500).send("Error interno en proxy de GitHub: " + err.message);
+    }
+});
+
 // Ruta para el Admin
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));
