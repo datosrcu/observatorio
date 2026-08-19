@@ -9,7 +9,101 @@ const admin = require('firebase-admin');
 const { Resend } = require('resend');
 const multer = require('multer');
 const AdmZip = require('adm-zip');
+const crypto = require('crypto');
 require('dotenv').config();
+
+// --- Firma de acceso a tableros/informes protegidos (require_login = 1) ---
+// Clave secreta para firmar los enlaces de acceso de corta duración a /uploads.
+// Debe configurarse como variable de entorno en el servidor (Dokploy). Si falta,
+// el sistema queda en modo "cerrado por defecto": los tableros/informes con
+// require_login = 1 no van a poder abrirse hasta que se configure, en vez de
+// quedar accesibles sin control (falla segura, no falla silenciosa).
+const TABLERO_ACCESS_SECRET = process.env.TABLERO_ACCESS_SECRET || null;
+if (!TABLERO_ACCESS_SECRET) {
+    console.warn('⚠️  TABLERO_ACCESS_SECRET no configurada. Los tableros/informes con require_login=1 no podrán abrirse hasta configurarla.');
+}
+const TABLERO_ACCESS_TTL_MS = 15 * 60 * 1000; // 15 minutos
+
+function signTableroAccess(resourceId, expiresAt) {
+    if (!TABLERO_ACCESS_SECRET) return null;
+    return crypto.createHmac('sha256', TABLERO_ACCESS_SECRET).update(`${resourceId}.${expiresAt}`).digest('hex');
+}
+
+function verifyTableroAccess(resourceId, expiresAt, signature) {
+    if (!TABLERO_ACCESS_SECRET || !signature || !expiresAt) return false;
+    const expiresAtNum = Number(expiresAt);
+    if (!Number.isFinite(expiresAtNum) || Date.now() > expiresAtNum) return false;
+    const expected = signTableroAccess(resourceId, expiresAtNum);
+    if (!expected) return false;
+    try {
+        const a = Buffer.from(expected);
+        const b = Buffer.from(String(signature));
+        return a.length === b.length && crypto.timingSafeEqual(a, b);
+    } catch (e) {
+        return false;
+    }
+}
+
+// Agrega un token de acceso de corta duración a una URL /uploads/... existente.
+function withAccessToken(url, resourceId) {
+    if (!url || !String(url).startsWith('/uploads/')) return url;
+    const expiresAt = Date.now() + TABLERO_ACCESS_TTL_MS;
+    const sig = signTableroAccess(resourceId, expiresAt);
+    if (!sig) return url; // sin secreto configurado: no se puede firmar, se deja como está
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}t=${sig}&exp=${expiresAt}`;
+}
+
+// Determina si un usuario (por email) está habilitado hoy para un tablero/informe,
+// usando exactamente los mismos campos (allowed_users, access_expirations) que ya
+// gobiernan el circuito de solicitud/aprobación de acceso.
+function isEntitled(row, email) {
+    if (!email) return false;
+    let allowed = [];
+    try {
+        const raw = row.allowed_users;
+        allowed = typeof raw === 'string' ? JSON.parse(raw || '[]') : (Array.isArray(raw) ? raw : []);
+    } catch (e) { allowed = []; }
+    const normalizedEmail = String(email).toLowerCase();
+    if (!allowed.some(a => String(a).toLowerCase() === normalizedEmail)) return false;
+
+    let expirations = {};
+    try {
+        const raw = row.access_expirations;
+        expirations = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {});
+    } catch (e) { expirations = {}; }
+    const expKey = Object.keys(expirations).find(k => k.toLowerCase() === normalizedEmail);
+    if (expKey && expirations[expKey]) {
+        const expDate = new Date(expirations[expKey]);
+        if (!isNaN(expDate.getTime()) && expDate.getTime() < Date.now()) return false;
+    }
+    return true;
+}
+
+// Verifica el header Authorization si viene, pero sin exigirlo — para endpoints
+// públicos que igual necesitan saber (opcionalmente) quién pregunta.
+async function getOptionalUserEmail(req) {
+    const idToken = req.headers.authorization?.split('Bearer ')[1];
+    if (!idToken) return null;
+    try {
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        return decoded.email || null;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Cache breve en memoria para no consultar MySQL en cada archivo estático servido
+// desde /uploads (una página con varios recursos hace varias peticiones seguidas).
+const PERMISSION_CACHE = new Map();
+const PERMISSION_CACHE_TTL_MS = 30 * 1000;
+async function getCached(key, fetcher) {
+    const hit = PERMISSION_CACHE.get(key);
+    if (hit && hit.expiresAt > Date.now()) return hit.data;
+    const data = await fetcher();
+    PERMISSION_CACHE.set(key, { data, expiresAt: Date.now() + PERMISSION_CACHE_TTL_MS });
+    return data;
+}
 
 // --- MULTER: Configuración de uploads para informes ---
 const UPLOADS_PATH = process.env.UPLOADS_PATH ? path.resolve(process.env.UPLOADS_PATH) : path.join(__dirname, 'uploads');
@@ -179,8 +273,84 @@ app.use((req, res, next) => {
 // Servir archivos estáticos filtrados desde la raíz
 app.use(express.static(path.join(__dirname)));
 
-// Servir archivos de informes subidos
-app.use('/uploads', express.static(UPLOADS_PATH));
+// Servir archivos de informes/tableros subidos, respetando require_login por recurso.
+// Los tableros/informes con require_login = 0 se sirven exactamente igual que antes
+// (sin consultar nada extra más allá de identificar a qué fila pertenecen). Los que
+// tienen require_login = 1 exigen un token de acceso válido (?t=...&exp=...), emitido
+// únicamente por GET /api/tableros o GET /api/informes para usuarios habilitados.
+app.use('/uploads', async (req, res, next) => {
+    const reqPath = req.path; // relativo al punto de montaje, ej: /tableros/project_x/index.html
+    const fullStoredPath = '/uploads' + reqPath;
+
+    try {
+        let row = null;
+
+        const projectMatch = reqPath.match(/^\/tableros\/project_([^/]+)\//);
+        if (projectMatch) {
+            const tableroId = decodeURIComponent(projectMatch[1]);
+            row = await getCached(`tablero:id:${tableroId}`, async () => {
+                const connection = await getDbConnection();
+                const [[r]] = await connection.execute(
+                    'SELECT id, require_login, allowed_users, access_expirations FROM tableros WHERE id = ?',
+                    [tableroId]
+                );
+                await connection.end();
+                return r || null;
+            });
+        } else if (reqPath.startsWith('/tableros/')) {
+            row = await getCached(`tablero:path:${fullStoredPath}`, async () => {
+                const connection = await getDbConnection();
+                const [[r]] = await connection.execute(
+                    'SELECT id, require_login, allowed_users, access_expirations FROM tableros WHERE file_path = ?',
+                    [fullStoredPath]
+                );
+                await connection.end();
+                return r || null;
+            });
+        } else if (reqPath.startsWith('/informes/')) {
+            row = await getCached(`informe:path:${fullStoredPath}`, async () => {
+                const connection = await getDbConnection();
+                const [[r]] = await connection.execute(
+                    'SELECT id, require_login, allowed_users, access_expirations FROM informes WHERE file_path = ?',
+                    [fullStoredPath]
+                );
+                await connection.end();
+                return r || null;
+            });
+        }
+
+        // Sin fila asociada (archivo huérfano, no vinculado hoy a ningún tablero/informe
+        // vigente): se deja pasar sin cambios, igual que se serviría hoy. No es una
+        // regresión — hoy tampoco tiene ningún control.
+        if (!row || !row.require_login) return next();
+
+        const { t, exp } = req.query;
+        if (!verifyTableroAccess(row.id, exp, t)) {
+            return res.status(403).send('Acceso no autorizado.');
+        }
+
+        // Registro autoritativo de acceso concedido (a diferencia de logs_actividad,
+        // este lo escribe el servidor, no depende de que el cliente avise).
+        getDbConnection().then(async (connection) => {
+            try {
+                await connection.execute(
+                    'INSERT INTO logs_actividad (user_uid, action, details, ip_address) VALUES (?, ?, ?, ?)',
+                    ['(token-uploads)', 'acceso_archivo_protegido', JSON.stringify({ resourceId: row.id, path: fullStoredPath }), req.ip || req.headers['x-forwarded-for'] || null]
+                );
+            } catch (e) {
+                console.error('Error registrando acceso autoritativo:', e);
+            } finally {
+                await connection.end();
+            }
+        }).catch(() => {});
+
+        res.set('Cache-Control', 'no-store');
+        return next();
+    } catch (e) {
+        console.error('Error validando acceso a /uploads:', e);
+        return res.status(500).send('Error interno.');
+    }
+}, express.static(UPLOADS_PATH));
 app.use(express.json()); // Asegurar que pueda leer JSON en el body
 app.use(cors());
 
@@ -1248,10 +1418,15 @@ app.post('/api/categorias', verifyToken, requireRole('admin'), async (req, res) 
 // 7. Obtener tableros
 app.get('/api/tableros', async (req, res) => {
     try {
+        const requesterEmail = await getOptionalUserEmail(req);
         const connection = await getDbConnection();
         const [rows] = await connection.query('SELECT * FROM tableros ORDER BY sort_order ASC');
         await connection.end();
-        res.json(rows);
+        const withTokens = rows.map(row => {
+            if (!row.require_login || !isEntitled(row, requesterEmail)) return row;
+            return { ...row, iframe_url: withAccessToken(row.iframe_url, row.id) };
+        });
+        res.json(withTokens);
     } catch (error) {
         console.warn("DB offline, returning fallback tableros:", error.message);
         res.json(MOCK_TABLEROS);
@@ -1457,17 +1632,22 @@ app.patch('/api/tableros/:id', verifyToken, async (req, res) => {
 // ── INFORMES ───────────────────────────────────────────────────────────────
 
 // Obtener todos los informes habilitados (público)
-app.get('/api/informes', async (_req, res) => {
+app.get('/api/informes', async (req, res) => {
     try {
+        const requesterEmail = await getOptionalUserEmail(req);
         const connection = await getDbConnection();
         const [rows] = await connection.query('SELECT * FROM informes ORDER BY year DESC, sort_order ASC');
         await connection.end();
-        res.json(rows);
+        const withTokens = rows.map(row => {
+            if (!row.require_login || !isEntitled(row, requesterEmail)) return row;
+            return { ...row, file_path: withAccessToken(row.file_path, row.id) };
+        });
+        res.json(withTokens);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Crear informe (admin) — acepta multipart/form-data para subida de archivos
-app.post('/api/informes', verifyToken, uploadInformes.single('archivo'), async (req, res) => {
+app.post('/api/informes', verifyToken, requireRole('admin'), uploadInformes.single('archivo'), async (req, res) => {
     try {
         const {
             id, title, description, categories, url,
@@ -1525,7 +1705,7 @@ app.post('/api/informes', verifyToken, uploadInformes.single('archivo'), async (
 });
 
 // Editar informe (admin) — también acepta archivo nuevo
-app.patch('/api/informes/:id', verifyToken, uploadInformes.single('archivo'), async (req, res) => {
+app.patch('/api/informes/:id', verifyToken, requireRole('admin'), uploadInformes.single('archivo'), async (req, res) => {
     try {
         const { id } = req.params;
         const fields = { ...req.body };
@@ -1564,7 +1744,7 @@ app.patch('/api/informes/:id', verifyToken, uploadInformes.single('archivo'), as
 });
 
 // Eliminar informe (admin)
-app.delete('/api/informes/:id', verifyToken, async (req, res) => {
+app.delete('/api/informes/:id', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const connection = await getDbConnection();
         // Obtener file_path para eliminar el archivo si existe

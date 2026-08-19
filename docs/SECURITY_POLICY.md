@@ -33,9 +33,9 @@ Un usuario autenticado **no** tiene automáticamente permiso para actuar como ad
 
 Rutas protegidas por rol (no exhaustivo, ver `server.js` para el listado completo): gestión de usuarios y roles, alta/edición/borrado de tableros, categorías, configuración general, contactos, logs de actividad, consentimientos (RCE), solicitudes de acceso y productos estadísticos.
 
-Antes de este control, cualquier cuenta registrada podía, entre otras cosas, otorgarse a sí misma el rol de administrador con una sola solicitud HTTP. Detalle completo en `SECURITY_LOG.md`.
+Antes de este control, cualquier cuenta registrada podía, entre otras cosas, otorgarse a sí misma el rol de administrador con una sola solicitud HTTP. Detalle completo en `SECURITY_LOG.md`. Una corrección posterior extendió el mismo control a las rutas de `/api/informes`, que se habían quedado afuera del barrido original.
 
-## 4. Circuito de autorización de acceso a tableros — ⚠️ Implementado con excepción conocida
+## 4. Circuito de autorización de acceso a tableros — ✅ Implementado (pendiente de configurar variable de entorno antes de desplegar)
 
 Cada tablero (o informe) tiene, en la base de datos: `require_login`, `allowed_users` (correos autorizados), `access_expirations` (vencimientos por usuario) y `sensitivity_level` (Bajo, Medio, Alto, Confidencial).
 
@@ -46,11 +46,11 @@ El otorgamiento de acceso no es discrecional de un solo actor: un usuario solici
 
 Todo el circuito queda registrado en `solicitudes_acceso`. Los vencimientos son, por defecto, a 12 meses, salvo que el usuario sea un funcionario con cargo de vencimiento anterior (en cuyo caso el permiso hereda esa fecha) o que se personalice el plazo caso por caso.
 
-**Excepción conocida — en resolución activa**: este circuito de aprobación gobierna qué aparece habilitado en la interfaz, pero **no gobierna todavía el acceso directo al archivo**. La ruta `/uploads`, que sirve los tableros HTML/ZIP subidos, no verifica sesión, rol ni permiso — es un `express.static` sin middleware delante. Un tablero marcado `require_login = 1` con `allowed_users` acotado a tres correos sigue siendo descargable por cualquiera que conozca (o adivine) la ruta del archivo. Es el punto de mayor prioridad pendiente. Ver Hallazgo abierto en `SECURITY_LOG.md`.
+Desde `feat/security`, este circuito gobierna también el acceso directo al archivo, no solo qué aparece habilitado en la interfaz: la ruta `/uploads` valida, por cada archivo, si el tablero/informe correspondiente exige sesión y, de ser así, exige un token de acceso firmado y de corta duración (15 minutos), emitido únicamente para usuarios que ya figuran en `allowed_users` con `access_expirations` vigente — el mismo criterio que gobierna la aprobación de solicitudes, no uno nuevo. Detalle técnico completo en `SECURITY_LOG.md`.
 
-**Restricción técnica encontrada al diseñar la corrección**: toda la autenticación del sistema depende de un encabezado (`Authorization: Bearer <token>`) que el frontend agrega a mano en cada llamada a la API. Un `<iframe src="...">` no puede llevar ese encabezado — es una navegación del navegador, no una llamada programática. Por eso, proteger el archivo servido en el iframe no es solo agregar un middleware en `server.js`: requiere un mecanismo de token de acceso firmado y de corta duración, incluido en la propia URL, más un cambio correspondiente en el frontend. Es un cambio de varios archivos, no uno solo — se está definiendo el alcance con el equipo.
+**Requisito operativo antes de desplegar esta rama**: configurar la variable de entorno `TABLERO_ACCESS_SECRET` en Dokploy. Sin ella, el sistema falla cerrado — los tableros/informes con `require_login = 1` no se abren para nadie, en vez de quedar sin protección. Es intencional (falla segura), pero hay que configurarla antes de desplegar, no después.
 
-**Hallazgo relacionado, sin resolver**: `GET /api/tableros` es público y devuelve todas las columnas de todos los tableros a cualquier visitante, incluidos `allowed_users` (los correos autorizados a cada tablero confidencial) y `access_expirations`. El filtrado de qué mostrar ocurre hoy del lado del cliente. Ver detalle en `SECURITY_LOG.md`.
+**Hallazgo relacionado, sin resolver**: `GET /api/tableros` sigue devolviendo `allowed_users` y `access_expirations` completos a cualquier visitante. Se protegió el acceso al archivo, no los metadatos de permisos del listado — tocar eso requiere primero confirmar que no rompe la lógica actual del frontend que decide, con esos mismos campos, si mostrar "solicitar acceso". Ver `SECURITY_LOG.md`.
 
 ## 5. Servido de archivos estáticos del proyecto — ✅ Implementado
 
