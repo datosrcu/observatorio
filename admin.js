@@ -341,19 +341,19 @@ subNavTabs?.forEach(tab => {
     });
 });
 
-const filterTrackingSearchInner = document.getElementById('filter-tracking-search-inner');
-const filterTrackingStatusInner = document.getElementById('filter-tracking-status-inner');
+const filterTrackingSearchInner = document.getElementById('filter-tracking-search-inner') || document.getElementById('filter-tracking-search');
+const filterTrackingStatusInner = document.getElementById('filter-tracking-status-inner') || document.getElementById('filter-tracking-status');
 
 if (filterTrackingSearchInner) {
     filterTrackingSearchInner.addEventListener('input', (e) => {
-        trackingSearchQuery = e.target.value.toLowerCase();
-        renderUserTracking();
+        trackingSearchQuery = e.target.value.toLowerCase().trim();
+        renderTrackingTable();
     });
 }
 if (filterTrackingStatusInner) {
     filterTrackingStatusInner.addEventListener('change', (e) => {
         trackingStatusFilter = e.target.value;
-        renderUserTracking();
+        renderTrackingTable();
     });
 }
 
@@ -1617,7 +1617,7 @@ function renderTrackingTable() {
     });
 
     if (filtered.length === 0) {
-        trackingTbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-obelisco-gray">No hay registros de actividad que coincidan con los filtros.</td></tr>';
+        trackingTbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-obelisco-gray">No hay registros de actividad que coincidan con los filtros.</td></tr>';
         return;
     }
 
