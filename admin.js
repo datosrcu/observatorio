@@ -1386,6 +1386,9 @@ function filterAndRenderBoards() {
             const typeFileEl = document.getElementById('board-type-file');
             const urlWrapEl = document.getElementById('board-url-wrap');
             const fileWrapEl = document.getElementById('board-file-wrap');
+            const githubWrapEl = document.getElementById('board-github-wrap');
+
+            if (githubWrapEl) githubWrapEl.classList.add('hidden');
 
             if (data.filePath) {
                 if (typeFileEl) typeFileEl.checked = true;
@@ -2816,12 +2819,16 @@ document.querySelectorAll('.nav-tab[data-target="tab-informes"]')?.forEach(btn =
     });
 });
 
-// Mostrar/ocultar URL vs File en Tableros según radio
+// Mostrar/ocultar URL vs File vs GitHub en Tableros según radio
 document.querySelectorAll('input[name="board-source-type"]')?.forEach(radio => {
     radio.addEventListener('change', () => {
-        const isUrl = document.getElementById('board-type-url').checked;
-        document.getElementById('board-url-wrap').classList.toggle('hidden', !isUrl);
-        document.getElementById('board-file-wrap').classList.toggle('hidden', isUrl);
+        const val = document.querySelector('input[name="board-source-type"]:checked')?.value || 'url';
+        document.getElementById('board-url-wrap')?.classList.toggle('hidden', val !== 'url');
+        document.getElementById('board-file-wrap')?.classList.toggle('hidden', val !== 'file');
+        document.getElementById('board-github-wrap')?.classList.toggle('hidden', val !== 'github');
+        if (val === 'github') {
+            updateGitHubUI();
+        }
     });
 });
 
