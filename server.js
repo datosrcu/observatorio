@@ -1922,17 +1922,28 @@ app.get('/api/auth/github/callback', async (req, res) => {
                 <h2 style="color: #0284c7;">¡Conexión con GitHub Exitosa!</h2>
                 <p>Bienvenido/a <strong>${userData.login || 'Usuario'}</strong>. Cerrando esta ventana...</p>
                 <script>
-                    if (window.opener) {
-                        window.opener.postMessage({
-                            type: 'GITHUB_AUTH_SUCCESS',
-                            token: ${JSON.stringify(accessToken)},
-                            user: ${JSON.stringify(userData.login || 'GitHub User')},
-                            avatar: ${JSON.stringify(userData.avatar_url || '')}
-                        }, '*');
-                        setTimeout(() => window.close(), 1200);
-                    } else {
-                        document.body.innerHTML = '<h3>Autenticación completada. Ya podés cerrar esta pestaña.</h3>';
+                    const authPayload = {
+                        token: ${JSON.stringify(accessToken)},
+                        user: ${JSON.stringify(userData.login || 'GitHub User')},
+                        avatar: ${JSON.stringify(userData.avatar_url || '')},
+                        ts: Date.now()
+                    };
+
+                    try {
+                        localStorage.setItem('github_auth_event', JSON.stringify(authPayload));
+                    } catch(e) {
+                        console.error("LocalStorage save error", e);
                     }
+
+                    if (window.opener && !window.opener.closed) {
+                        try {
+                            window.opener.postMessage({
+                                type: 'GITHUB_AUTH_SUCCESS',
+                                ...authPayload
+                            }, '*');
+                        } catch(e) {}
+                    }
+                    setTimeout(() => window.close(), 1000);
                 </script>
             </body>
             </html>

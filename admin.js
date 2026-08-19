@@ -3346,21 +3346,67 @@ function updateGitHubUI() {
     }
 }
 
+let githubOAuthInterval = null;
+
+function saveGitHubSession(token, user) {
+    if (!token || !user) return;
+    githubToken = token;
+    githubUser = user;
+    sessionStorage.setItem('github_token', token);
+    sessionStorage.setItem('github_user', user);
+    updateGitHubUI();
+}
+
 function triggerGitHubOAuth() {
+    try {
+        localStorage.removeItem('github_auth_event');
+    } catch(e) {}
+
     const width = 600;
     const height = 700;
     const left = (window.innerWidth - width) / 2;
     const top = (window.innerHeight - height) / 2;
-    window.open('/api/auth/github/login', 'GitHubAuth', `width=${width},height=${height},top=${top},left=${left}`);
+    const popup = window.open('/api/auth/github/login', 'GitHubAuth', `width=${width},height=${height},top=${top},left=${left}`);
+
+    // Polling de fallback en caso de que window.opener se pierda por políticas del navegador
+    if (githubOAuthInterval) clearInterval(githubOAuthInterval);
+    githubOAuthInterval = setInterval(() => {
+        try {
+            const stored = localStorage.getItem('github_auth_event');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed && parsed.token && parsed.user) {
+                    saveGitHubSession(parsed.token, parsed.user);
+                    localStorage.removeItem('github_auth_event');
+                    clearInterval(githubOAuthInterval);
+                    if (popup && !popup.closed) popup.close();
+                }
+            }
+        } catch(e) {}
+    }, 500);
+
+    setTimeout(() => {
+        if (githubOAuthInterval) clearInterval(githubOAuthInterval);
+    }, 120000);
 }
 
 window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'GITHUB_AUTH_SUCCESS') {
-        githubToken = event.data.token;
-        githubUser = event.data.user;
-        sessionStorage.setItem('github_token', githubToken);
-        sessionStorage.setItem('github_user', githubUser);
-        updateGitHubUI();
+        saveGitHubSession(event.data.token, event.data.user);
+        if (githubOAuthInterval) clearInterval(githubOAuthInterval);
+    }
+});
+
+window.addEventListener('storage', (event) => {
+    if (event.key === 'github_auth_event' && event.newValue) {
+        try {
+            const parsed = JSON.parse(event.newValue);
+            if (parsed && parsed.token && parsed.user) {
+                saveGitHubSession(parsed.token, parsed.user);
+                localStorage.removeItem('github_auth_event');
+                if (githubOAuthInterval) clearInterval(githubOAuthInterval);
+            }
+        } catch(e) {}
     }
 });
 
