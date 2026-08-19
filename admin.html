@@ -1006,19 +1006,26 @@
                 <!-- Tipo de contenido -->
                 <div>
                     <label class="block font-medium mb-2">Tipo de contenido</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:border-obelisco-blue has-[:checked]:bg-blue-50/20">
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="flex items-center gap-2 p-2.5 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:border-obelisco-blue has-[:checked]:bg-blue-50/20">
                             <input type="radio" name="board-source-type" value="url" id="board-type-url" checked class="text-obelisco-blue focus:ring-obelisco-blue">
                             <div>
-                                <div class="font-medium text-xs">🔗 URL / Enlace web</div>
-                                <div class="text-[10px] text-gray-400">Looker, PowerBI, Sheets, etc.</div>
+                                <div class="font-medium text-xs">🔗 Enlace web</div>
+                                <div class="text-[10px] text-gray-400">PowerBI, Looker, etc.</div>
                             </div>
                         </label>
-                        <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:border-obelisco-blue has-[:checked]:bg-blue-50/20">
+                        <label class="flex items-center gap-2 p-2.5 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:border-obelisco-blue has-[:checked]:bg-blue-50/20">
                             <input type="radio" name="board-source-type" value="file" id="board-type-file" class="text-obelisco-blue focus:ring-obelisco-blue">
                             <div>
                                 <div class="font-medium text-xs">📄 Subir archivo</div>
-                                <div class="text-[10px] text-gray-400">HTML u otros archivos</div>
+                                <div class="text-[10px] text-gray-400">HTML, ZIP o PDF</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-2 p-2.5 border rounded-lg cursor-pointer hover:bg-gray-50 has-[:checked]:border-obelisco-blue has-[:checked]:bg-blue-50/20">
+                            <input type="radio" name="board-source-type" value="github" id="board-type-github" class="text-obelisco-blue focus:ring-obelisco-blue">
+                            <div>
+                                <div class="font-medium text-xs">🐙 GitHub</div>
+                                <div class="text-[10px] text-gray-400">Repositorio de código</div>
                             </div>
                         </label>
                     </div>
@@ -1044,6 +1051,44 @@
                         <p id="board-file-label" class="text-xs text-gray-500">Arrastrá o hacé clic (HTML, ZIP, PDF, imagen — máx 50MB)</p>
                     </div>
                     <p id="board-current-file" class="text-[10px] text-obelisco-blue mt-1 hidden"></p>
+                </div>
+
+                <!-- GitHub Repository Input -->
+                <div id="board-github-wrap" class="hidden space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-slate-800" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                            Repositorio GitHub
+                        </span>
+                        <div id="github-auth-status" class="text-[11px]">
+                            <button type="button" id="github-connect-btn" class="px-3 py-1 bg-slate-900 hover:bg-black text-white font-bold rounded-lg transition text-xs flex items-center gap-1.5 shadow-sm">
+                                Conectar con GitHub
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="github-controls-wrap" class="hidden space-y-3 pt-2 border-t border-slate-200">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Seleccionar Repositorio <span class="text-red-500">*</span></label>
+                            <select id="field-board-github-repo" class="w-full border border-slate-300 rounded px-3 py-2 text-xs outline-none focus:border-obelisco-blue bg-white">
+                                <option value="">Cargando repositorios...</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">Rama (Branch)</label>
+                                <select id="field-board-github-branch" class="w-full border border-slate-300 rounded px-3 py-2 text-xs outline-none focus:border-obelisco-blue bg-white">
+                                    <option value="main">main</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">Ruta del archivo</label>
+                                <input type="text" id="field-board-github-path" value="index.html" class="w-full border border-slate-300 rounded px-3 py-2 text-xs outline-none focus:border-obelisco-blue" placeholder="index.html">
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-500">Se usará GitHub Pages o servidor CDN para renderizar automáticamente tu código.</p>
+                    </div>
                 </div>
 
                 <div class="flex items-center space-x-2 p-3 bg-blue-50/50 rounded-lg border border-blue-100">

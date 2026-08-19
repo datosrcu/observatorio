@@ -1859,6 +1859,170 @@ app.delete('/api/usuarios/:email', verifyToken, requireRole('admin'), async (req
     }
 });
 
+// ==========================================================
+// 🐙 ENDPOINTS INTEGRACIÓN GITHUB OAUTH & APIS
+// ==========================================================
+
+// 1. Redirigir a GitHub OAuth Login
+app.get('/api/auth/github/login', (req, res) => {
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    if (!clientId) {
+        return res.status(500).send("GITHUB_CLIENT_ID no configurado en servidor.");
+    }
+    const redirectUri = encodeURIComponent(`${req.protocol}://${req.get('host')}/api/auth/github/callback`);
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=repo%20read:user`;
+    res.redirect(githubAuthUrl);
+});
+
+// 2. Callback de GitHub OAuth (postMessage al popup de admin.js)
+app.get('/api/auth/github/callback', async (req, res) => {
+    const { code } = req.query;
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+
+    if (!code) {
+        return res.status(400).send("Falta código de autorización de GitHub.");
+    }
+
+    try {
+        const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                client_id: clientId,
+                client_secret: clientSecret,
+                code: code
+            })
+        });
+
+        const tokenData = await tokenResponse.json();
+        if (tokenData.error) {
+            return res.status(400).send(`Error de GitHub: ${tokenData.error_description || tokenData.error}`);
+        }
+
+        const accessToken = tokenData.access_token;
+
+        // Obtener datos del usuario de GitHub
+        const userResponse = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'User-Agent': 'Observatorio-RioCuarto-App'
+            }
+        });
+        const userData = await userResponse.json();
+
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head><title>GitHub Auth Success</title></head>
+            <body style="font-family: sans-serif; text-align: center; padding: 40px; background: #f9fafb;">
+                <h2 style="color: #0284c7;">¡Conexión con GitHub Exitosa!</h2>
+                <p>Bienvenido/a <strong>${userData.login || 'Usuario'}</strong>. Cerrando esta ventana...</p>
+                <script>
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            type: 'GITHUB_AUTH_SUCCESS',
+                            token: ${JSON.stringify(accessToken)},
+                            user: ${JSON.stringify(userData.login || 'GitHub User')},
+                            avatar: ${JSON.stringify(userData.avatar_url || '')}
+                        }, '*');
+                        setTimeout(() => window.close(), 1200);
+                    } else {
+                        document.body.innerHTML = '<h3>Autenticación completada. Ya podés cerrar esta pestaña.</h3>';
+                    }
+                </script>
+            </body>
+            </html>
+        `);
+    } catch (err) {
+        console.error("Error en callback de GitHub:", err);
+        res.status(500).send("Error al autenticar con GitHub: " + err.message);
+    }
+});
+
+// 3. Obtener repositorios del usuario autenticado en GitHub
+app.get('/api/github/repos', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Token de GitHub no provisto.' });
+    }
+    const token = authHeader.split(' ')[1];
+
+    try {
+        const response = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'User-Agent': 'Observatorio-RioCuarto-App',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+
+        if (!response.ok) {
+            const errData = await response.json();
+            return res.status(response.status).json({ error: errData.message || 'Error consultando GitHub API' });
+        }
+
+        const repos = await response.json();
+        const formatted = repos.map(r => ({
+            id: r.id,
+            name: r.name,
+            full_name: r.full_name,
+            owner: r.owner?.login,
+            private: r.private,
+            default_branch: r.default_branch || 'main',
+            html_url: r.html_url,
+            has_pages: r.has_pages
+        }));
+
+        res.json(formatted);
+    } catch (err) {
+        console.error("Error fetching GitHub repos:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 4. Obtener ramas de un repositorio de GitHub
+app.get('/api/github/branches', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    const { owner, repo } = req.query;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Token de GitHub no provisto.' });
+    }
+    if (!owner || !repo) {
+        return res.status(400).json({ error: 'Faltan parámetros de consulta: owner, repo.' });
+    }
+    const token = authHeader.split(' ')[1];
+
+    try {
+        const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches?per_page=100`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'User-Agent': 'Observatorio-RioCuarto-App',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+
+        if (!response.ok) {
+            const errData = await response.json();
+            return res.status(response.status).json({ error: errData.message || 'Error consultando ramas de GitHub' });
+        }
+
+        const branches = await response.json();
+        const formatted = branches.map(b => ({
+            name: b.name
+        }));
+
+        res.json(formatted);
+    } catch (err) {
+        console.error("Error fetching GitHub branches:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Ruta para el Admin
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));

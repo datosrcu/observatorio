@@ -1450,6 +1450,8 @@ addBoardBtn?.addEventListener('click', () => {
     if (urlWrapEl) urlWrapEl.classList.remove('hidden');
     const fileWrapEl = document.getElementById('board-file-wrap');
     if (fileWrapEl) fileWrapEl.classList.add('hidden');
+    const githubWrapEl = document.getElementById('board-github-wrap');
+    if (githubWrapEl) githubWrapEl.classList.add('hidden');
     const fileInputEl = document.getElementById('field-board-file');
     if (fileInputEl) fileInputEl.value = '';
     const fileLabelEl = document.getElementById('board-file-label');
@@ -1516,6 +1518,27 @@ boardForm?.addEventListener('submit', async (e) => {
 
         if (sourceType === 'url') {
             formData.append('iframe_url', urlVal);
+        } else if (sourceType === 'github') {
+            const repoVal = document.getElementById('field-board-github-repo')?.value;
+            const branchVal = document.getElementById('field-board-github-branch')?.value || 'main';
+            const pathVal = document.getElementById('field-board-github-path')?.value.trim() || 'index.html';
+
+            if (!repoVal) {
+                alert('Por favor seleccioná un repositorio de GitHub.');
+                isSubmitting = false;
+                return;
+            }
+
+            const [owner, name] = repoVal.split('/');
+            const selectedRepoOpt = document.getElementById('field-board-github-repo')?.options[document.getElementById('field-board-github-repo').selectedIndex];
+            const hasPages = selectedRepoOpt?.getAttribute('data-pages') === 'true';
+
+            let ghUrl = `https://${owner}.github.io/${name}/${pathVal}`;
+            if (!hasPages) {
+                ghUrl = `https://raw.githack.com/${repoVal}/${branchVal}/${pathVal}`;
+            }
+
+            formData.append('iframe_url', ghUrl);
         } else if (fileInput && fileInput.files[0]) {
             formData.append('archivo', fileInput.files[0]);
         }
@@ -3215,3 +3238,151 @@ document.getElementById('save-permissions-btn')?.addEventListener('click', async
         if (saveBtn) saveBtn.disabled = false;
     }
 });
+
+// ==========================================================
+// 🐙 GITHUB INTEGRATION LOGIC FOR BOARD MODAL
+// ==========================================================
+let githubToken = sessionStorage.getItem('github_token') || null;
+let githubUser = sessionStorage.getItem('github_user') || null;
+let githubReposCache = [];
+
+function initGitHubBoardControls() {
+    const boardUrlWrap = document.getElementById('board-url-wrap');
+    const boardFileWrap = document.getElementById('board-file-wrap');
+    const boardGithubWrap = document.getElementById('board-github-wrap');
+    const boardSourceRadios = document.querySelectorAll('input[name="board-source-type"]');
+
+    boardSourceRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (radio.value === 'url') {
+                boardUrlWrap?.classList.remove('hidden');
+                boardFileWrap?.classList.add('hidden');
+                boardGithubWrap?.classList.add('hidden');
+            } else if (radio.value === 'file') {
+                boardUrlWrap?.classList.add('hidden');
+                boardFileWrap?.classList.remove('hidden');
+                boardGithubWrap?.classList.add('hidden');
+            } else if (radio.value === 'github') {
+                boardUrlWrap?.classList.add('hidden');
+                boardFileWrap?.classList.add('hidden');
+                boardGithubWrap?.classList.remove('hidden');
+                updateGitHubUI();
+            }
+        });
+    });
+
+    document.getElementById('field-board-github-repo')?.addEventListener('change', async (e) => {
+        const fullName = e.target.value;
+        const branchSelect = document.getElementById('field-board-github-branch');
+        if (!fullName || !branchSelect || !githubToken) return;
+
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        const owner = selectedOption.getAttribute('data-owner');
+        const name = selectedOption.getAttribute('data-name');
+        const defaultBranch = selectedOption.getAttribute('data-branch') || 'main';
+
+        branchSelect.innerHTML = `<option value="${defaultBranch}">${defaultBranch}</option>`;
+
+        try {
+            const res = await fetch(`/api/github/branches?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(name)}`, {
+                headers: { 'Authorization': `Bearer ${githubToken}` }
+            });
+            if (res.ok) {
+                const branches = await res.json();
+                branchSelect.innerHTML = branches.map(b => `<option value="${b.name}" ${b.name === defaultBranch ? 'selected' : ''}>${b.name}</option>`).join('');
+            }
+        } catch (err) {
+            console.warn("Could not fetch branches:", err);
+        }
+    });
+}
+
+function updateGitHubUI() {
+    const authStatusEl = document.getElementById('github-auth-status');
+    const controlsWrap = document.getElementById('github-controls-wrap');
+
+    if (githubToken && githubUser) {
+        if (authStatusEl) {
+            authStatusEl.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                        @${githubUser}
+                    </span>
+                    <button type="button" id="github-disconnect-btn" class="text-xs text-red-600 hover:underline font-medium">Desconectar</button>
+                </div>
+            `;
+            document.getElementById('github-disconnect-btn')?.addEventListener('click', () => {
+                githubToken = null;
+                githubUser = null;
+                sessionStorage.removeItem('github_token');
+                sessionStorage.removeItem('github_user');
+                updateGitHubUI();
+            });
+        }
+        if (controlsWrap) {
+            controlsWrap.classList.remove('hidden');
+            loadGitHubRepos();
+        }
+    } else {
+        if (authStatusEl) {
+            authStatusEl.innerHTML = `
+                <button type="button" id="github-connect-btn" class="px-3 py-1 bg-slate-900 hover:bg-black text-white font-bold rounded-lg transition text-xs flex items-center gap-1.5 shadow-sm">
+                    Conectar con GitHub
+                </button>
+            `;
+            document.getElementById('github-connect-btn')?.addEventListener('click', triggerGitHubOAuth);
+        }
+        if (controlsWrap) {
+            controlsWrap.classList.add('hidden');
+        }
+    }
+}
+
+function triggerGitHubOAuth() {
+    const width = 600;
+    const height = 700;
+    const left = (window.innerWidth - width) / 2;
+    const top = (window.innerHeight - height) / 2;
+    window.open('/api/auth/github/login', 'GitHubAuth', `width=${width},height=${height},top=${top},left=${left}`);
+}
+
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'GITHUB_AUTH_SUCCESS') {
+        githubToken = event.data.token;
+        githubUser = event.data.user;
+        sessionStorage.setItem('github_token', githubToken);
+        sessionStorage.setItem('github_user', githubUser);
+        updateGitHubUI();
+    }
+});
+
+async function loadGitHubRepos() {
+    const repoSelect = document.getElementById('field-board-github-repo');
+    if (!repoSelect || !githubToken) return;
+
+    repoSelect.innerHTML = '<option value="">Cargando repositorios...</option>';
+    try {
+        const res = await fetch('/api/github/repos', {
+            headers: { 'Authorization': `Bearer ${githubToken}` }
+        });
+        if (!res.ok) throw new Error('Error al obtener repositorios');
+        const repos = await res.json();
+        githubReposCache = repos;
+
+        if (repos.length === 0) {
+            repoSelect.innerHTML = '<option value="">No se encontraron repositorios</option>';
+            return;
+        }
+
+        repoSelect.innerHTML = '<option value="">-- Seleccionar Repositorio --</option>' + 
+            repos.map(r => `<option value="${r.full_name}" data-owner="${r.owner}" data-name="${r.name}" data-branch="${r.default_branch}" data-pages="${r.has_pages}">${r.full_name} ${r.private ? '🔒' : '🌐'}</option>`).join('');
+    } catch (err) {
+        console.error("Error loading repos:", err);
+        repoSelect.innerHTML = `<option value="">Error: ${err.message}</option>`;
+    }
+}
+
+// Inicializar controles de GitHub
+initGitHubBoardControls();
+
