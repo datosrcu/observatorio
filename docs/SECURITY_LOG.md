@@ -1,9 +1,9 @@
 # Bitácora de seguridad — Observatorio de Gestión Municipal (OGM)
 
-## [RESUELTO PARCIALMENTE — URGENTE, VERIFICAR CREDENCIAL] Integración GitHub sin control de acceso y token de GitHub persistido en la base
+## [RESUELTO PARCIALMENTE — CREDENCIAL YA SANEADA, REDISEÑO PENDIENTE] Integración GitHub sin control de acceso y token de GitHub persistido en la base
 
 - **Severidad**: Crítica.
-- **Estado**: Se cerró el acceso anónimo a las rutas `/api/github/*`. **No se resolvió** que el token de OAuth de GitHub (permiso `repo`, lectura y escritura) viaje en la URL y quede guardado en `tableros.iframe_url` — eso es un rediseño aparte, pendiente de charlar con quien desarrolló la función.
+- **Estado**: Se cerró el acceso anónimo a las rutas `/api/github/*`. La credencial potencialmente filtrada ya fue saneada (ver actualización del 2026-08-21, al final de esta entrada). **No se resolvió** que el token de OAuth de GitHub (permiso `repo`, lectura y escritura) viaje en la URL y quede guardado en `tableros.iframe_url` — eso es un rediseño aparte, pendiente de charlar con quien desarrolló la función.
 - **Dónde**: `server.js` (rutas `/api/auth/github/*`, `/api/github/*`), `admin.js` (modal de tableros, opción "GitHub").
 
 **Hallazgo**: al mergear una función nueva (conectar un repositorio de GitHub como fuente de un tablero, desarrollada en paralelo), se encontró que:
@@ -24,6 +24,10 @@ Es la misma familia de problema que motivó todo este trabajo (contenido servido
 **Explícitamente fuera de esta corrección — pendiente como rediseño**: el token de GitHub sigue viajando en la URL y guardándose en `tableros.iframe_url`, y sigue en `localStorage`. La corrección de fondo (no persistir el token; usar una credencial manejada por el servidor, ej. una GitHub App instalada con permisos acotados en vez de OAuth personal con scope `repo` completo) requiere decisiones de producto que no se tomaron unilateralmente acá — a definir con quien desarrolló la función.
 
 **Acción urgente, independiente del código**: si esta función se llegó a usar (se creó algún tablero con fuente GitHub) en cualquier ambiente donde el token ya haya podido circular, ese token debería revocarse/regenerarse desde GitHub (Settings → Applications → Authorized OAuth Apps), sin esperar a que se despliegue el fix — el token ya emitido no se invalida solo. **A confirmar con el equipo si esto llegó a ocurrir en producción.**
+
+**Actualización (2026-08-21)**: se generó un nuevo `GITHUB_CLIENT_SECRET` desde la OAuth App de GitHub (Client ID `Iv23li0bqEQeesaUVaoA`), cargado en las variables de entorno de Dokploy (dev y producción) y redesplegado — el servidor ya corre con el secreto nuevo. Además, se usó el botón **"Revoke all user tokens"** (pestaña Advanced de la OAuth App), que invalida de una todos los tokens de acceso emitidos hasta ese momento por esa app, para cualquier usuario — no solo el de quien conectó la cuenta. Con esto, cualquier token que hubiera quedado guardado en `tableros.iframe_url` o en `localStorage` antes de esta fecha ya no sirve. Cualquier admin que use la función de tableros con fuente GitHub va a tener que reconectar su cuenta.
+
+**Sigue pendiente, sin cambios**: el rediseño de fondo — que el token no viaje en la URL ni quede en `tableros.iframe_url`/`localStorage`. Esto era mitigación de la credencial expuesta, no una corrección del problema estructural descripto arriba.
 
 ---
 
