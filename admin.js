@@ -1384,11 +1384,19 @@ function filterAndRenderBoards() {
             const currentFileEl = document.getElementById('board-current-file');
             const typeUrlEl = document.getElementById('board-type-url');
             const typeFileEl = document.getElementById('board-type-file');
+            const typeGithubEl = document.getElementById('board-type-github');
             const urlWrapEl = document.getElementById('board-url-wrap');
             const fileWrapEl = document.getElementById('board-file-wrap');
             const githubWrapEl = document.getElementById('board-github-wrap');
 
             if (githubWrapEl) githubWrapEl.classList.add('hidden');
+
+            // Un tablero de fuente GitHub se guarda con iframe_url apuntando a
+            // /api/github/proxy/{owner}/{repo}/{branch}/{path...} (más ?token=...).
+            // Si matchea ese patrón, es un tablero de GitHub aunque no tenga filePath.
+            const githubMatch = (!data.filePath && typeof data.iframeUrl === 'string')
+                ? data.iframeUrl.match(/^\/api\/github\/proxy\/([^/]+)\/([^/]+)\/([^/]+)\/([^?]+)/)
+                : null;
 
             if (data.filePath) {
                 if (typeFileEl) typeFileEl.checked = true;
@@ -1399,6 +1407,23 @@ function filterAndRenderBoards() {
                     currentFileEl.classList.remove('hidden');
                 }
                 fieldBoardUrl.value = '';
+            } else if (githubMatch) {
+                const [, ghOwner, ghRepo, ghBranch, ghPathRaw] = githubMatch;
+                if (typeGithubEl) typeGithubEl.checked = true;
+                if (urlWrapEl) urlWrapEl.classList.add('hidden');
+                if (fileWrapEl) fileWrapEl.classList.add('hidden');
+                if (githubWrapEl) githubWrapEl.classList.remove('hidden');
+                if (currentFileEl) {
+                    currentFileEl.textContent = '';
+                    currentFileEl.classList.add('hidden');
+                }
+                fieldBoardUrl.value = '';
+                const pathInputEl = document.getElementById('field-board-github-path');
+                if (pathInputEl) pathInputEl.value = decodeURIComponent(ghPathRaw);
+                // Se resuelve (repo seleccionado + rama) apenas la lista de repos
+                // esté disponible — ver pendingGithubPreselect en loadGitHubRepos().
+                pendingGithubPreselect = { repoFullName: `${ghOwner}/${ghRepo}`, branch: ghBranch };
+                updateGitHubUI();
             } else {
                 if (typeUrlEl) typeUrlEl.checked = true;
                 if (urlWrapEl) urlWrapEl.classList.remove('hidden');
@@ -3256,6 +3281,11 @@ document.getElementById('save-permissions-btn')?.addEventListener('click', async
 let githubToken = sessionStorage.getItem('github_token') || null;
 let githubUser = sessionStorage.getItem('github_user') || null;
 let githubReposCache = [];
+// Cuando se abre "Editar" sobre un tablero de fuente GitHub, se guarda acá
+// qué repo/rama había que preseleccionar — se consume en loadGitHubRepos()
+// apenas la lista de repositorios esté disponible (puede ser inmediato, o
+// recién cuando el admin haga clic en "Conectar con GitHub").
+let pendingGithubPreselect = null;
 
 function initGitHubBoardControls() {
     const boardUrlWrap = document.getElementById('board-url-wrap');
@@ -3444,11 +3474,50 @@ async function loadGitHubRepos() {
             return;
         }
 
-        repoSelect.innerHTML = '<option value="">-- Seleccionar Repositorio --</option>' + 
+        repoSelect.innerHTML = '<option value="">-- Seleccionar Repositorio --</option>' +
             repos.map(r => `<option value="${r.full_name}" data-owner="${r.owner}" data-name="${r.name}" data-branch="${r.default_branch}" data-pages="${r.has_pages}">${r.full_name} ${r.private ? '🔒' : '🌐'}</option>`).join('');
+
+        if (pendingGithubPreselect) {
+            await applyPendingGithubPreselect(repoSelect);
+        }
     } catch (err) {
         console.error("Error loading repos:", err);
         repoSelect.innerHTML = `<option value="">Error: ${err.message}</option>`;
+    }
+}
+
+// Aplica la selección de repo/rama pendiente (ver pendingGithubPreselect) una
+// vez que el <select> de repositorios ya tiene las opciones cargadas.
+async function applyPendingGithubPreselect(repoSelect) {
+    const { repoFullName, branch } = pendingGithubPreselect;
+    pendingGithubPreselect = null;
+
+    const optionExists = Array.from(repoSelect.options).some(o => o.value === repoFullName);
+    if (!optionExists) return;
+
+    repoSelect.value = repoFullName;
+    const branchSelect = document.getElementById('field-board-github-branch');
+    if (!branchSelect) return;
+
+    branchSelect.innerHTML = `<option value="${branch}">${branch}</option>`;
+
+    try {
+        const selectedOption = repoSelect.options[repoSelect.selectedIndex];
+        const owner = selectedOption.getAttribute('data-owner');
+        const name = selectedOption.getAttribute('data-name');
+        const observatorioToken = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+        const res = await fetch(`/api/github/branches?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(name)}`, {
+            headers: {
+                'Authorization': `Bearer ${githubToken}`,
+                'X-Observatorio-Token': observatorioToken || ''
+            }
+        });
+        if (res.ok) {
+            const branches = await res.json();
+            branchSelect.innerHTML = branches.map(b => `<option value="${b.name}" ${b.name === branch ? 'selected' : ''}>${b.name}</option>`).join('');
+        }
+    } catch (err) {
+        console.warn("No se pudieron recargar las ramas al preseleccionar:", err);
     }
 }
 

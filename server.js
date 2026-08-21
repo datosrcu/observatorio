@@ -1585,8 +1585,8 @@ app.post('/api/tableros', verifyToken, requireRole('admin'), uploadTableros.sing
                 filePath = `/uploads/tableros/${req.file.filename}`;
                 finalIframeUrl = filePath;
             }
-        } else if (source_type === 'url') {
-            // Eliminar archivo viejo si cambia a URL
+        } else if (source_type === 'url' || source_type === 'github') {
+            // Eliminar archivo viejo si cambia a URL o GitHub
             if (existing && existing.file_path) {
                 const oldPath = path.join(__dirname, existing.file_path);
                 if (existing.file_path.includes('/project_')) {
