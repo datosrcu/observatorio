@@ -3295,8 +3295,12 @@ function initGitHubBoardControls() {
         branchSelect.innerHTML = `<option value="${defaultBranch}">${defaultBranch}</option>`;
 
         try {
+            const observatorioToken = auth.currentUser ? await auth.currentUser.getIdToken() : null;
             const res = await fetch(`/api/github/branches?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(name)}`, {
-                headers: { 'Authorization': `Bearer ${githubToken}` }
+                headers: {
+                    'Authorization': `Bearer ${githubToken}`,
+                    'X-Observatorio-Token': observatorioToken || ''
+                }
             });
             if (res.ok) {
                 const branches = await res.json();
@@ -3424,8 +3428,12 @@ async function loadGitHubRepos() {
 
     repoSelect.innerHTML = '<option value="">Cargando repositorios...</option>';
     try {
+        const observatorioToken = auth.currentUser ? await auth.currentUser.getIdToken() : null;
         const res = await fetch('/api/github/repos', {
-            headers: { 'Authorization': `Bearer ${githubToken}` }
+            headers: {
+                'Authorization': `Bearer ${githubToken}`,
+                'X-Observatorio-Token': observatorioToken || ''
+            }
         });
         if (!res.ok) throw new Error('Error al obtener repositorios');
         const repos = await res.json();

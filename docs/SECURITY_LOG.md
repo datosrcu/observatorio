@@ -1,5 +1,32 @@
 # Bitácora de seguridad — Observatorio de Gestión Municipal (OGM)
 
+## [RESUELTO PARCIALMENTE — URGENTE, VERIFICAR CREDENCIAL] Integración GitHub sin control de acceso y token de GitHub persistido en la base
+
+- **Severidad**: Crítica.
+- **Estado**: Se cerró el acceso anónimo a las rutas `/api/github/*`. **No se resolvió** que el token de OAuth de GitHub (permiso `repo`, lectura y escritura) viaje en la URL y quede guardado en `tableros.iframe_url` — eso es un rediseño aparte, pendiente de charlar con quien desarrolló la función.
+- **Dónde**: `server.js` (rutas `/api/auth/github/*`, `/api/github/*`), `admin.js` (modal de tableros, opción "GitHub").
+
+**Hallazgo**: al mergear una función nueva (conectar un repositorio de GitHub como fuente de un tablero, desarrollada en paralelo), se encontró que:
+
+1. `GET /api/github/proxy/:owner/:repo/:branch/*` no tenía ningún control de acceso — ni de sesión del Observatorio, ni de rol. Es la ruta que efectivamente sirve el contenido dentro del iframe del tablero.
+2. Al crear un tablero con fuente GitHub, `admin.js` arma la URL con el token de OAuth del admin incluido como query string (`?token=...`) y esa URL completa —token adentro— se guarda tal cual en `tableros.iframe_url`. Cada vez que se pide la lista de tableros, ese token vuelve a viajar en la respuesta.
+3. El token de OAuth solicitado tiene scope `repo` (lectura **y escritura** de todos los repositorios del usuario, públicos y privados), no un scope acotado de solo lectura.
+4. El mismo token queda además en `localStorage` del navegador (`github_auth_event`), legible por cualquier script que corra en esa página.
+
+Es la misma familia de problema que motivó todo este trabajo (contenido servido sin control, gobernado solo por quién conoce la URL) pero con un agravante: lo que se filtra no es un tablero municipal, es una credencial con permiso de escritura sobre repositorios de GitHub.
+
+**Remediación aplicada** (alcance acotado, ver más abajo):
+
+- `GET /api/github/proxy/...`: ahora exige el mismo token de acceso firmado que ya protege `/uploads` (`githubProxyGuard` en `server.js`), resuelto por prefijo `owner/repo/branch` contra la fila de `tableros` correspondiente. Si el tablero es público (`require_login = 0`), se sirve igual que antes. Si es confidencial, exige el token — sin él, 403. Si no hay ningún tablero conocido con ese prefijo, se bloquea por defecto (a diferencia de `/uploads`, acá "no reconocido" no es un archivo huérfano inofensivo: es una ruta capaz de relayar cualquier contenido de GitHub).
+- `GET /api/github/repos` y `GET /api/github/branches`: ya usaban el header `Authorization` para el token de GitHub, así que no podían llevar además el token de sesión del Observatorio ahí. Se agregó un segundo header, `X-Observatorio-Token`, validado con un middleware nuevo (`requireRoleViaHeader`) que exige rol `admin`. Cambio correspondiente en los dos `fetch` de `admin.js` que llaman a estas rutas.
+- `/api/auth/github/login` y `/api/auth/github/callback` **quedaron sin tocar**, a propósito: se abren como ventana emergente y no pueden llevar el token del Observatorio. El riesgo ahí es menor (en el peor caso, alguien inicia el consentimiento de OAuth de GitHub para su propia cuenta, no la del Observatorio) — evaluar si vale la pena cerrarlas en una siguiente pasada.
+
+**Explícitamente fuera de esta corrección — pendiente como rediseño**: el token de GitHub sigue viajando en la URL y guardándose en `tableros.iframe_url`, y sigue en `localStorage`. La corrección de fondo (no persistir el token; usar una credencial manejada por el servidor, ej. una GitHub App instalada con permisos acotados en vez de OAuth personal con scope `repo` completo) requiere decisiones de producto que no se tomaron unilateralmente acá — a definir con quien desarrolló la función.
+
+**Acción urgente, independiente del código**: si esta función se llegó a usar (se creó algún tablero con fuente GitHub) en cualquier ambiente donde el token ya haya podido circular, ese token debería revocarse/regenerarse desde GitHub (Settings → Applications → Authorized OAuth Apps), sin esperar a que se despliegue el fix — el token ya emitido no se invalida solo. **A confirmar con el equipo si esto llegó a ocurrir en producción.**
+
+---
+
 Registro cronológico (más reciente primero) de hallazgos de seguridad, su análisis y su remediación. Este archivo documenta *cómo se llegó* al estado descrito en `SECURITY_POLICY.md` — ese otro documento describe el estado vigente; este describe la historia.
 
 Cada entrada indica: qué se encontró, por qué importa, qué se hizo (o qué falta hacer), y dónde verificarlo.

@@ -86,3 +86,14 @@ Detalle de la corrección en `SECURITY_LOG.md`. Queda como nota, no como excepci
 Existe una tabla `logs_actividad` que registra navegación, clics y recursos abiertos, asociados a usuario y timestamp. **Verificado**: estos eventos los reporta el propio navegador del cliente (`POST /api/log-actividad`, con `action` y `details` provistos por el cliente) — no son un registro autoritativo del servidor. Un usuario puede evitar que se registre una acción simplemente no llamando a ese endpoint. Hoy, `logs_actividad` sirve como métrica de uso, no como evidencia de auditoría ante un incidente.
 
 La trazabilidad real de accesos a tableros protegidos quedará resuelta cuando se implemente la ruta guardada de la Sección 4: ese es el punto natural para que el propio servidor registre, de forma autoritativa, cada concesión de acceso.
+
+## 10. Integración con GitHub como fuente de tableros — ⚠️ Implementado con excepción conocida, importante
+
+Permite conectar una cuenta de GitHub y usar un archivo de un repositorio (rama y ruta específicas) como fuente de un tablero, servido a través de `/api/github/proxy/...`.
+
+- **Acceso a la ruta que sirve el contenido**: protegido con el mismo token de acceso firmado que `/uploads` (Sección 4) — sin sesión válida y permiso sobre ese tablero específico, no se puede acceder a un tablero confidencial de fuente GitHub.
+- **Gestión de repositorios/ramas desde el panel** (`/api/github/repos`, `/api/github/branches`): requieren sesión de administrador del Observatorio, además del token de GitHub.
+
+**Excepción importante, sin resolver**: el token de autorización de GitHub (permiso `repo`, lectura y escritura sobre todos los repositorios del usuario) se guarda hoy dentro de `tableros.iframe_url` y también en `localStorage` del navegador. No hay, todavía, un diseño donde ese token quede exclusivamente del lado del servidor. Mientras esto no se resuelva, cualquiera con acceso de administrador al Observatorio —o cualquiera que consiga ese `iframe_url`— tiene, en los hechos, ese token. Ver `SECURITY_LOG.md` para el detalle y la recomendación de revocar el token si la función ya se usó.
+
+**Recomendación operativa mientras tanto**: usar esta función con una cuenta de GitHub dedicada, con acceso acotado solo a los repositorios que realmente se vayan a usar como tableros — no con la cuenta personal de un administrador con acceso a otros repositorios de la organización.

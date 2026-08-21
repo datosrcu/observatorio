@@ -44,9 +44,12 @@ function verifyTableroAccess(resourceId, expiresAt, signature) {
     }
 }
 
-// Agrega un token de acceso de corta duración a una URL /uploads/... existente.
+// Agrega un token de acceso de corta duración a una URL de contenido propio
+// (/uploads/... o /api/github/proxy/...) existente. Otras URLs (externas, tipo
+// Looker Studio o Power BI) quedan sin tocar.
+const PROTECTABLE_URL_PREFIXES = ['/uploads/', '/api/github/proxy/'];
 function withAccessToken(url, resourceId) {
-    if (!url || !String(url).startsWith('/uploads/')) return url;
+    if (!url || !PROTECTABLE_URL_PREFIXES.some(p => String(url).startsWith(p))) return url;
     const expiresAt = Date.now() + TABLERO_ACCESS_TTL_MS;
     const sig = signTableroAccess(resourceId, expiresAt);
     if (!sig) return url; // sin secreto configurado: no se puede firmar, se deja como está
@@ -514,6 +517,55 @@ const requireRole = (...allowedRoles) => {
             }
             console.error('Error al verificar rol de usuario en DB:', error);
             return res.status(500).json({ error: 'Error interno al verificar permisos de acceso.' });
+        }
+    };
+};
+
+// Variante de requireRole para rutas donde el header Authorization ya está
+// ocupado por un token de un tercero (ej. GitHub) y no puede llevar, además,
+// el token de sesión del Observatorio. Ese token viaja en un header propio
+// (X-Observatorio-Token) y se verifica acá de forma independiente — no depende
+// de que verifyToken haya corrido antes.
+const requireRoleViaHeader = (headerName, ...allowedRoles) => {
+    return async (req, res, next) => {
+        const idToken = req.headers[headerName.toLowerCase()];
+        if (!idToken) {
+            return res.status(401).json({ error: `Falta el header ${headerName} con la sesión del Observatorio.` });
+        }
+
+        let connection;
+        try {
+            const decoded = await admin.auth().verifyIdToken(idToken);
+            const email = decoded.email;
+            if (!email) {
+                return res.status(401).json({ error: 'Token de sesión sin email asociado.' });
+            }
+
+            connection = await getDbConnection();
+            const [rows] = await connection.query(
+                'SELECT role FROM usuarios_perfiles WHERE LOWER(email) = LOWER(?)',
+                [email]
+            );
+            await connection.end();
+
+            if (!rows || rows.length === 0) {
+                return res.status(403).json({ error: 'Acceso denegado: Usuario no registrado en la base de datos.' });
+            }
+
+            const userRole = (rows[0].role || 'usuario').toLowerCase();
+            const normalizedAllowed = allowedRoles.map(r => r.toLowerCase());
+            if (!normalizedAllowed.includes(userRole)) {
+                return res.status(403).json({ error: `Acceso denegado: Se requieren privilegios de ${allowedRoles.join(' o ')}.` });
+            }
+
+            req.observatorioUser = { email, role: userRole };
+            next();
+        } catch (error) {
+            if (connection) {
+                try { await connection.end(); } catch (e) {}
+            }
+            console.error(`Error al verificar sesión vía ${headerName}:`, error.message);
+            return res.status(403).json({ error: 'Sesión del Observatorio inválida o expirada.' });
         }
     };
 };
@@ -2146,7 +2198,7 @@ app.get('/api/auth/github/callback', async (req, res) => {
 });
 
 // 3. Obtener repositorios del usuario autenticado en GitHub
-app.get('/api/github/repos', async (req, res) => {
+app.get('/api/github/repos', requireRoleViaHeader('X-Observatorio-Token', 'admin'), async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Token de GitHub no provisto.' });
@@ -2187,7 +2239,7 @@ app.get('/api/github/repos', async (req, res) => {
 });
 
 // 4. Obtener ramas de un repositorio de GitHub
-app.get('/api/github/branches', async (req, res) => {
+app.get('/api/github/branches', requireRoleViaHeader('X-Observatorio-Token', 'admin'), async (req, res) => {
     const authHeader = req.headers.authorization;
     const { owner, repo } = req.query;
 
@@ -2226,7 +2278,67 @@ app.get('/api/github/branches', async (req, res) => {
 });
 
 // 5. Proxy para servir archivos de repositorios públicos o privados de GitHub dentro del iframe
-app.get('/api/github/proxy/:owner/:repo/:branch/*', async (req, res) => {
+// Guardia del proxy de GitHub: exige el mismo token de acceso firmado que
+// protege /uploads para cualquier tablero con require_login = 1. Se aplica
+// por prefijo (owner/repo/branch), no por archivo exacto, para no romper los
+// recursos internos (css/js/imágenes) que la página cargue por rutas relativas.
+// Nota importante: esto NO resuelve que el token de GitHub siga viajando en la
+// URL — eso queda pendiente como rediseño aparte (ver docs/SECURITY_LOG.md).
+// Si ningún tablero conocido coincide con owner/repo/branch, se bloquea por
+// defecto: a diferencia de /uploads, acá "no reconocido" no es un archivo
+// huérfano inofensivo, es una ruta capaz de relayar contenido arbitrario de
+// GitHub — no conviene dejarla pasar sin más.
+async function githubProxyGuard(req, res, next) {
+    const { owner, repo, branch } = req.params;
+    const prefix = `/api/github/proxy/${owner}/${repo}/${branch}/`;
+    // Escapar comodines de LIKE (% _ \) para que un nombre de repo/rama con
+    // guion bajo no matchee de más contra otro tablero.
+    const escapedPrefix = prefix.replace(/[\\%_]/g, '\\$&');
+    try {
+        const row = await getCached(`ghtablero:${prefix}`, async () => {
+            const connection = await getDbConnection();
+            const [[r]] = await connection.execute(
+                "SELECT id, require_login FROM tableros WHERE iframe_url LIKE CONCAT(?, '%') LIMIT 1",
+                [escapedPrefix]
+            );
+            await connection.end();
+            return r || null;
+        });
+
+        if (!row) {
+            return res.status(404).send('Recurso no vinculado a ningún tablero activo.');
+        }
+
+        if (!row.require_login) {
+            return next(); // tablero público: mismo comportamiento que hoy
+        }
+
+        const { t, exp } = req.query;
+        if (!verifyTableroAccess(row.id, exp, t)) {
+            return res.status(403).send('Acceso no autorizado.');
+        }
+
+        getDbConnection().then(async (connection) => {
+            try {
+                await connection.execute(
+                    'INSERT INTO logs_actividad (user_uid, action, details, ip_address) VALUES (?, ?, ?, ?)',
+                    ['(token-github-proxy)', 'acceso_tablero_github', JSON.stringify({ resourceId: row.id, owner, repo, branch }), req.ip || req.headers['x-forwarded-for'] || null]
+                );
+            } catch (e) {
+                console.error('Error registrando acceso autoritativo (github proxy):', e);
+            } finally {
+                await connection.end();
+            }
+        }).catch(() => {});
+
+        next();
+    } catch (e) {
+        console.error('Error validando acceso a /api/github/proxy:', e);
+        return res.status(500).send('Error interno.');
+    }
+}
+
+app.get('/api/github/proxy/:owner/:repo/:branch/*', githubProxyGuard, async (req, res) => {
     const { owner, repo, branch } = req.params;
     let filePath = req.params[0] || 'index.html';
 
