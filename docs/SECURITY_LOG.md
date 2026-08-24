@@ -51,7 +51,7 @@ Cada entrada indica: qué se encontró, por qué importa, qué se hizo (o qué f
 
 ---
 
-## [EN CURSO] Atlas Estadístico y Monitor RCU: contenido migrado de ruta estática pública a tableros gestionados con control de acceso
+## [RESUELTO] Atlas Estadístico y Monitor RCU: contenido migrado de ruta estática pública a tableros gestionados con control de acceso
 
 - **Severidad**: Media (contenido con `require_login = 1` servido en la práctica por una ruta pública).
 - **Estado**: Cambio de mecanismo implementado; migración del contenido pendiente de hacer a mano desde el panel admin.
@@ -64,6 +64,8 @@ Cada entrada indica: qué se encontró, por qué importa, qué se hizo (o qué f
 2. El guardado desde "Atlas y Monitores" pasó de `POST /api/tableros` (que pisaba título, categorías, orden y URL) a `PATCH /api/tableros/:id` enviando únicamente campos de permisos (`enabled`, `require_login`, `allowed_users`). El contenido se gestiona exclusivamente desde la edición estándar de Tableros.
 
 **Migración pendiente (manual)**: subir el contenido actual de ambos tableros vía Panel Admin → Tableros → Editar (archivo/ZIP/URL/GitHub). Al quedar servidos por `/uploads` con `require_login = 1`, pasan a exigir token firmado como el resto. Una vez confirmada la migración de ambos, **eliminar `/atlas y monitor/` de `PUBLIC_STATIC_PREFIXES`** en `server.js` para cerrar la ruta pública vieja.
+
+**Cierre**: contenido de ambos tableros subido vía panel admin y verificado en producción (abren respetando el candado). Se eliminó `/atlas y monitor/` de `PUBLIC_STATIC_PREFIXES`: los archivos viejos de esa carpeta ya no se sirven por el filtro de estáticos; cualquier request a esas rutas devuelve 404. El contenido vive únicamente bajo `/uploads` con control de acceso.
 
 ---
 

@@ -62,7 +62,7 @@ Se agregó un filtro previo que:
 
 - Bloquea explícitamente una lista de archivos sensibles conocidos (`server.js`, `migrate.js`, `evaluar-db.js`, `test-admin.js`, `test-mock.js`, `package.json`, `package-lock.json`, `Dockerfile`, `.env`, `.gitignore`, `docker-compose.yml`).
 - Bloquea por defecto cualquier archivo `.js`, `.py`, `.sh` o `.sql` que no esté en la lista explícita de archivos públicos permitidos (`admin.js`, `auth.js`, `firebase-config.js`, `requests.js`, entre otros — confirmados como scripts de cliente, referenciados con `<script src>` desde las páginas HTML).
-- Permite explícitamente los prefijos `recursos/`, `normativas/` y `atlas y monitor/`.
+- Permite explícitamente los prefijos `recursos/` y `normativas/`. (El prefijo `atlas y monitor/` existió hasta la migración del Atlas Estadístico y el Monitor RCU al mecanismo de tableros con control de acceso — ver `SECURITY_LOG.md`; hoy esa ruta está cerrada.)
 - Bloquea, además, cualquier `.html`/`.htm` que no esté cubierto por la lista blanca o por un prefijo público (cerrado — antes se permitía cualquier `.html` sin verificar).
 - La lista de extensiones bloqueadas por defecto cubre veinte tipos de archivo (lenguajes de servidor, backups, configuración y credenciales), no solo cuatro.
 

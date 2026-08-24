@@ -503,8 +503,7 @@ const PUBLIC_STATIC_ALLOWLIST = new Set([
 
 const PUBLIC_STATIC_PREFIXES = [
     '/recursos/',
-    '/normativas/',
-    '/atlas y monitor/'
+    '/normativas/'
 ];
 
 // Filtro de seguridad para restringir entrega de estáticos de la raíz
