@@ -74,6 +74,13 @@ Detalle de la corrección en `SECURITY_LOG.md`. Queda como nota, no como excepci
 - Los ZIP se descomprimen en el servidor con la librería `adm-zip` (`extractAllTo`). **Verificado**: la versión en uso (`0.5.17`) sanea las entradas del ZIP y las mantiene dentro del directorio de destino — no es vulnerable a *Zip Slip*. Detalle de la verificación en `SECURITY_LOG.md`.
 - Los nombres de archivo generados combinan timestamp y un número aleatorio de hasta seis dígitos — no son criptográficamente impredecibles, aunque esto deja de ser relevante una vez resuelta la Sección 4 (si el acceso exige permiso, adivinar el nombre no alcanza).
 
+### 6.1 Tableros desde repositorios de GitHub — 🔄 Implementado, pendiente de probar en producción
+
+- **Modelo vigente (tipo Vercel)**: el servidor descarga el repositorio (zipball de la API de GitHub) y lo extrae en `uploads/tableros/project_<id>/`, de modo que el tablero clonado se sirve exactamente por la misma guardia de `/uploads` que los ZIP subidos a mano (Sección 4): `require_login`, `allowed_users`, `access_expirations` y token firmado de corta duración.
+- **Credencial del servidor**: `GITHUB_DEPLOY_TOKEN` (PAT de solo lectura) se usa exclusivamente server-side para descargar los zipballs, incluidos repos privados. Nunca viaja al navegador ni se embebe en URLs de iframes (a diferencia del mecanismo anterior, que incrustaba el token OAuth del administrador en la URL — ver `SECURITY_LOG.md`).
+- **Actualizaciones**: auto-deploy por polling del SHA de la rama (sin webhooks ni endpoints públicos nuevos) y redeploy manual desde el panel admin (`POST /api/tableros/:id/redeploy`, con rol admin verificado en cada request).
+- **Mecanismos deprecados, aún vivos para tableros legados**: GitHub Pages (URL pública sin control) y el proxy interno `/api/github/proxy/*` (sin autenticación propia). El formulario ya no genera ninguno de los dos; los tableros existentes se migran automáticamente al arranque del servidor. Una vez confirmada la migración completa, el proxy debe eliminarse.
+
 ## 7. Tableros externos — Power BI y Looker Studio — 🔄 En migración
 
 - **Power BI**: los tableros publicados con "Publicar en la web" son, por diseño de Microsoft, completamente públicos e indexables — no existe una opción de restringirlos a un dominio u organización dentro de esa función. En proceso de migración hacia tableros propios (HTML, bajo este mismo control de acceso) o hacia embebido con token, según lo que permita la licencia disponible.

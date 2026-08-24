@@ -1093,7 +1093,11 @@
                                 <input type="text" id="field-board-github-path" value="index.html" class="w-full border border-slate-300 rounded px-3 py-2 text-xs outline-none focus:border-obelisco-blue" placeholder="index.html">
                             </div>
                         </div>
-                        <p class="text-[10px] text-slate-500">Se usará GitHub Pages o servidor CDN para renderizar automáticamente tu código.</p>
+                        <label class="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                            <input type="checkbox" id="field-board-github-autodeploy" checked class="mt-0.5 w-4 h-4 text-obelisco-blue rounded focus:ring-obelisco-blue">
+                            <span><span class="font-medium">Auto-despliegue</span> — el servidor verifica la rama periódicamente y actualiza el tablero solo cuando hay cambios nuevos.</span>
+                        </label>
+                        <p class="text-[10px] text-slate-500">El servidor clona el repositorio y lo sirve localmente, con el mismo control de acceso que los tableros subidos a mano. También podés redesplegar manualmente desde la lista de tableros.</p>
                     </div>
                 </div>
 

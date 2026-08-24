@@ -1281,7 +1281,12 @@ async function loadBoards() {
                     return Array.isArray(val) ? val : [];
                 } catch (e) { return []; }
             })(),
-            category: b.category_legacy
+            category: b.category_legacy,
+            githubRepo: b.github_repo || null,
+            githubBranch: b.github_branch || 'main',
+            githubPath: b.github_path || 'index.html',
+            githubAutoDeploy: b.github_auto_deploy === 1,
+            deployedSha: b.deployed_sha || null
         }));
         filterAndRenderBoards();
     } catch (error) { console.error("Error loading boards from MySQL:", error); }
@@ -1334,6 +1339,7 @@ function filterAndRenderBoards() {
                 <input type="number" class="w-16 border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:border-obelisco-blue board-order-input" value="${data.order || 0}" data-id="${id}">
             </td>
             <td class="py-3 px-4 text-right space-x-2">
+                ${data.githubRepo ? `<button class="text-emerald-600 hover:text-emerald-800 font-medium btn-redeploy-board" data-id="${id}" title="${data.githubRepo}@${data.githubBranch || 'main'}${data.deployedSha ? ' · deploy ' + data.deployedSha.slice(0, 7) : ''}">Redesplegar</button>` : ''}
                 <button class="text-obelisco-blue hover:text-blue-800 font-medium btn-edit-board" data-id="${id}">Editar</button>
                 <button class="text-red-500 hover:text-red-700 font-medium btn-del-board" data-id="${id}">Eliminar</button>
             </td>
@@ -1388,17 +1394,55 @@ function filterAndRenderBoards() {
             const urlWrapEl = document.getElementById('board-url-wrap');
             const fileWrapEl = document.getElementById('board-file-wrap');
             const githubWrapEl = document.getElementById('board-github-wrap');
+            const ghRepoSel = document.getElementById('field-board-github-repo');
+            const ghBranchSel = document.getElementById('field-board-github-branch');
+            const ghPathInput = document.getElementById('field-board-github-path');
+            const ghAutoChk = document.getElementById('field-board-github-autodeploy');
 
-            if (githubWrapEl) githubWrapEl.classList.add('hidden');
+            // Detectar origen GitHub: por columnas nuevas (modelo clonado) o por
+            // URLs legadas (proxy interno / GitHub Pages) para poder migrar editando.
+            let ghMeta = null;
+            if (githubWrapEl) githubWrapEl.classList.toggle('hidden', true);
+            if (data.githubRepo) {
+                ghMeta = { repo: data.githubRepo, branch: data.githubBranch || 'main', path: data.githubPath || 'index.html', auto: data.githubAutoDeploy !== false };
+            } else if (data.iframeUrl && !data.filePath) {
+                const rawGhUrl = String(data.iframeUrl).split('?')[0];
+                const proxyM = rawGhUrl.match(/\/api\/github\/proxy\/([^/]+)\/([^/]+)\/([^/]+)\//);
+                const pagesM = !proxyM ? rawGhUrl.match(/^https?:\/\/([^./]+)\.github\.io\/([^/]+)\//) : null;
+                if (proxyM) ghMeta = { repo: `${decodeURIComponent(proxyM[1])}/${decodeURIComponent(proxyM[2])}`, branch: decodeURIComponent(proxyM[3]), path: 'index.html', auto: true };
+                else if (pagesM) ghMeta = { repo: `${pagesM[1]}/${pagesM[2]}`, branch: 'main', path: 'index.html', auto: true };
+            }
 
-            // Un tablero de fuente GitHub se guarda con iframe_url apuntando a
-            // /api/github/proxy/{owner}/{repo}/{branch}/{path...} (más ?token=...).
-            // Si matchea ese patrón, es un tablero de GitHub aunque no tenga filePath.
-            const githubMatch = (!data.filePath && typeof data.iframeUrl === 'string')
-                ? data.iframeUrl.match(/^\/api\/github\/proxy\/([^/]+)\/([^/]+)\/([^/]+)\/([^?]+)/)
-                : null;
-
-            if (data.filePath) {
+            if (ghMeta) {
+                // Asegurar que existan las opciones aunque el OAuth no esté conectado
+                // o la lista de repos todavía no se haya cargado.
+                if (ghRepoSel && ![...ghRepoSel.options].some(o => o.value === ghMeta.repo)) {
+                    const opt = document.createElement('option');
+                    opt.value = ghMeta.repo;
+                    opt.textContent = ghMeta.repo;
+                    ghRepoSel.appendChild(opt);
+                }
+                if (ghRepoSel) ghRepoSel.value = ghMeta.repo;
+                if (ghBranchSel && ![...ghBranchSel.options].some(o => o.value === ghMeta.branch)) {
+                    const opt = document.createElement('option');
+                    opt.value = ghMeta.branch;
+                    opt.textContent = ghMeta.branch;
+                    ghBranchSel.appendChild(opt);
+                }
+                if (ghBranchSel) ghBranchSel.value = ghMeta.branch;
+                if (ghPathInput) ghPathInput.value = ghMeta.path;
+                if (ghAutoChk) ghAutoChk.checked = ghMeta.auto;
+                if (typeGithubEl) typeGithubEl.checked = true;
+                if (urlWrapEl) urlWrapEl.classList.add('hidden');
+                if (fileWrapEl) fileWrapEl.classList.add('hidden');
+                if (githubWrapEl) githubWrapEl.classList.remove('hidden');
+                if (currentFileEl) { currentFileEl.textContent = ''; currentFileEl.classList.add('hidden'); }
+                fieldBoardUrl.value = '';
+                // Se resuelve (repo seleccionado + rama) apenas la lista de repos
+                // esté disponible — ver pendingGithubPreselect en loadGitHubRepos().
+                pendingGithubPreselect = { repoFullName: ghMeta.repo, branch: ghMeta.branch };
+                updateGitHubUI();
+            } else if (data.filePath) {
                 if (typeFileEl) typeFileEl.checked = true;
                 if (urlWrapEl) urlWrapEl.classList.add('hidden');
                 if (fileWrapEl) fileWrapEl.classList.remove('hidden');
@@ -1407,23 +1451,6 @@ function filterAndRenderBoards() {
                     currentFileEl.classList.remove('hidden');
                 }
                 fieldBoardUrl.value = '';
-            } else if (githubMatch) {
-                const [, ghOwner, ghRepo, ghBranch, ghPathRaw] = githubMatch;
-                if (typeGithubEl) typeGithubEl.checked = true;
-                if (urlWrapEl) urlWrapEl.classList.add('hidden');
-                if (fileWrapEl) fileWrapEl.classList.add('hidden');
-                if (githubWrapEl) githubWrapEl.classList.remove('hidden');
-                if (currentFileEl) {
-                    currentFileEl.textContent = '';
-                    currentFileEl.classList.add('hidden');
-                }
-                fieldBoardUrl.value = '';
-                const pathInputEl = document.getElementById('field-board-github-path');
-                if (pathInputEl) pathInputEl.value = decodeURIComponent(ghPathRaw);
-                // Se resuelve (repo seleccionado + rama) apenas la lista de repos
-                // esté disponible — ver pendingGithubPreselect en loadGitHubRepos().
-                pendingGithubPreselect = { repoFullName: `${ghOwner}/${ghRepo}`, branch: ghBranch };
-                updateGitHubUI();
             } else {
                 if (typeUrlEl) typeUrlEl.checked = true;
                 if (urlWrapEl) urlWrapEl.classList.remove('hidden');
@@ -1437,6 +1464,17 @@ function filterAndRenderBoards() {
 
             boardModal.classList.remove('hidden');
             boardModal.classList.add('flex');
+        });
+        tr.querySelector('.btn-redeploy-board')?.addEventListener('click', async () => {
+            if (!confirm(`¿Redesplegar "${data.title}" desde ${data.githubRepo}@${data.githubBranch || 'main'}?`)) return;
+            try {
+                const r = await callApi(`/api/tableros/${id}/redeploy`, 'POST');
+                alert(`Despliegue actualizado${r.sha ? ` (commit ${String(r.sha).slice(0, 7)})` : ''}.`);
+                await loadBoards();
+            } catch (err) {
+                console.error(err);
+                alert('Error al redesplegar: ' + err.message);
+            }
         });
         tr.querySelector('.btn-del-board').addEventListener('click', () => deleteDocReq("buttons", id));
     });
@@ -1550,27 +1588,20 @@ boardForm?.addEventListener('submit', async (e) => {
             const repoVal = document.getElementById('field-board-github-repo')?.value;
             const branchVal = document.getElementById('field-board-github-branch')?.value || 'main';
             const pathVal = document.getElementById('field-board-github-path')?.value.trim() || 'index.html';
+            const autoDeployVal = document.getElementById('field-board-github-autodeploy')?.checked !== false;
 
-            if (!repoVal) {
+            if (!repoVal || !repoVal.includes('/')) {
                 alert('Por favor seleccioná un repositorio de GitHub.');
                 isSubmitting = false;
                 return;
             }
 
-            const [owner, name] = repoVal.split('/');
-            const selectedRepoOpt = document.getElementById('field-board-github-repo')?.options[document.getElementById('field-board-github-repo').selectedIndex];
-            const hasPages = selectedRepoOpt?.getAttribute('data-pages') === 'true';
-            const isPrivate = selectedRepoOpt?.text?.includes('🔒');
-
-            let ghUrl = `https://${owner}.github.io/${name}/${pathVal}`;
-            if (!hasPages || isPrivate) {
-                ghUrl = `/api/github/proxy/${owner}/${name}/${branchVal}/${pathVal}`;
-                if (githubToken) {
-                    ghUrl += `?token=${encodeURIComponent(githubToken)}`;
-                }
-            }
-
-            formData.append('iframe_url', ghUrl);
+            // Modelo tipo Vercel: el servidor descarga el repo y lo sirve localmente.
+            // La URL final la calcula el servidor; el cliente solo envía los metadatos.
+            formData.append('github_repo', repoVal);
+            formData.append('github_branch', branchVal);
+            formData.append('github_path', pathVal);
+            formData.append('github_auto_deploy', autoDeployVal ? 'true' : 'false');
         } else if (fileInput && fileInput.files[0]) {
             formData.append('archivo', fileInput.files[0]);
         }

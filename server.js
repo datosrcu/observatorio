@@ -182,6 +182,263 @@ const uploadTableros = multer({
     }
 });
 
+// ── DESPLIEGUE DE TABLEROS DESDE GITHUB (modelo tipo Vercel) ────────────────
+// El servidor descarga el repositorio (zipball de la API de GitHub) y lo extrae
+// en uploads/tableros/project_<id>/ — exactamente la misma ubicación y mecánica
+// que los ZIP subidos a mano desde admin.html — de modo que el tablero clonado
+// se sirve desde /uploads con la misma guardia de require_login / allowed_users /
+// access_expirations. No se sirve nada directo desde GitHub para los tableros
+// nuevos: nada de Pages ni del proxy (que quedan solo para tableros legados aún
+// no migrados).
+// GITHUB_DEPLOY_TOKEN: Personal Access Token (solo lectura de repos) usado por
+// el SERVIDOR para descargar los zipballs, incluidos repos privados. Sin ella,
+// solo se pueden desplegar repositorios públicos.
+const GITHUB_DEPLOY_TOKEN = process.env.GITHUB_DEPLOY_TOKEN || null;
+if (!GITHUB_DEPLOY_TOKEN) {
+    console.warn('⚠️  GITHUB_DEPLOY_TOKEN no configurada. Los despliegues desde repositorios privados de GitHub van a fallar hasta configurarla.');
+}
+const GITHUB_POLL_MINUTES = Math.max(1, parseInt(process.env.GITHUB_POLL_MINUTES, 10) || 10);
+const GITHUB_UA = 'Observatorio-RioCuarto-App';
+
+function ghApiHeaders() {
+    const headers = {
+        'User-Agent': GITHUB_UA,
+        'Accept': 'application/vnd.github+json'
+    };
+    if (GITHUB_DEPLOY_TOKEN) headers['Authorization'] = `Bearer ${GITHUB_DEPLOY_TOKEN}`;
+    return headers;
+}
+
+async function getLatestCommitSha(owner, repo, branch) {
+    const res = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(branch)}`, { headers: ghApiHeaders() });
+    if (!res.ok) throw new Error(`GitHub API ${res.status}: no se pudo leer el último commit de ${owner}/${repo}@${branch}`);
+    const data = await res.json();
+    if (!data || !data.sha) throw new Error('GitHub no devolvió un SHA de commit válido.');
+    return data.sha;
+}
+
+// Descarga el zipball, lo extrae en un directorio temporal, achata la carpeta
+// raíz que GitHub agrega (<repo>-<sha>/), localiza el HTML de entrada y reemplaza
+// uploads/tableros/project_<boardId>/ con el contenido nuevo.
+async function deployGithubBoard({ boardId, owner, repo, branch, entryPath }) {
+    const sha = await getLatestCommitSha(owner, repo, branch);
+
+    const zipRes = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/zipball/${encodeURIComponent(branch)}`, { headers: ghApiHeaders() });
+    if (!zipRes.ok) {
+        const hint = !GITHUB_DEPLOY_TOKEN ? ' (¿repositorio privado sin GITHUB_DEPLOY_TOKEN configurada?)' : '';
+        throw new Error(`GitHub API ${zipRes.status}: no se pudo descargar ${owner}/${repo}@${branch}${hint}`);
+    }
+    const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
+
+    const safeBoardSegment = String(boardId).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const tmpDir = path.join(TABLEROS_DIR, `.tmp_deploy_${safeBoardSegment}_${Date.now()}_${Math.round(Math.random() * 1e6)}`);
+    fs.mkdirSync(tmpDir, { recursive: true });
+    try {
+        // adm-zip 0.5.x sanea las entradas del ZIP (verificado contra Zip Slip en SECURITY_LOG.md)
+        const zip = new AdmZip(zipBuffer);
+        zip.extractAllTo(tmpDir, true);
+
+        let rootDir = tmpDir;
+        try {
+            const entries = fs.readdirSync(tmpDir);
+            const dirs = entries.filter(e => fs.statSync(path.join(tmpDir, e)).isDirectory());
+            const files = entries.filter(e => fs.statSync(path.join(tmpDir, e)).isFile());
+            if (dirs.length === 1 && files.length === 0) rootDir = path.join(tmpDir, dirs[0]);
+        } catch (e) { rootDir = tmpDir; }
+
+        // Archivo de entrada: el configurado (si existe dentro del repo y no escapa
+        // del directorio), si no index.html, si no cualquier .html (raíz, luego 1 nivel).
+        let entrypointFile = null;
+        if (entryPath && String(entryPath).trim() !== '') {
+            const candidate = path.resolve(rootDir, String(entryPath).trim());
+            if (candidate.startsWith(path.resolve(rootDir)) && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+                entrypointFile = path.relative(rootDir, candidate).replace(/\\/g, '/');
+            }
+        }
+        if (!entrypointFile) {
+            entrypointFile = 'index.html';
+            const rootFiles = fs.readdirSync(rootDir);
+            if (!rootFiles.includes('index.html')) {
+                const htmlFile = rootFiles.find(f => f.endsWith('.html') || f.endsWith('.htm'));
+                if (htmlFile) {
+                    entrypointFile = htmlFile;
+                } else {
+                    let found = null;
+                    for (const f of rootFiles) {
+                        const fullPath = path.join(rootDir, f);
+                        if (fs.statSync(fullPath).isDirectory()) {
+                            const subFiles = fs.readdirSync(fullPath);
+                            const subHtml = subFiles.find(sf => sf.endsWith('.html') || sf.endsWith('.htm'));
+                            if (subHtml) { found = path.join(f, subHtml); break; }
+                        }
+                    }
+                    if (found) entrypointFile = found;
+                }
+            }
+        }
+
+        const projectDir = path.join(TABLEROS_DIR, `project_${boardId}`);
+        if (fs.existsSync(projectDir)) {
+            try { fs.rmSync(projectDir, { recursive: true, force: true }); } catch (e) { console.error('Error borrando versión anterior del proyecto:', e); }
+        }
+        try {
+            fs.renameSync(rootDir, projectDir);
+        } catch (e) {
+            // rename puede fallar entre unidades distintas; copiar como fallback
+            fs.cpSync(rootDir, projectDir, { recursive: true });
+        }
+
+        const filePath = `/uploads/tableros/project_${boardId}/${entrypointFile}`;
+        return { sha, filePath };
+    } finally {
+        try { if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) {}
+    }
+}
+
+// Guarda el resultado de un despliegue GitHub en la fila del tablero.
+// autoDeploy (opcional): si viene definido, también actualiza github_auto_deploy.
+async function persistGithubDeploy(boardId, { owner, repo, branch }, { sha, filePath }, autoDeploy) {
+    const connection = await getDbConnection();
+    try {
+        if (autoDeploy === undefined) {
+            await connection.execute(
+                'UPDATE tableros SET iframe_url = ?, file_path = ?, github_repo = ?, github_branch = ?, deployed_sha = ?, deployed_at = NOW() WHERE id = ?',
+                [filePath, filePath, `${owner}/${repo}`, branch, sha, boardId]
+            );
+        } else {
+            await connection.execute(
+                'UPDATE tableros SET iframe_url = ?, file_path = ?, github_repo = ?, github_branch = ?, deployed_sha = ?, deployed_at = NOW(), github_auto_deploy = ? WHERE id = ?',
+                [filePath, filePath, `${owner}/${repo}`, branch, sha, autoDeploy ? 1 : 0, boardId]
+            );
+        }
+    } finally {
+        await connection.end();
+    }
+}
+
+// Agrega las columnas de despliegue GitHub a la tabla tableros si no existen
+// (idempotente: seguro llamarlo en cada arranque).
+async function ensureGithubColumns() {
+    const connection = await getDbConnection();
+    try {
+        const [cols] = await connection.query(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tableros'"
+        );
+        const existing = new Set(cols.map(c => c.COLUMN_NAME));
+        const wanted = [
+            ['github_repo', 'VARCHAR(255) NULL'],
+            ['github_branch', "VARCHAR(100) NULL DEFAULT 'main'"],
+            ['github_path', "VARCHAR(500) NULL DEFAULT 'index.html'"],
+            ['github_auto_deploy', 'TINYINT(1) NOT NULL DEFAULT 0'],
+            ['deployed_sha', 'CHAR(40) NULL'],
+            ['deployed_at', 'DATETIME NULL']
+        ];
+        for (const [name, def] of wanted) {
+            if (!existing.has(name)) {
+                await connection.execute(`ALTER TABLE tableros ADD COLUMN ${name} ${def}`);
+                console.log(`Columna agregada a tableros: ${name}`);
+            }
+        }
+    } finally {
+        await connection.end();
+    }
+}
+
+// Interpreta URLs de tableros GitHub legados (proxy interno o GitHub Pages).
+function parseLegacyGithubUrl(url) {
+    if (!url) return null;
+    const cleanUrl = String(url).split('?')[0];
+    const proxyMatch = cleanUrl.match(/\/api\/github\/proxy\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/);
+    if (proxyMatch) {
+        return {
+            owner: decodeURIComponent(proxyMatch[1]),
+            repo: decodeURIComponent(proxyMatch[2]),
+            branch: decodeURIComponent(proxyMatch[3]),
+            path: decodeURIComponent(proxyMatch[4])
+        };
+    }
+    const pagesMatch = cleanUrl.match(/^https?:\/\/([^./]+)\.github\.io\/([^/]+)\/(.+)$/);
+    if (pagesMatch) {
+        return { owner: pagesMatch[1], repo: pagesMatch[2], branch: 'main', path: pagesMatch[3] };
+    }
+    return null;
+}
+
+// Migra tableros creados con el mecanismo viejo (Pages o proxy) al modelo clonado.
+// Devuelve un reporte; ante falla individual el tablero queda como está (el proxy
+// sigue existiendo), nunca rompe el tablero vigente.
+async function migrateLegacyGithubBoards() {
+    const report = [];
+    let rows = [];
+    try {
+        await ensureGithubColumns();
+        const connection = await getDbConnection();
+        [rows] = await connection.query(
+            "SELECT id, iframe_url FROM tableros WHERE (iframe_url LIKE '%/api/github/proxy/%' OR iframe_url LIKE '%github.io/%') AND (github_repo IS NULL OR github_repo = '')"
+        );
+        await connection.end();
+    } catch (e) {
+        console.error('Error listando tableros GitHub a migrar:', e.message);
+        return [{ id: null, ok: false, detail: e.message }];
+    }
+
+    for (const row of rows) {
+        const meta = parseLegacyGithubUrl(row.iframe_url);
+        if (!meta) {
+            report.push({ id: row.id, ok: false, detail: `URL no interpretable: ${row.iframe_url}` });
+            continue;
+        }
+        try {
+            const deploy = await deployGithubBoard({ boardId: row.id, ...meta });
+            await persistGithubDeploy(row.id, meta, deploy, true);
+            report.push({ id: row.id, ok: true, detail: `${meta.owner}/${meta.repo}@${meta.branch} → ${deploy.sha.slice(0, 7)}` });
+            console.log(`Tablero ${row.id} migrado a modelo clonado (${deploy.sha.slice(0, 7)}).`);
+        } catch (e) {
+            report.push({ id: row.id, ok: false, detail: e.message });
+            console.error(`Falló migración de ${row.id} (sigue sirviéndose por el mecanismo anterior):`, e.message);
+        }
+    }
+    return report;
+}
+
+// Auto-deploy por polling: compara el SHA de la rama con el último desplegado.
+let githubPollInProgress = false;
+async function pollGithubBoards() {
+    if (githubPollInProgress) return;
+    githubPollInProgress = true;
+    try {
+        const connection = await getDbConnection();
+        const [rows] = await connection.query(
+            'SELECT id, github_repo, github_branch, github_path, deployed_sha FROM tableros WHERE github_repo IS NOT NULL AND github_repo <> \'\' AND github_auto_deploy = 1 AND enabled = 1'
+        );
+        await connection.end();
+
+        for (const row of rows) {
+            try {
+                const slashIdx = row.github_repo.indexOf('/');
+                if (slashIdx <= 0) continue;
+                const owner = row.github_repo.slice(0, slashIdx);
+                const repo = row.github_repo.slice(slashIdx + 1);
+                const branch = row.github_branch || 'main';
+                const sha = await getLatestCommitSha(owner, repo, branch);
+                if (sha !== row.deployed_sha) {
+                    console.log(`Auto-deploy: cambio detectado en ${row.github_repo}@${branch}, redesplegando ${row.id}...`);
+                    const deploy = await deployGithubBoard({ boardId: row.id, owner, repo, branch, entryPath: row.github_path || 'index.html' });
+                    await persistGithubDeploy(row.id, { owner, repo, branch }, deploy);
+                    console.log(`Auto-deploy completado para ${row.id} (${deploy.sha.slice(0, 7)}).`);
+                }
+            } catch (e) {
+                console.error(`Auto-deploy falló para ${row.id}:`, e.message);
+            }
+        }
+    } catch (e) {
+        console.error('Error en polling de tableros GitHub:', e.message);
+    } finally {
+        githubPollInProgress = false;
+    }
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 // Inicializar Resend para envío de emails (Condicional para evitar crasheos si falta la API Key)
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 if (!resend) {
@@ -1516,7 +1773,7 @@ app.get('/api/tableros', async (req, res) => {
 // 8. Guardar/Actualizar tablero (Admin)
 app.post('/api/tableros', verifyToken, requireRole('admin'), uploadTableros.single('archivo'), async (req, res) => {
     // Aquí podrías validar que req.user.email sea admin
-    const { id, title, icon, iframe_url, enabled, require_login, open_in_new_tab, sort_order, allowed_users, access_expirations, categories, category_legacy, source_type } = req.body;
+    const { id, title, icon, iframe_url, enabled, require_login, open_in_new_tab, sort_order, allowed_users, access_expirations, categories, category_legacy, source_type, github_repo, github_branch, github_path, github_auto_deploy } = req.body;
     try {
         const safeId = id || `board_${Date.now()}`;
         const connection = await getDbConnection();
@@ -1526,6 +1783,7 @@ app.post('/api/tableros', verifyToken, requireRole('admin'), uploadTableros.sing
 
         let finalIframeUrl = iframe_url || '';
         let filePath = null;
+        let ghMeta = null; // metadatos de despliegue GitHub (solo source_type = 'github')
 
         if (existing) {
             filePath = existing.file_path;
@@ -1613,8 +1871,8 @@ app.post('/api/tableros', verifyToken, requireRole('admin'), uploadTableros.sing
                 filePath = `/uploads/tableros/${req.file.filename}`;
                 finalIframeUrl = filePath;
             }
-        } else if (source_type === 'url' || source_type === 'github') {
-            // Eliminar archivo viejo si cambia a URL o GitHub
+        } else if (source_type === 'url') {
+            // Eliminar archivo viejo si cambia a URL
             if (existing && existing.file_path) {
                 const oldPath = path.join(__dirname, existing.file_path);
                 if (existing.file_path.includes('/project_')) {
@@ -1630,15 +1888,51 @@ app.post('/api/tableros', verifyToken, requireRole('admin'), uploadTableros.sing
             }
             filePath = null;
             finalIframeUrl = iframe_url || '';
+        } else if (source_type === 'github' && github_repo) {
+            // Modelo tipo Vercel: el servidor descarga el repo y lo sirve localmente
+            // desde /uploads/tableros/project_<id>/ (misma guardia que los ZIP subidos).
+            const slashIdx = String(github_repo).indexOf('/');
+            if (slashIdx <= 0 || slashIdx === String(github_repo).length - 1) {
+                await connection.end();
+                return res.status(400).json({ error: 'Formato de repositorio inválido (esperado dueño/repo).' });
+            }
+            const ghOwner = String(github_repo).slice(0, slashIdx);
+            const ghRepo = String(github_repo).slice(slashIdx + 1);
+            const ghBranch = github_branch || 'main';
+
+            // Si antes era un archivo suelto (no proyecto), borrarlo al cambiar a GitHub.
+            if (existing && existing.file_path && !existing.file_path.includes('/project_')) {
+                const oldPath = path.join(__dirname, existing.file_path);
+                if (fs.existsSync(oldPath)) {
+                    try { fs.unlinkSync(oldPath); } catch (e) { console.error('Error deleting old file on source switch:', e); }
+                }
+            }
+
+            try {
+                ghMeta = {
+                    owner: ghOwner,
+                    repo: ghRepo,
+                    branch: ghBranch,
+                    ...(await deployGithubBoard({ boardId: safeId, owner: ghOwner, repo: ghRepo, branch: ghBranch, entryPath: github_path || 'index.html' }))
+                };
+            } catch (deployErr) {
+                await connection.end();
+                console.error('Error desplegando tablero desde GitHub:', deployErr);
+                return res.status(502).json({ error: 'No se pudo desplegar el repositorio: ' + deployErr.message });
+            }
+            filePath = ghMeta.filePath;
+            finalIframeUrl = ghMeta.filePath;
         }
 
         const sql = `
-            INSERT INTO tableros (id, title, icon, iframe_url, file_path, enabled, require_login, open_in_new_tab, sort_order, allowed_users, access_expirations, categories, category_legacy)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tableros (id, title, icon, iframe_url, file_path, enabled, require_login, open_in_new_tab, sort_order, allowed_users, access_expirations, categories, category_legacy, github_repo, github_branch, github_path, github_auto_deploy, deployed_sha, deployed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
             title=VALUES(title), icon=VALUES(icon), iframe_url=VALUES(iframe_url), file_path=VALUES(file_path), enabled=VALUES(enabled), 
             require_login=VALUES(require_login), open_in_new_tab=VALUES(open_in_new_tab), sort_order=VALUES(sort_order),
-            allowed_users=VALUES(allowed_users), access_expirations=VALUES(access_expirations), categories=VALUES(categories), category_legacy=VALUES(category_legacy)
+            allowed_users=VALUES(allowed_users), access_expirations=VALUES(access_expirations), categories=VALUES(categories), category_legacy=VALUES(category_legacy),
+            github_repo=VALUES(github_repo), github_branch=VALUES(github_branch), github_path=VALUES(github_path),
+            github_auto_deploy=VALUES(github_auto_deploy), deployed_sha=VALUES(deployed_sha), deployed_at=VALUES(deployed_at)
         `;
         
         const safeTitle = title || '';
@@ -1668,15 +1962,62 @@ app.post('/api/tableros', verifyToken, requireRole('admin'), uploadTableros.sing
 
         const safeCategoryLegacy = category_legacy || '';
 
+        // Metadatos de despliegue GitHub: solo se completan si el origen es un repo;
+        // en cualquier otro tipo de fuente se limpian para que el poller y la UI
+        // no sigan tratando al tablero como de GitHub.
+        const safeGithubRepo = ghMeta ? `${ghMeta.owner}/${ghMeta.repo}` : null;
+        const safeGithubBranch = ghMeta ? ghMeta.branch : null;
+        const safeGithubPath = ghMeta ? (github_path || 'index.html') : null;
+        const safeAutoDeploy = ghMeta ? ((github_auto_deploy === true || github_auto_deploy === 1 || github_auto_deploy === 'true') ? 1 : 0) : 0;
+        const safeDeployedSha = ghMeta ? ghMeta.sha : null;
+        const safeDeployedAt = ghMeta ? new Date() : null;
+
         await connection.execute(sql, [
             safeId, safeTitle, safeIcon, finalIframeUrl, filePath, safeEnabled, safeRequireLogin, safeOpenInNewTab, safeSortOrder, 
-            safeAllowedUsers, safeAccessExpirations, safeCategories, safeCategoryLegacy
+            safeAllowedUsers, safeAccessExpirations, safeCategories, safeCategoryLegacy,
+            safeGithubRepo, safeGithubBranch, safeGithubPath, safeAutoDeploy, safeDeployedSha, safeDeployedAt
         ]);
         await connection.end();
         res.json({ message: 'Tablero guardado.', id: safeId, iframe_url: finalIframeUrl });
     } catch (error) {
         console.error('Error saving board:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Redesplegar manualmente un tablero de origen GitHub (Admin) — botón "Redesplegar".
+app.post('/api/tableros/:id/redeploy', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await getDbConnection();
+        const [[row]] = await connection.execute('SELECT github_repo, github_branch, github_path FROM tableros WHERE id = ?', [id]);
+        await connection.end();
+        if (!row) return res.status(404).json({ error: 'Tablero no encontrado.' });
+        if (!row.github_repo) return res.status(400).json({ error: 'Este tablero no tiene origen GitHub configurado.' });
+
+        const slashIdx = row.github_repo.indexOf('/');
+        const owner = row.github_repo.slice(0, slashIdx);
+        const repo = row.github_repo.slice(slashIdx + 1);
+        const branch = row.github_branch || 'main';
+
+        const deploy = await deployGithubBoard({ boardId: id, owner, repo, branch, entryPath: row.github_path || 'index.html' });
+        await persistGithubDeploy(id, { owner, repo, branch }, deploy);
+        res.json({ message: 'Despliegue actualizado.', sha: deploy.sha, iframe_url: deploy.filePath });
+    } catch (e) {
+        console.error('Error en redeploy de tablero:', e);
+        res.status(502).json({ error: e.message });
+    }
+});
+
+// Migrar manualmente todos los tableros GitHub legados (Pages/proxy) al modelo
+// clonado (Admin). Útil si la migración automática del arranque falló para alguno.
+app.post('/api/tableros/migrate-github', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+        const report = await migrateLegacyGithubBoards();
+        res.json({ message: `Migración finalizada: ${report.filter(r => r.ok).length} ok, ${report.filter(r => !r.ok).length} con error.`, report });
+    } catch (e) {
+        console.error('Error en migración manual de tableros GitHub:', e);
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -2454,6 +2795,21 @@ app.get('/admin', (req, res) => {
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'observatorio-gestion.html'));
 });
+
+// ── Arranque: columnas GitHub, migración de tableros legados y auto-deploy ──
+// Las columnas se aseguran apenas arranca. La migración de los tableros GitHub
+// viejos (Pages/proxy) y el polling de auto-deploy arrancan con una demora para
+// no competir con la inicialización de la base al levantar el contenedor.
+ensureGithubColumns().catch(e => console.error('Error asegurando columnas de GitHub en tableros:', e.message));
+setTimeout(() => {
+    migrateLegacyGithubBoards().then(report => {
+        if (report.length > 0) {
+            const ok = report.filter(r => r.ok).length;
+            console.log(`Migración de tableros GitHub legados: ${ok} ok, ${report.length - ok} con error (reintentable vía POST /api/tableros/migrate-github).`);
+        }
+    });
+    setInterval(pollGithubBoards, GITHUB_POLL_MINUTES * 60 * 1000);
+}, 15000);
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);

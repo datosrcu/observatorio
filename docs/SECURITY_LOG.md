@@ -51,6 +51,31 @@ Cada entrada indica: qué se encontró, por qué importa, qué se hizo (o qué f
 
 ---
 
+## [IMPLEMENTADO — PENDIENTE DE PROBAR EN PRODUCCIÓN] Tableros GitHub: reemplazo del proxy/Pages por clonado en el servidor (modelo tipo Vercel)
+
+- **Severidad**: Media-Alta (la que tenía el mecanismo anterior).
+- **Estado**: Implementado, sin probar todavía contra base de datos real ni repos privados reales. No se eliminó el proxy: los tableros legados siguen sirviéndose por el mecanismo viejo hasta que la migración los clone.
+- **Dónde**: `server.js` (helpers `deployGithubBoard`/`persistGithubDeploy`, cambios en `POST /api/tableros`, endpoints nuevos `POST /api/tableros/:id/redeploy` y `POST /api/tableros/migrate-github`, poller `pollGithubBoards`, migración al arranque), `admin.js`, `admin.html`.
+
+**Hallazgo**: los tableros con origen GitHub se servían de dos formas problemáticas:
+1. **GitHub Pages**: URL pública (`owner.github.io`) sin ningún control del Observatorio — equivalente al problema de "Publicar en la web" de Power BI.
+2. **Proxy interno** (`GET /api/github/proxy/:owner/:repo/:branch/*`): sin autenticación ni autorización propia — cualquiera que conociera la URL podía pedir el contenido; y el token OAuth de GitHub del administrador viajaba embebido en la URL del iframe (`?token=`), quedando expuesto en historial del navegador, logs y referers.
+
+**Remediación implementada (modelo Vercel)**: el servidor descarga el repositorio (zipball de la API de GitHub) y lo extrae en `uploads/tableros/project_<id>/` — la misma ubicación y mecánica que los ZIP subidos a mano — de modo que el tablero clonado queda servido por la guardia existente de `/uploads`: `require_login`, `allowed_users`, `access_expirations`, token firmado de 15 minutos y registro autoritativo de accesos. Nada nuevo se sirve fuera de esa guardia.
+
+- **Variable de entorno nueva**: `GITHUB_DEPLOY_TOKEN` (PAT de solo lectura, scope `repo`). La usa exclusivamente el servidor para descargar zipballs, incluidos repos privados. Sin ella solo funcionan repos públicos. Opcional: `GITHUB_POLL_MINUTES` (intervalo del auto-deploy, por defecto 10).
+- **Auto-deploy por polling**: cada N minutos el servidor compara el SHA de la rama configurada con `deployed_sha`; si cambió, redespliega. Sin webhooks ni endpoints públicos nuevos para esto.
+- **Redeploy manual**: botón "Redesplegar" en el panel admin → `POST /api/tableros/:id/redeploy` (con `verifyToken` + `requireRole('admin')`).
+- **Migración**: al arrancar (15 s después de subir), todo tablero cuya `iframe_url` sea de Pages o del proxy se intenta clonar automáticamente; si falla uno, queda como está (el proxy sigue existiendo) y se puede reintentar con `POST /api/tableros/migrate-github` (admin). Al editar un tablero legado desde el panel, el formulario lo detecta y ofrece migrarlo guardando.
+- **Columnas nuevas** en `tableros` (agregadas idempotentemente al arranque): `github_repo`, `github_branch`, `github_path`, `github_auto_deploy`, `deployed_sha`, `deployed_at`.
+- **El proxy y el armado de URLs a Pages quedaron deprecados**: el formulario ya no genera URLs de proxy ni embebe tokens OAuth en iframes. El endpoint del proxy sigue vivo únicamente para los tableros legados aún no migrados (ahora con el `githubProxyGuard` agregado en la entrada anterior); una vez confirmada la migración completa, conviene eliminarlo.
+
+**Pendiente antes de desplegar**: configurar `GITHUB_DEPLOY_TOKEN` en Dokploy (los repos de tableros son privados). Verificar contra un repo privado real que el zipball se descargue y que el tablero clonado respete `require_login=1` vía `/uploads`.
+
+**Nota sobre la entrada anterior**: este cambio resuelve también, de fondo, el punto que quedó "explícitamente fuera" de esa corrección — el token OAuth de GitHub deja de viajar en la URL y de persistirse en `tableros.iframe_url`, porque ya no se generan URLs con token. El token OAuth solo sigue usándose para listar repos/ramas en el formulario (client-side, vía `/api/github/repos` y `/api/github/branches`).
+
+---
+
 ## [RESUELTO — PENDIENTE DE PROBAR ANTES DE DESPLEGAR] Acceso sin autenticación a los tableros subidos (`/uploads`)
 
 - **Severidad**: Crítica.

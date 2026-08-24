@@ -42,6 +42,9 @@ app.post('/api/lo-que-sea', verifyToken, requireRole('admin'), async (req, res) 
 | `DATABASE_URL` (o `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME`/`DB_PORT`) | Conexión a MySQL | El servidor no arranca funcionalmente |
 | `TABLERO_ACCESS_SECRET` | Firma los tokens de acceso a tableros/informes con `require_login=1` | Esos tableros/informes quedan inaccesibles para todos (falla segura, no silenciosa) |
 | `RESEND_API_KEY` | Envío de emails transaccionales | Se deshabilita el envío, sin crashear |
+| `GITHUB_DEPLOY_TOKEN` | Descargar repositorios (zipballs) para desplegar tableros de origen GitHub — incluidos los privados. Solo se usa server-side, nunca viaja al cliente | Los tableros GitHub solo se pueden desplegar desde repos públicos; la migración/auto-deploy de repos privados falla (queda registrado, el tablero legado sigue por el mecanismo anterior) |
+
+Opcional: `GITHUB_POLL_MINUTES` (intervalo en minutos del auto-deploy por polling; por defecto 10).
 
 **Nunca subas `.env`, `.env.local` ni ninguna variante al repositorio.** El `.gitignore` ya los excluye (`.env.*`) — si alguna vez ves uno como `untracked` a punto de agregarse, pará y avisá.
 
