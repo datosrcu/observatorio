@@ -57,6 +57,33 @@ function withAccessToken(url, resourceId) {
     return `${url}${sep}t=${sig}&exp=${expiresAt}`;
 }
 
+// Cuenta administradora maestra (ver docs/SECURITY_POLICY.md, sección 2) — igual
+// que ADMIN_EMAILS en admin.js/auth.js, mantener sincronizada si cambia.
+const ADMIN_EMAILS = ['datos@riocuarto.gov.ar'];
+
+// La cuenta maestra y los usuarios con rol 'lector' tienen acceso de lectura a
+// todos los tableros/informes, sin pasar por allowed_users — decisión de
+// producto explícita (2026-08-24, ver docs/SECURITY_LOG.md): el resto de los
+// admins sigue necesitando estar en la lista de usuarios permitidos, igual que
+// cualquier otro usuario. La UI de admin.js ya mostraba a admin/lector como
+// "Acceso Total" en el checklist, pero eso nunca se traducía en un permiso real
+// del lado del servidor — este es el fix de esa promesa incumplida.
+async function hasBlanketAccess(connection, email) {
+    if (!email) return false;
+    const normalizedEmail = String(email).toLowerCase();
+    if (ADMIN_EMAILS.map(e => e.toLowerCase()).includes(normalizedEmail)) return true;
+    try {
+        const [[user]] = await connection.execute(
+            'SELECT role FROM usuarios_perfiles WHERE LOWER(email) = ?',
+            [normalizedEmail]
+        );
+        return user?.role === 'lector';
+    } catch (e) {
+        console.error('Error verificando rol para acceso total (lector):', e);
+        return false;
+    }
+}
+
 // Determina si un usuario (por email) está habilitado hoy para un tablero/informe,
 // usando exactamente los mismos campos (allowed_users, access_expirations) que ya
 // gobiernan el circuito de solicitud/aprobación de acceso.
@@ -1473,9 +1500,10 @@ app.get('/api/tableros', async (req, res) => {
         const requesterEmail = await getOptionalUserEmail(req);
         const connection = await getDbConnection();
         const [rows] = await connection.query('SELECT * FROM tableros ORDER BY sort_order ASC');
+        const blanketAccess = await hasBlanketAccess(connection, requesterEmail);
         await connection.end();
         const withTokens = rows.map(row => {
-            if (!row.require_login || !isEntitled(row, requesterEmail)) return row;
+            if (!row.require_login || !(blanketAccess || isEntitled(row, requesterEmail))) return row;
             return { ...row, iframe_url: withAccessToken(row.iframe_url, row.id) };
         });
         res.json(withTokens);
@@ -1689,9 +1717,10 @@ app.get('/api/informes', async (req, res) => {
         const requesterEmail = await getOptionalUserEmail(req);
         const connection = await getDbConnection();
         const [rows] = await connection.query('SELECT * FROM informes ORDER BY year DESC, sort_order ASC');
+        const blanketAccess = await hasBlanketAccess(connection, requesterEmail);
         await connection.end();
         const withTokens = rows.map(row => {
-            if (!row.require_login || !isEntitled(row, requesterEmail)) return row;
+            if (!row.require_login || !(blanketAccess || isEntitled(row, requesterEmail))) return row;
             return { ...row, file_path: withAccessToken(row.file_path, row.id) };
         });
         res.json(withTokens);

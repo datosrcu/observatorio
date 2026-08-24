@@ -37,6 +37,20 @@ Cada entrada indica: qué se encontró, por qué importa, qué se hizo (o qué f
 
 ---
 
+## [RESUELTO] La cuenta admin maestra y el rol 'lector' no tenían, en los hechos, el "acceso total" que la interfaz les mostraba
+
+- **Severidad**: Media (falso negativo de acceso — bloqueaba a usuarios legítimos, no exponía datos de más).
+- **Estado**: Resuelto.
+- **Dónde**: `server.js` (`isEntitled`, nueva `hasBlanketAccess`, `GET /api/tableros`, `GET /api/informes`), `admin.js` (checklist de usuarios permitidos, sin cambios — el bug estaba solo del lado del servidor).
+
+**Cómo se encontró**: al probar de punta a punta la corrección de la Sección 10 (tablero de fuente GitHub), la propia cuenta admin maestra (`datos@riocuarto.gov.ar`) recibió 403 al intentar ver un tablero recién creado con "Requiere sesión" activo.
+
+**Hallazgo**: en `admin.js`, el checklist de "Usuarios Permitidos" marca como ✓ (checked, disabled) a los admins de `ADMIN_EMAILS` y a los usuarios con rol `lector`, con una etiqueta "Acceso Total". Pero como el checkbox está deshabilitado, el click handler que agrega el email a `currentlySelectedUsers` nunca corre para ellos (`if (isAdmin || isLector) return;`) — así que su email **nunca** se agrega al array que se guarda como `allowed_users`. Del lado del servidor, `isEntitled()` (usado por `GET /api/tableros` y `GET /api/informes` para decidir si firmar la URL de acceso) solo mira `allowed_users` — no tiene ningún concepto de rol ni de la lista de admins. Resultado: la interfaz prometía acceso total a admin/lector, pero el servidor nunca se los daba — cualquier tablero confidencial que no tuviera a esa persona agregada a mano quedaba inaccesible incluso para la cuenta maestra.
+
+**Remediación**: nueva función `hasBlanketAccess(connection, email)` en `server.js` — devuelve `true` si el email está en `ADMIN_EMAILS` (hoy solo `datos@riocuarto.gov.ar`) o si `usuarios_perfiles.role = 'lector'` para ese email. Se usa en `GET /api/tableros` y `GET /api/informes`, en paralelo a `isEntitled()` (`blanketAccess || isEntitled(row, requesterEmail)`), antes de decidir si firmar la URL con `withAccessToken`. No se tocaron `/uploads` ni `githubProxyGuard`: ambos solo verifican la firma `t`/`exp` ya emitida, así que heredan la corrección automáticamente en cuanto la URL sale firmada de estos dos endpoints. Confirmado por decisión explícita del equipo (2026-08-24): el resto de los admins que no sean la cuenta maestra sigue necesitando estar en `allowed_users`, igual que cualquier otro usuario — no se generalizó a "todo rol admin".
+
+---
+
 ## [RESUELTO — PENDIENTE DE PROBAR ANTES DE DESPLEGAR] Acceso sin autenticación a los tableros subidos (`/uploads`)
 
 - **Severidad**: Crítica.

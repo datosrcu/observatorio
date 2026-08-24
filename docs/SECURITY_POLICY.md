@@ -50,6 +50,8 @@ Desde `feat/security`, este circuito gobierna también el acceso directo al arch
 
 **Requisito operativo antes de desplegar esta rama**: configurar la variable de entorno `TABLERO_ACCESS_SECRET` en Dokploy. Sin ella, el sistema falla cerrado — los tableros/informes con `require_login = 1` no se abren para nadie, en vez de quedar sin protección. Es intencional (falla segura), pero hay que configurarla antes de desplegar, no después.
 
+**Excepción explícita, por diseño (2026-08-24)**: la cuenta administradora maestra (`datos@riocuarto.gov.ar`) y cualquier usuario con rol `lector` en `usuarios_perfiles` tienen acceso de lectura a todos los tableros/informes, sin pasar por `allowed_users` — no necesitan figurar en la lista de usuarios permitidos de cada tablero individual. La interfaz de administración (`admin.js`) ya venía mostrando a estas dos categorías como "Acceso Total" en el checklist de usuarios permitidos, pero esa marca era solo visual: nunca se traducía en un permiso real, porque el checkbox queda deshabilitado y su email no se agrega a `allowed_users` al guardar. `isEntitled`/`hasBlanketAccess` en `server.js` implementa ahora, del lado del servidor, lo que la interfaz ya prometía.
+
 **Hallazgo relacionado, sin resolver**: `GET /api/tableros` sigue devolviendo `allowed_users` y `access_expirations` completos a cualquier visitante. Se protegió el acceso al archivo, no los metadatos de permisos del listado — tocar eso requiere primero confirmar que no rompe la lógica actual del frontend que decide, con esos mismos campos, si mostrar "solicitar acceso". Ver `SECURITY_LOG.md`.
 
 ## 5. Servido de archivos estáticos del proyecto — ✅ Implementado
