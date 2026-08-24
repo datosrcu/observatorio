@@ -3274,16 +3274,10 @@ document.getElementById('save-permissions-btn')?.addEventListener('click', async
         );
 
         if (resourceType === 'tablero') {
-            const isSpecial = resourceId === 'atlas-estadistico' || resourceId === 'monitor-analisis-comparativo';
-            const iframeUrl = resourceId === 'atlas-estadistico' 
-                ? 'Atlas y Monitor/Atlas Estadístico de Río Cuarto.html' 
-                : (resourceId === 'monitor-analisis-comparativo' ? 'Atlas y Monitor/atlas-analisis-comparativo.html' : '');
-
-            await callApi('/api/tableros', 'POST', {
-                id: resourceId,
-                title: currentEditingPermResource.title,
-                icon: currentEditingPermResource.icon || (isSpecial ? '🗺️' : '📊'),
-                iframe_url: iframeUrl,
+            // Solo permisos: el contenido/URL del tablero se gestiona desde la
+            // edición estándar de Tableros (archivo, ZIP, URL o GitHub). Guardar
+            // permisos acá ya no pisa título, icono, categorías, orden ni URL.
+            await callApi(`/api/tableros/${resourceId}`, 'PATCH', {
                 enabled: true,
                 require_login: requireLogin,
                 allowed_users: allowedList

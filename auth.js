@@ -460,6 +460,15 @@ function updateStaticButtonsAccess(user) {
         const hasAccess = checkUserAccess(user, boardObj);
         btn.setAttribute('data-access', hasAccess ? 'true' : 'false');
 
+        // El contenido del botón pasa a salir de la base (iframe_url, firmado con
+        // token de acceso por GET /api/tableros si require_login=1 y el usuario está
+        // autorizado). Si la fila todavía no tiene contenido cargado desde el panel
+        // admin, se conserva la URL fija original del HTML como fallback.
+        const dbIframeUrl = String(boardObj.iframeUrl || '').trim();
+        if (dbIframeUrl !== '') {
+            btn.setAttribute('data-iframe', dbIframeUrl);
+        }
+
         // Verificar si existe una solicitud de acceso pendiente
         const pendingRequest = currentUserRequests.find(r => 
             (r.buttonId === buttonId || r.buttonId === boardObj.title || r.buttonName === boardObj.title) && 

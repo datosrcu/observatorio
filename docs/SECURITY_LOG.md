@@ -51,6 +51,22 @@ Cada entrada indica: qué se encontró, por qué importa, qué se hizo (o qué f
 
 ---
 
+## [EN CURSO] Atlas Estadístico y Monitor RCU: contenido migrado de ruta estática pública a tableros gestionados con control de acceso
+
+- **Severidad**: Media (contenido con `require_login = 1` servido en la práctica por una ruta pública).
+- **Estado**: Cambio de mecanismo implementado; migración del contenido pendiente de hacer a mano desde el panel admin.
+- **Dónde**: `auth.js` (`updateStaticButtonsAccess`), `admin.js` (guardado de permisos), `observatorio-gestion.html` (atributos fijos quedan como fallback).
+
+**Hallazgo**: los botones destacados "Atlas Estadístico RCU" y "Monitor de Análisis Comparativo RCU" tenían su contenido hardcodeado (`data-iframe` fijo apuntando a `Atlas y Monitor/*.html`, servidos públicamente por el prefijo `/atlas y monitor/` del filtro de estáticos). Aunque sus filas en `tableros` tienen `require_login = 1` y el candado de la interfaz lo respetaba, **el archivo real era público para quien conociera la URL** — el mismo patrón que el hallazgo de `/uploads`. Además, el guardado de permisos desde la sección "Atlas y Monitores" del panel recreaba las filas con esa URL fija si no existían, perpetuando el mecanismo.
+
+**Remediación aplicada**:
+1. Los botones ahora leen `iframe_url` de la fila de la base (que `GET /api/tableros` firma con token de acceso cuando corresponde); el atributo fijo del HTML queda solo como fallback si la fila todavía no tiene contenido.
+2. El guardado desde "Atlas y Monitores" pasó de `POST /api/tableros` (que pisaba título, categorías, orden y URL) a `PATCH /api/tableros/:id` enviando únicamente campos de permisos (`enabled`, `require_login`, `allowed_users`). El contenido se gestiona exclusivamente desde la edición estándar de Tableros.
+
+**Migración pendiente (manual)**: subir el contenido actual de ambos tableros vía Panel Admin → Tableros → Editar (archivo/ZIP/URL/GitHub). Al quedar servidos por `/uploads` con `require_login = 1`, pasan a exigir token firmado como el resto. Una vez confirmada la migración de ambos, **eliminar `/atlas y monitor/` de `PUBLIC_STATIC_PREFIXES`** en `server.js` para cerrar la ruta pública vieja.
+
+---
+
 ## [IMPLEMENTADO — PENDIENTE DE PROBAR EN PRODUCCIÓN] Tableros GitHub: reemplazo del proxy/Pages por clonado en el servidor (modelo tipo Vercel)
 
 - **Severidad**: Media-Alta (la que tenía el mecanismo anterior).
