@@ -1462,6 +1462,7 @@ function filterAndRenderBoards() {
                 fieldBoardUrl.value = data.iframeUrl || '';
             }
 
+            if (typeof window.syncBoardSourceFieldState === 'function') window.syncBoardSourceFieldState();
             boardModal.classList.remove('hidden');
             boardModal.classList.add('flex');
         });
@@ -1525,6 +1526,7 @@ addBoardBtn?.addEventListener('click', () => {
     const currentFileEl = document.getElementById('board-current-file');
     if (currentFileEl) { currentFileEl.textContent = ''; currentFileEl.classList.add('hidden'); }
 
+    if (typeof window.syncBoardSourceFieldState === 'function') window.syncBoardSourceFieldState();
     boardModalTitle.textContent = 'Nuevo Tablero';
     boardModal.classList.remove('hidden');
     boardModal.classList.add('flex');
@@ -3318,6 +3320,16 @@ function initGitHubBoardControls() {
     const boardGithubWrap = document.getElementById('board-github-wrap');
     const boardSourceRadios = document.querySelectorAll('input[name="board-source-type"]');
 
+    // El input de URL es type="url": si queda con un valor no válido (ej. la ruta
+    // relativa de un tablero Atlas/Monitor) el navegador bloquea el submit en
+    // silencio aunque esté oculto y sin required. Deshabilitarlo cuando el tipo de
+    // contenido no es URL lo excluye de la validación nativa.
+    window.syncBoardSourceFieldState = function () {
+        const sourceType = document.querySelector('input[name="board-source-type"]:checked')?.value || 'url';
+        const urlInput = document.getElementById('field-board-url');
+        if (urlInput) urlInput.disabled = sourceType !== 'url';
+    };
+
     boardSourceRadios.forEach(radio => {
         radio.addEventListener('change', () => {
             if (radio.value === 'url') {
@@ -3334,6 +3346,7 @@ function initGitHubBoardControls() {
                 boardGithubWrap?.classList.remove('hidden');
                 updateGitHubUI();
             }
+            if (typeof window.syncBoardSourceFieldState === 'function') window.syncBoardSourceFieldState();
         });
     });
 
