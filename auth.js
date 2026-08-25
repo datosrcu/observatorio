@@ -649,8 +649,15 @@ function renderDashboard() {
                         <div class="flex-grow h-px bg-yellow-200"></div>
                     </div>`);
 
-                favBoards.forEach(board => renderButton(gridContainer, board.id, board));
-                favInformes.forEach(informe => renderInformeCard(gridContainer, informe));
+                // Carrusel horizontal: los favoritos se ven en una sola fila
+                const carouselWrap = document.createElement('div');
+                carouselWrap.className = 'col-span-full mb-4';
+                carouselWrap.innerHTML = `<div class="fav-carousel flex gap-4 overflow-x-auto pb-2"></div>`;
+                gridContainer.appendChild(carouselWrap);
+                const carousel = carouselWrap.firstElementChild;
+
+                favBoards.forEach(board => renderButton(carousel, board.id, board));
+                favInformes.forEach(informe => renderInformeCard(carousel, informe));
 
                 gridContainer.insertAdjacentHTML('beforeend', `
                     <div class="col-span-full mt-4 mb-1 flex items-center gap-3">
@@ -845,8 +852,8 @@ function isFavorite(type, id) {
 function getFavoriteStarHtml(type, id) {
     const active = isFavorite(type, id);
     return `
-        <button type="button" class="favorite-star-btn absolute -top-2 -left-2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white border ${active ? 'border-yellow-300' : 'border-gray-200'} shadow-sm hover:scale-110 transition" data-fav-type="${type}" data-fav-id="${id}" title="${active ? 'Quitar de favoritos' : 'Agregar a favoritos'}" aria-label="${active ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
-            <svg class="w-4 h-4 ${active ? 'text-yellow-400' : 'text-gray-300'}" fill="${active ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <button type="button" class="favorite-star-btn absolute -top-2 -left-2 z-10 w-7 h-7 flex items-center justify-center rounded-full ${active ? 'bg-yellow-100 border-yellow-400' : 'bg-white border-amber-300'} border-2 shadow-md hover:scale-110 transition" data-fav-type="${type}" data-fav-id="${id}" title="${active ? 'Quitar de favoritos' : 'Agregar a favoritos'}" aria-label="${active ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
+            <svg class="w-4 h-4 ${active ? 'text-yellow-500' : 'text-amber-400'}" fill="${active ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
             </svg>
         </button>`;

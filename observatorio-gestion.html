@@ -56,6 +56,32 @@
                 display: none !important;
             }
         }
+
+        /* Carrusel de favoritos */
+        .fav-carousel {
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .fav-carousel > * {
+            flex: 0 0 auto;
+            width: 280px;
+            scroll-snap-align: start;
+        }
+
+        .fav-carousel::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .fav-carousel::-webkit-scrollbar-track {
+            background: #f3f4f6;
+            border-radius: 8px;
+        }
+
+        .fav-carousel::-webkit-scrollbar-thumb {
+            background: #fbbf24;
+            border-radius: 8px;
+        }
     </style>
 </head>
 
