@@ -37,6 +37,7 @@ let currentUserAcceptedTCVersion = null;
 let currentUserAcceptedTCTimestamp = null;
 let currentUserData = null;
 let userFavorites = new Set(); // claves con formato "tablero:<id>" o "informe:<id>"
+let favCarouselResizeHandler = null;
 
 // Registration Modal Elements
 const registrationModal = document.getElementById('registration-modal');
@@ -649,15 +650,43 @@ function renderDashboard() {
                         <div class="flex-grow h-px bg-yellow-200"></div>
                     </div>`);
 
-                // Carrusel horizontal: los favoritos se ven en una sola fila
+                // Carrusel horizontal con flechas: los favoritos se ven en una sola fila
                 const carouselWrap = document.createElement('div');
                 carouselWrap.className = 'col-span-full mb-4';
-                carouselWrap.innerHTML = `<div class="fav-carousel flex gap-4 overflow-x-auto pb-2"></div>`;
+                carouselWrap.innerHTML = `
+                    <div class="relative">
+                        <button type="button" aria-label="Favoritos anteriores" class="fav-carousel-prev absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 hover:bg-gray-50 transition disabled:opacity-0 disabled:pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                        </button>
+                        <div class="fav-carousel flex gap-4 overflow-x-auto pb-2"></div>
+                        <button type="button" aria-label="Más favoritos" class="fav-carousel-next absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white border border-gray-200 shadow-lg flex items-center justify-center text-gray-600 hover:bg-gray-50 transition disabled:opacity-0 disabled:pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                        </button>
+                    </div>`;
                 gridContainer.appendChild(carouselWrap);
-                const carousel = carouselWrap.firstElementChild;
+                const scroller = carouselWrap.querySelector('.fav-carousel');
+                const prevBtn = carouselWrap.querySelector('.fav-carousel-prev');
+                const nextBtn = carouselWrap.querySelector('.fav-carousel-next');
 
-                favBoards.forEach(board => renderButton(carousel, board.id, board));
-                favInformes.forEach(informe => renderInformeCard(carousel, informe));
+                favBoards.forEach(board => renderButton(scroller, board.id, board));
+                favInformes.forEach(informe => renderInformeCard(scroller, informe));
+
+                // Mostrar flechas solo si hay desborde; ocultar cada una al llegar al borde
+                const updateFavArrows = () => {
+                    const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+                    const hasOverflow = maxScroll > 4;
+                    prevBtn.classList.toggle('hidden', !hasOverflow);
+                    nextBtn.classList.toggle('hidden', !hasOverflow);
+                    prevBtn.disabled = scroller.scrollLeft <= 2;
+                    nextBtn.disabled = scroller.scrollLeft >= maxScroll - 2;
+                };
+                prevBtn.addEventListener('click', () => scroller.scrollBy({ left: -scroller.clientWidth * 0.8, behavior: 'smooth' }));
+                nextBtn.addEventListener('click', () => scroller.scrollBy({ left: scroller.clientWidth * 0.8, behavior: 'smooth' }));
+                scroller.addEventListener('scroll', updateFavArrows, { passive: true });
+                if (favCarouselResizeHandler) window.removeEventListener('resize', favCarouselResizeHandler);
+                favCarouselResizeHandler = updateFavArrows;
+                window.addEventListener('resize', favCarouselResizeHandler);
+                updateFavArrows();
 
                 gridContainer.insertAdjacentHTML('beforeend', `
                     <div class="col-span-full mt-4 mb-1 flex items-center gap-3">
