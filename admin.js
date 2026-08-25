@@ -298,6 +298,7 @@ navTabs?.forEach(tab => {
         if (target === 'tab-tracking') loadUserTracking();
         if (target === 'tab-feedback') {
             loadFeedback();
+            loadFeedbackTableros();
             localStorage.setItem('ogb_last_seen_feedback', new Date().toISOString());
             if (feedbackBadge) feedbackBadge.classList.add('hidden');
         }
@@ -309,35 +310,35 @@ navTabs?.forEach(tab => {
     });
 });
 
-// --- Sub-Tabs Logic (Usuarios) ---
+// --- Sub-Tabs Logic (Usuarios y Feedback) ---
 const subNavTabs = document.querySelectorAll('.sub-nav-tab');
 const subPanes = document.querySelectorAll('.sub-pane');
 
-subNavTabs?.forEach(tab => {
-    subNavTabs.forEach(t => {
-        t.addEventListener('click', () => {
-            const target = t.getAttribute('data-sub');
-            
-            subNavTabs.forEach(btn => {
-                btn.classList.remove('active-sub-tab', 'border-obelisco-blue', 'bg-blue-50', 'text-obelisco-blue');
-                btn.classList.add('border-transparent', 'text-gray-600');
-            });
-            
-            subPanes.forEach(p => p.classList.add('hidden'));
-            
-            t.classList.add('active-sub-tab', 'border-obelisco-blue', 'bg-blue-50', 'text-obelisco-blue');
-            t.classList.remove('border-transparent', 'text-gray-600');
-            
-            const targetPane = document.getElementById(target);
-            if (targetPane) targetPane.classList.remove('hidden');
-
-            // Trigger specific loads
-            if (target === 'sub-rce') loadRCE();
-            if (target === 'sub-solicitudes') loadRequests();
-            if (target === 'sub-tracking') loadUserTracking();
-            if (target === 'sub-directorio') loadUsers();
-            if (target === 'sub-atlas-monitores') loadAtlasAndMonitoresPermissions();
+subNavTabs?.forEach(t => {
+    t.addEventListener('click', () => {
+        const target = t.getAttribute('data-sub');
+        
+        subNavTabs.forEach(btn => {
+            btn.classList.remove('active-sub-tab', 'border-obelisco-blue', 'bg-blue-50', 'text-obelisco-blue');
+            btn.classList.add('border-transparent', 'text-gray-600');
         });
+        
+        subPanes.forEach(p => p.classList.add('hidden'));
+        
+        t.classList.add('active-sub-tab', 'border-obelisco-blue', 'bg-blue-50', 'text-obelisco-blue');
+        t.classList.remove('border-transparent', 'text-gray-600');
+        
+        const targetPane = document.getElementById(target);
+        if (targetPane) targetPane.classList.remove('hidden');
+
+        // Trigger specific loads
+        if (target === 'sub-rce') loadRCE();
+        if (target === 'sub-solicitudes') loadRequests();
+        if (target === 'sub-tracking') loadUserTracking();
+        if (target === 'sub-directorio') loadUsers();
+        if (target === 'sub-atlas-monitores') loadAtlasAndMonitoresPermissions();
+        if (target === 'sub-feedback-web') loadFeedback();
+        if (target === 'sub-feedback-tableros') loadFeedbackTableros();
     });
 });
 
@@ -379,6 +380,7 @@ async function loadData() {
         loadStatisticalRequests(),
         loadUserTracking(),
         loadFeedback(),
+        loadFeedbackTableros(),
         loadContacts()
     ]);
 }
@@ -2189,6 +2191,130 @@ function renderFeedbackTable(feedbackList) {
         });
 
         feedbackTbody.appendChild(tr);
+    });
+}
+
+// --- Feedback de Tableros e Informes (evaluaciones) ---
+const feedbackTablerosTbody = document.getElementById('feedback-tableros-tbody');
+const feedbackTablerosStats = document.getElementById('feedback-tableros-stats');
+
+function renderStarsHtml(rating) {
+    let stars = '';
+    for (let i = 1; i <= 5; i++) {
+        stars += `<svg class="w-3.5 h-3.5 ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>`;
+    }
+    return `<div class="flex gap-0.5">${stars}</div>`;
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = String(str ?? '');
+    return div.innerHTML;
+}
+
+async function loadFeedbackTableros() {
+    if (!feedbackTablerosTbody) return;
+    try {
+        const data = await callApi('/api/feedback-tableros', 'GET');
+        const evaluaciones = (Array.isArray(data) ? data : []).map(ev => ({
+            id: ev.id,
+            email: ev.email,
+            itemType: ev.item_type,
+            itemId: ev.item_id,
+            itemTitle: ev.item_title || ev.item_id,
+            ratingParecido: ev.rating_parecido,
+            ratingUtilidad: ev.rating_utilidad,
+            comentario: ev.comentario,
+            timestamp: ev.created_at
+        }));
+
+        renderFeedbackTablerosStats(evaluaciones);
+        renderFeedbackTablerosTable(evaluaciones);
+    } catch (error) {
+        console.error("Error loading feedback tableros from MySQL:", error);
+        feedbackTablerosTbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-500">Error al cargar las evaluaciones.</td></tr>';
+    }
+}
+
+function renderFeedbackTablerosStats(evaluaciones) {
+    if (!feedbackTablerosStats) return;
+
+    if (evaluaciones.length === 0) {
+        feedbackTablerosStats.innerHTML = '';
+        return;
+    }
+
+    const avg = (arr) => arr.reduce((s, v) => s + v, 0) / arr.length;
+    const avgParecido = avg(evaluaciones.map(e => e.ratingParecido));
+    const avgUtilidad = avg(evaluaciones.map(e => e.ratingUtilidad));
+    const avgGeneral = avg(evaluaciones.flatMap(e => [e.ratingParecido, e.ratingUtilidad]));
+
+    const statCard = (label, value, sub) => `
+        <div class="bg-white border border-obelisco-border rounded-xl shadow-sm p-4 flex flex-col items-center text-center">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${label}</span>
+            <span class="text-2xl font-black text-obelisco-dark mt-1">${value}</span>
+            <div class="mt-1">${sub}</div>
+        </div>`;
+
+    feedbackTablerosStats.innerHTML = `
+        ${statCard('Promedio general', avgGeneral.toFixed(1) + ' <span class="text-sm text-gray-400 font-bold">/ 5</span>', renderStarsHtml(Math.round(avgGeneral)))}
+        ${statCard('¿Qué te pareció?', avgParecido.toFixed(1) + ' <span class="text-sm text-gray-400 font-bold">/ 5</span>', renderStarsHtml(Math.round(avgParecido)))}
+        ${statCard('¿Te resultó útil?', avgUtilidad.toFixed(1) + ' <span class="text-sm text-gray-400 font-bold">/ 5</span>', renderStarsHtml(Math.round(avgUtilidad)))}
+        <div class="col-span-full text-right text-xs text-gray-400 -mt-2">${evaluaciones.length} evaluacion${evaluaciones.length !== 1 ? 'es' : ''} recibida${evaluaciones.length !== 1 ? 's' : ''}</div>
+    `;
+}
+
+function renderFeedbackTablerosTable(evaluaciones) {
+    if (!feedbackTablerosTbody) return;
+    feedbackTablerosTbody.innerHTML = '';
+
+    if (evaluaciones.length === 0) {
+        feedbackTablerosTbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-obelisco-gray">No hay evaluaciones recibidas aún.</td></tr>';
+        return;
+    }
+
+    evaluaciones.forEach(ev => {
+        const date = ev.timestamp ? new Date(ev.timestamp).toLocaleString() : '-';
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-gray-50 transition-colors";
+
+        tr.innerHTML = `
+            <td class="py-4 px-4 whitespace-nowrap text-xs text-gray-500">${date}</td>
+            <td class="py-4 px-4 font-medium">
+                <div class="flex flex-col">
+                    <span>${escapeHtml(ev.email) || 'Anónimo'}</span>
+                </div>
+            </td>
+            <td class="py-4 px-4 text-sm">
+                <div class="flex flex-col">
+                    <span class="font-semibold text-gray-700">${escapeHtml(ev.itemTitle)}</span>
+                    <span class="text-[10px] uppercase tracking-wide font-bold ${ev.itemType === 'informe' ? 'text-teal-600' : 'text-obelisco-blue'}">${ev.itemType}</span>
+                </div>
+            </td>
+            <td class="py-4 px-4">${renderStarsHtml(ev.ratingParecido)}</td>
+            <td class="py-4 px-4">${renderStarsHtml(ev.ratingUtilidad)}</td>
+            <td class="py-4 px-4 text-sm text-gray-700">
+                <div class="max-w-md break-words">${ev.comentario ? escapeHtml(ev.comentario) : '<span class="text-gray-400 italic">Sin observaciones</span>'}</div>
+            </td>
+            <td class="py-4 px-4 text-right">
+                <button class="text-red-500 hover:text-red-700 btn-del-feedback-tableros" data-id="${ev.id}">
+                    <svg class="w-5 h-5 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+            </td>
+        `;
+
+        tr.querySelector('.btn-del-feedback-tableros').addEventListener('click', async () => {
+            if (confirm("¿Eliminar esta evaluación?")) {
+                try {
+                    await callApi(`/api/feedback-tableros/${ev.id}`, 'DELETE');
+                    loadFeedbackTableros();
+                } catch (err) {
+                    console.error("Error deleting evaluacion:", err);
+                }
+            }
+        });
+
+        feedbackTablerosTbody.appendChild(tr);
     });
 }
 // Background notifications (uses MySQL)

@@ -563,28 +563,81 @@
 
                 <!-- CONTENIDO FEEDBACK -->
                 <div id="tab-feedback" class="tab-pane hidden text-sm">
-                    <div class="mb-6">
-                        <h2 class="text-2xl font-bold mb-1">Feedback de Usuarios</h2>
-                        <p class="text-obelisco-gray text-sm">Comentarios y sugerencias enviadas por los usuarios que marcaron la página como "No útil".</p>
-                    </div>
+                    <div class="flex flex-col lg:flex-row gap-6">
+                        <!-- Sidebar de Sub-pestañas Feedback -->
+                        <div class="lg:w-64 flex-shrink-0">
+                            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                                <nav class="flex flex-col">
+                                    <button class="sub-nav-tab active-sub-tab p-4 text-left font-bold text-sm border-l-4 border-obelisco-blue bg-blue-50 text-obelisco-blue transition" data-sub="sub-feedback-web">
+                                        Web
+                                    </button>
+                                    <button class="sub-nav-tab p-4 text-left font-bold text-sm border-l-4 border-transparent text-gray-600 hover:bg-gray-50 transition" data-sub="sub-feedback-tableros">
+                                        Tableros e Informes
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
 
-                    <div class="bg-white border text-sm border-obelisco-border rounded-xl shadow-sm overflow-hidden">
-                        <table class="w-full text-left border-collapse min-w-[800px]">
-                            <thead>
-                                <tr class="bg-obelisco-light border-b border-obelisco-border text-obelisco-gray">
-                                    <th class="py-3 px-4 font-semibold w-40">Fecha</th>
-                                    <th class="py-3 px-4 font-semibold w-64">De</th>
-                                    <th class="py-3 px-4 font-semibold">Comentario</th>
-                                    <th class="py-3 px-4 font-semibold w-48">Página</th>
-                                    <th class="py-3 px-4 font-semibold text-right w-24">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="feedback-tbody" class="divide-y divide-obelisco-border">
-                                <tr>
-                                    <td colspan="5" class="text-center py-8 text-obelisco-gray">Cargando feedback...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <!-- Panel de Contenido Feedback -->
+                        <div class="flex-grow space-y-6">
+                            <!-- SUB-TAB: Feedback Web -->
+                            <div id="sub-feedback-web" class="sub-pane">
+                                <div class="mb-6">
+                                    <h2 class="text-2xl font-bold mb-1">Feedback de Usuarios — Web</h2>
+                                    <p class="text-obelisco-gray text-sm">Comentarios y sugerencias enviadas por los usuarios que marcaron la página como "No útil".</p>
+                                </div>
+
+                                <div class="bg-white border text-sm border-obelisco-border rounded-xl shadow-sm overflow-hidden">
+                                    <table class="w-full text-left border-collapse min-w-[800px]">
+                                        <thead>
+                                            <tr class="bg-obelisco-light border-b border-obelisco-border text-obelisco-gray">
+                                                <th class="py-3 px-4 font-semibold w-40">Fecha</th>
+                                                <th class="py-3 px-4 font-semibold w-64">De</th>
+                                                <th class="py-3 px-4 font-semibold">Comentario</th>
+                                                <th class="py-3 px-4 font-semibold w-48">Página</th>
+                                                <th class="py-3 px-4 font-semibold text-right w-24">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="feedback-tbody" class="divide-y divide-obelisco-border">
+                                            <tr>
+                                                <td colspan="5" class="text-center py-8 text-obelisco-gray">Cargando feedback...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- SUB-TAB: Evaluaciones de Tableros e Informes -->
+                            <div id="sub-feedback-tableros" class="sub-pane hidden">
+                                <div class="mb-6">
+                                    <h2 class="text-2xl font-bold mb-1">Evaluaciones — Tableros e Informes</h2>
+                                    <p class="text-obelisco-gray text-sm">Reseñas enviadas por los usuarios desde las tarjetas de tableros e informes.</p>
+                                </div>
+
+                                <div id="feedback-tableros-stats" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"></div>
+
+                                <div class="bg-white border text-sm border-obelisco-border rounded-xl shadow-sm overflow-hidden">
+                                    <table class="w-full text-left border-collapse min-w-[900px]">
+                                        <thead>
+                                            <tr class="bg-obelisco-light border-b border-obelisco-border text-obelisco-gray">
+                                                <th class="py-3 px-4 font-semibold w-36">Fecha</th>
+                                                <th class="py-3 px-4 font-semibold w-56">Usuario</th>
+                                                <th class="py-3 px-4 font-semibold w-56">Tablero / Informe</th>
+                                                <th class="py-3 px-4 font-semibold w-32">¿Qué le pareció?</th>
+                                                <th class="py-3 px-4 font-semibold w-32">¿Le resultó útil?</th>
+                                                <th class="py-3 px-4 font-semibold">Observaciones</th>
+                                                <th class="py-3 px-4 font-semibold text-right w-24">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="feedback-tableros-tbody" class="divide-y divide-obelisco-border">
+                                            <tr>
+                                                <td colspan="7" class="text-center py-8 text-obelisco-gray">Cargando evaluaciones...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

@@ -1073,6 +1073,24 @@ const initializeTables = async () => {
             )
         `);
 
+        // 13. Tabla de Evaluaciones (reseñas) de Tableros e Informes
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS feedback_tableros (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_uid VARCHAR(128) NOT NULL,
+                email VARCHAR(255),
+                item_type ENUM('tablero','informe') NOT NULL,
+                item_id VARCHAR(128) NOT NULL,
+                item_title VARCHAR(255),
+                rating_parecido TINYINT NOT NULL,
+                rating_utilidad TINYINT NOT NULL,
+                comentario TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_feedback_tableros_item (item_type, item_id),
+                INDEX idx_feedback_tableros_uid (user_uid)
+            )
+        `);
+
         // Asegurar que las columnas nuevas existan si la tabla ya había sido creada sin ellas
         try {
             await connection.query('ALTER TABLE informes ADD COLUMN require_login BOOLEAN DEFAULT FALSE');
@@ -2125,6 +2143,61 @@ app.post('/api/favoritos/toggle', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error al alternar favorito:', error);
         res.status(500).json({ error: 'Error al alternar favorito.' });
+    }
+});
+
+// ── EVALUACIONES DE TABLEROS E INFORMES ────────────────────────────────────
+
+// Crear evaluación (usuario autenticado)
+app.post('/api/feedback-tableros', verifyToken, async (req, res) => {
+    const uid = req.user.uid;
+    const email = (req.user.email || '').toLowerCase().trim();
+    const { item_type, item_id, item_title, rating_parecido, rating_utilidad, comentario } = req.body;
+
+    const r1 = parseInt(rating_parecido, 10);
+    const r2 = parseInt(rating_utilidad, 10);
+    if (!item_id || !['tablero', 'informe'].includes(item_type) || !(r1 >= 1 && r1 <= 5) || !(r2 >= 1 && r2 <= 5)) {
+        return res.status(400).json({ error: 'Faltan datos o las puntuaciones deben estar entre 1 y 5.' });
+    }
+
+    try {
+        const connection = await getDbConnection();
+        await connection.execute(
+            `INSERT INTO feedback_tableros (user_uid, email, item_type, item_id, item_title, rating_parecido, rating_utilidad, comentario)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [uid, email || null, item_type, item_id, item_title || null, r1, r2, comentario || null]
+        );
+        await connection.end();
+        res.json({ status: 'ok' });
+    } catch (error) {
+        console.error('Error al guardar evaluación:', error);
+        res.status(500).json({ error: 'Error al guardar la evaluación.' });
+    }
+});
+
+// Listar evaluaciones (admin)
+app.get('/api/feedback-tableros', verifyToken, requireRole('admin'), async (_req, res) => {
+    try {
+        const connection = await getDbConnection();
+        const [rows] = await connection.query('SELECT * FROM feedback_tableros ORDER BY created_at DESC');
+        await connection.end();
+        res.json(rows);
+    } catch (error) {
+        console.error('Error al listar evaluaciones:', error);
+        res.status(500).json({ error: 'Error al listar las evaluaciones.' });
+    }
+});
+
+// Eliminar evaluación (admin)
+app.delete('/api/feedback-tableros/:id', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+        const connection = await getDbConnection();
+        await connection.execute('DELETE FROM feedback_tableros WHERE id = ?', [req.params.id]);
+        await connection.end();
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error al eliminar evaluación:', error);
+        res.status(500).json({ error: 'Error al eliminar la evaluación.' });
     }
 });
 

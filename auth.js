@@ -904,6 +904,106 @@ async function toggleFavorite(type, id) {
     }
 }
 
+// --- Evaluaciones (reseñas) de tableros e informes ---
+const evaluacionModal = document.getElementById('evaluacion-modal');
+const evaluacionForm = document.getElementById('evaluacion-form');
+const evaluacionOk = document.getElementById('evaluacion-ok');
+let evaluacionTarget = null; // { type, id, title }
+let evaluacionRatings = { parecido: 0, utilidad: 0 };
+
+function getEvaluarBtnHtml(type, id, title) {
+    const safeTitle = String(title || '').replace(/"/g, '&quot;');
+    return `
+        <button type="button" class="evaluar-btn text-xs font-semibold text-yellow-600 bg-yellow-50 border border-yellow-200 px-3 py-1.5 rounded-full hover:bg-yellow-100 transition flex items-center gap-1 flex-shrink-0" data-eval-type="${type}" data-eval-id="${id}" data-eval-title="${safeTitle}" title="Dejar una reseña">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+            Evaluar
+        </button>`;
+}
+
+function setEvaluacionStars(row, value) {
+    row.querySelectorAll('.eval-star').forEach(starBtn => {
+        const val = parseInt(starBtn.getAttribute('data-val'), 10);
+        starBtn.classList.toggle('text-yellow-400', val <= value);
+        starBtn.classList.toggle('text-gray-300', val > value);
+    });
+}
+
+function resetEvaluacionForm() {
+    evaluacionRatings = { parecido: 0, utilidad: 0 };
+    evaluacionForm?.querySelectorAll('.eval-star-row').forEach(row => setEvaluacionStars(row, 0));
+    const comentario = document.getElementById('evaluacion-comentario');
+    if (comentario) comentario.value = '';
+    evaluacionForm?.classList.remove('hidden');
+    evaluacionOk?.classList.add('hidden');
+    const submitBtn = document.getElementById('evaluacion-submit-btn');
+    if (submitBtn) submitBtn.disabled = false;
+}
+
+function openEvaluacionModal(type, id, title) {
+    if (!auth.currentUser) { handleLogin(); return; }
+    evaluacionTarget = { type, id, title };
+    const itemName = document.getElementById('evaluacion-item-name');
+    if (itemName) itemName.textContent = title || '';
+    resetEvaluacionForm();
+    if (evaluacionModal) {
+        evaluacionModal.classList.remove('hidden');
+        evaluacionModal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeEvaluacionModal() {
+    if (evaluacionModal) {
+        evaluacionModal.classList.add('hidden');
+        evaluacionModal.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+    evaluacionTarget = null;
+}
+
+evaluacionForm?.querySelectorAll('.eval-star-row').forEach(row => {
+    const question = row.getAttribute('data-question');
+    row.querySelectorAll('.eval-star').forEach(starBtn => {
+        starBtn.addEventListener('click', () => {
+            const val = parseInt(starBtn.getAttribute('data-val'), 10);
+            evaluacionRatings[question] = val;
+            setEvaluacionStars(row, val);
+        });
+    });
+});
+
+evaluacionForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!evaluacionTarget) return;
+    if (!evaluacionRatings.parecido || !evaluacionRatings.utilidad) {
+        alert('Por favor puntuá ambas preguntas con estrellas (de 1 a 5).');
+        return;
+    }
+    const submitBtn = document.getElementById('evaluacion-submit-btn');
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+        await callApi('/api/feedback-tableros', 'POST', {
+            item_type: evaluacionTarget.type,
+            item_id: evaluacionTarget.id,
+            item_title: evaluacionTarget.title,
+            rating_parecido: evaluacionRatings.parecido,
+            rating_utilidad: evaluacionRatings.utilidad,
+            comentario: document.getElementById('evaluacion-comentario')?.value.trim() || null
+        });
+        evaluacionForm.classList.add('hidden');
+        evaluacionOk.classList.remove('hidden');
+        setTimeout(closeEvaluacionModal, 2200);
+    } catch (err) {
+        console.error('Error al enviar evaluación:', err);
+        alert('No se pudo enviar la evaluación. Intentá nuevamente.');
+        if (submitBtn) submitBtn.disabled = false;
+    }
+});
+
+document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-close-evaluacion]')) closeEvaluacionModal();
+});
+
 function renderButton(container, id, data) {
     // If the board doesn't have an explicit icon string, guess color from categories
     let hexColor = '#009DE0';
@@ -965,12 +1065,15 @@ function renderButton(container, id, data) {
                 <h3 class="text-sm font-bold text-obelisco-dark ml-4 leading-snug break-words flex-grow">${data.title}</h3>
             </div>
             <p class="text-obelisco-gray text-xs flex-grow mb-6 italic" title="${categoryNames}">${categoryNames}</p>
-            <span class="text-obelisco-blue font-bold text-sm flex items-center">
-                ${hasAccess ? 'Ver tablero' : (isUnderReview ? 'Pendiente' : 'Solicitar acceso')}
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </span>
+            <div class="flex items-center justify-between w-full gap-2">
+                <span class="text-obelisco-blue font-bold text-sm flex items-center">
+                    ${hasAccess ? 'Ver tablero' : (isUnderReview ? 'Pendiente' : 'Solicitar acceso')}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </span>
+                ${hasAccess ? getEvaluarBtnHtml('tablero', id, data.title) : ''}
+            </div>
         </a>
     `;
 
@@ -1205,14 +1308,17 @@ function renderInformeCard(container, informe) {
                 </div>
             </div>
             ${informe.description ? `<p class="text-obelisco-gray text-xs flex-grow mb-4 line-clamp-2">${informe.description}</p>` : '<div class="flex-grow"></div>'}
-            <div class="flex justify-between items-center w-full mt-auto">
+            <div class="flex justify-between items-center w-full mt-auto gap-2">
                 <div class="flex gap-1">${periodBadge}</div>
-                <span class="text-teal-600 font-bold text-sm flex items-center">
-                    ${hasAccess ? 'Ver informe' : (isUnderReview ? 'Pendiente' : 'Solicitar acceso')}
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                </span>
+                <div class="flex items-center gap-2">
+                    ${hasAccess ? getEvaluarBtnHtml('informe', informe.id, informe.title) : ''}
+                    <span class="text-teal-600 font-bold text-sm flex items-center">
+                        ${hasAccess ? 'Ver informe' : (isUnderReview ? 'Pendiente' : 'Solicitar acceso')}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </span>
+                </div>
             </div>
         </a>
     `;
@@ -1222,6 +1328,7 @@ function renderInformeCard(container, informe) {
     const card = container.lastElementChild;
     card.addEventListener('click', (e) => {
         if (e.target.closest('.favorite-star-btn')) return; // lo maneja la delegación global
+        if (e.target.closest('.evaluar-btn')) return; // lo maneja la delegación global
         e.preventDefault();
         if (hasAccess) {
             recordUserActivity(informe.title, true);
@@ -1545,6 +1652,19 @@ logoutBtn?.addEventListener('click', handleLogout);
 
 // Modal Event Listeners
 document.addEventListener('click', (e) => {
+    // Abrir modal de evaluación (no debe abrir el tablero/informe)
+    const evalBtn = e.target.closest('.evaluar-btn');
+    if (evalBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        openEvaluacionModal(
+            evalBtn.getAttribute('data-eval-type'),
+            evalBtn.getAttribute('data-eval-id'),
+            evalBtn.getAttribute('data-eval-title')
+        );
+        return;
+    }
+
     // Toggle de favorito (no debe abrir el tablero/informe)
     const favBtn = e.target.closest('.favorite-star-btn');
     if (favBtn) {
@@ -1610,6 +1730,9 @@ fullScreenBtn?.addEventListener('click', () => {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
         closeModal();
+    }
+    if (e.key === 'Escape' && evaluacionModal && !evaluacionModal.classList.contains('hidden')) {
+        closeEvaluacionModal();
     }
 });
 

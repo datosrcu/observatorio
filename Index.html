@@ -932,6 +932,65 @@
         </div>
     </div>
 
+    <!-- Modal de Evaluación de Tableros e Informes -->
+    <div id="evaluacion-modal" class="fixed inset-0 hidden items-center justify-center z-[99996]" aria-hidden="true">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer" data-close-evaluacion></div>
+        <div class="relative w-[min(92vw,480px)] max-h-[88vh] bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col z-10 border border-yellow-100">
+            <div class="bg-gradient-to-r from-yellow-500 to-amber-500 text-white p-4 px-5 flex items-center justify-between shrink-0">
+                <div>
+                    <h2 class="text-lg font-bold tracking-wide">Evaluar</h2>
+                    <p id="evaluacion-item-name" class="text-xs text-yellow-100 font-medium truncate"></p>
+                </div>
+                <button type="button" data-close-evaluacion class="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-red-500 text-white rounded-full transition duration-150 cursor-pointer" aria-label="Cerrar">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <form id="evaluacion-form" class="p-5 overflow-y-auto space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-obelisco-dark mb-2">1. ¿Qué te pareció?</label>
+                    <div class="eval-star-row flex gap-1" data-question="parecido">
+                        <button type="button" class="eval-star w-8 h-8 text-gray-300 hover:text-yellow-400 transition" data-val="1" aria-label="1 estrella"><svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></button>
+                        <button type="button" class="eval-star w-8 h-8 text-gray-300 hover:text-yellow-400 transition" data-val="2" aria-label="2 estrellas"><svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></button>
+                        <button type="button" class="eval-star w-8 h-8 text-gray-300 hover:text-yellow-400 transition" data-val="3" aria-label="3 estrellas"><svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></button>
+                        <button type="button" class="eval-star w-8 h-8 text-gray-300 hover:text-yellow-400 transition" data-val="4" aria-label="4 estrellas"><svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></button>
+                        <button type="button" class="eval-star w-8 h-8 text-gray-300 hover:text-yellow-400 transition" data-val="5" aria-label="5 estrellas"><svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-obelisco-dark mb-2">2. ¿Te resultó útil?</label>
+                    <div class="eval-star-row flex gap-1" data-question="utilidad">
+                        <button type="button" class="eval-star w-8 h-8 text-gray-300 hover:text-yellow-400 transition" data-val="1" aria-label="1 estrella"><svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></button>
+                        <button type="button" class="eval-star w-8 h-8 text-gray-300 hover:text-yellow-400 transition" data-val="2" aria-label="2 estrellas"><svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></button>
+                        <button type="button" class="eval-star w-8 h-8 text-gray-300 hover:text-yellow-400 transition" data-val="3" aria-label="3 estrellas"><svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></button>
+                        <button type="button" class="eval-star w-8 h-8 text-gray-300 hover:text-yellow-400 transition" data-val="4" aria-label="4 estrellas"><svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></button>
+                        <button type="button" class="eval-star w-8 h-8 text-gray-300 hover:text-yellow-400 transition" data-val="5" aria-label="5 estrellas"><svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></button>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="evaluacion-comentario" class="block text-sm font-bold text-obelisco-dark mb-2">3. Observaciones o sugerencias de mejora <span class="font-normal text-obelisco-gray">(opcional)</span></label>
+                    <textarea id="evaluacion-comentario" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-yellow-500 resize-none" placeholder="Contanos qué mejorarías o qué te gustó..."></textarea>
+                </div>
+
+                <button type="submit" id="evaluacion-submit-btn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2.5 px-4 rounded-lg transition">
+                    Enviar evaluación
+                </button>
+            </form>
+
+            <div id="evaluacion-ok" class="hidden p-8 text-center">
+                <div class="w-14 h-14 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <h3 class="text-lg font-bold text-obelisco-dark">¡Gracias por tu opinión!</h3>
+                <p class="text-sm text-obelisco-gray mt-1">Tu evaluación fue enviada correctamente.</p>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="requests.js"></script>
     <script type="module" src="auth.js"></script>
 </body>
