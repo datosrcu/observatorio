@@ -1060,6 +1060,19 @@ const initializeTables = async () => {
             )
         `);
 
+        // 12. Tabla de Favoritos por usuario
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS favoritos_usuario (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                uid VARCHAR(128) NOT NULL,
+                item_type ENUM('tablero','informe') NOT NULL,
+                item_id VARCHAR(128) NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_favorito_usuario_item (uid, item_type, item_id),
+                INDEX idx_favoritos_uid (uid)
+            )
+        `);
+
         // Asegurar que las columnas nuevas existan si la tabla ya había sido creada sin ellas
         try {
             await connection.query('ALTER TABLE informes ADD COLUMN require_login BOOLEAN DEFAULT FALSE');
@@ -2065,6 +2078,54 @@ app.get('/api/informes', async (req, res) => {
         });
         res.json(withTokens);
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── FAVORITOS POR USUARIO ──────────────────────────────────────────────────
+
+// Obtener favoritos del usuario autenticado
+app.get('/api/favoritos', verifyToken, async (req, res) => {
+    const uid = req.user.uid;
+    try {
+        const connection = await getDbConnection();
+        const [rows] = await connection.query(
+            'SELECT item_type, item_id FROM favoritos_usuario WHERE uid = ?',
+            [uid]
+        );
+        await connection.end();
+        res.json(rows);
+    } catch (error) {
+        console.error('Error al obtener favoritos:', error);
+        res.status(500).json({ error: 'Error al obtener favoritos.' });
+    }
+});
+
+// Agregar o quitar un favorito del usuario autenticado
+app.post('/api/favoritos/toggle', verifyToken, async (req, res) => {
+    const uid = req.user.uid;
+    const { item_type, item_id } = req.body;
+
+    if (!item_id || !['tablero', 'informe'].includes(item_type)) {
+        return res.status(400).json({ error: 'item_id es requerido y item_type debe ser "tablero" o "informe".' });
+    }
+
+    try {
+        const connection = await getDbConnection();
+        const [result] = await connection.execute(
+            'DELETE FROM favoritos_usuario WHERE uid = ? AND item_type = ? AND item_id = ?',
+            [uid, item_type, item_id]
+        );
+        if (result.affectedRows === 0) {
+            await connection.execute(
+                'INSERT INTO favoritos_usuario (uid, item_type, item_id) VALUES (?, ?, ?)',
+                [uid, item_type, item_id]
+            );
+        }
+        await connection.end();
+        res.json({ status: 'ok', favorito: result.affectedRows === 0 });
+    } catch (error) {
+        console.error('Error al alternar favorito:', error);
+        res.status(500).json({ error: 'Error al alternar favorito.' });
+    }
 });
 
 // Crear informe (admin) — acepta multipart/form-data para subida de archivos

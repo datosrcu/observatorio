@@ -36,6 +36,7 @@ let currentUserRequests = [];
 let currentUserAcceptedTCVersion = null;
 let currentUserAcceptedTCTimestamp = null;
 let currentUserData = null;
+let userFavorites = new Set(); // claves con formato "tablero:<id>" o "informe:<id>"
 
 // Registration Modal Elements
 const registrationModal = document.getElementById('registration-modal');
@@ -410,6 +411,15 @@ async function loadUserPermissions(user) {
             }
         });
 
+        // Cargar favoritos del usuario (no bloquea el render si falla)
+        try {
+            const favsData = await callApi('/api/favoritos', 'GET');
+            userFavorites = new Set((Array.isArray(favsData) ? favsData : []).map(f => `${f.item_type}:${f.item_id}`));
+        } catch (e) {
+            console.warn("Error loading favorites:", e.message);
+            userFavorites = new Set();
+        }
+
         console.log("Loaded (MySQL)", allCategories.length, "categories,", allAccessibleBoards.length, "boards,", allInformes.length, "informes");
         renderDashboard();
         updateStaticButtonsAccess(user);
@@ -626,6 +636,31 @@ function renderDashboard() {
         }
 
     } else {
+        // Sección de Favoritos del usuario (entre los filtros y las categorías)
+        if (userFavorites.size > 0) {
+            const favBoards = allAccessibleBoards.filter(b => isFavorite('tablero', b.id));
+            const favInformes = allInformes.filter(i => isFavorite('informe', i.id));
+
+            if (favBoards.length > 0 || favInformes.length > 0) {
+                gridContainer.insertAdjacentHTML('beforeend', `
+                    <div class="col-span-full mt-2 mb-3 flex items-center gap-3">
+                        <div class="flex-grow h-px bg-yellow-200"></div>
+                        <span class="text-xs font-bold text-yellow-600 uppercase tracking-widest px-2 py-1 bg-yellow-50 rounded-full border border-yellow-200">⭐ Favoritos</span>
+                        <div class="flex-grow h-px bg-yellow-200"></div>
+                    </div>`);
+
+                favBoards.forEach(board => renderButton(gridContainer, board.id, board));
+                favInformes.forEach(informe => renderInformeCard(gridContainer, informe));
+
+                gridContainer.insertAdjacentHTML('beforeend', `
+                    <div class="col-span-full mt-4 mb-1 flex items-center gap-3">
+                        <div class="flex-grow h-px bg-gray-200"></div>
+                        <span class="text-xs font-bold text-obelisco-blue uppercase tracking-widest px-2 py-1 bg-blue-50 rounded-full border border-blue-100">${currentFilterGroup}</span>
+                        <div class="flex-grow h-px bg-gray-200"></div>
+                    </div>`);
+            }
+        }
+
         // Render Categories for this Group
         const catsToRender = allCategories.filter(c => (c.type || 'Categorías') === currentFilterGroup && c.visible !== false);
         // Also figure out if we have old boards that match this group but have no category, to show them directly? No, enforce category.
@@ -798,6 +833,41 @@ async function handleAccessRequest(e) {
     }
 }
 
+// --- Favoritos por usuario ---
+function getFavoriteKey(type, id) {
+    return `${type}:${id}`;
+}
+
+function isFavorite(type, id) {
+    return userFavorites.has(getFavoriteKey(type, id));
+}
+
+function getFavoriteStarHtml(type, id) {
+    const active = isFavorite(type, id);
+    return `
+        <button type="button" class="favorite-star-btn absolute -top-2 -left-2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-white border ${active ? 'border-yellow-300' : 'border-gray-200'} shadow-sm hover:scale-110 transition" data-fav-type="${type}" data-fav-id="${id}" title="${active ? 'Quitar de favoritos' : 'Agregar a favoritos'}" aria-label="${active ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
+            <svg class="w-4 h-4 ${active ? 'text-yellow-400' : 'text-gray-300'}" fill="${active ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+            </svg>
+        </button>`;
+}
+
+async function toggleFavorite(type, id) {
+    try {
+        const res = await callApi('/api/favoritos/toggle', 'POST', { item_type: type, item_id: id });
+        const key = getFavoriteKey(type, id);
+        if (res.favorito) {
+            userFavorites.add(key);
+        } else {
+            userFavorites.delete(key);
+        }
+        renderDashboard();
+    } catch (e) {
+        console.error('Error al alternar favorito:', e);
+        alert('No se pudo actualizar el favorito. Intentá nuevamente.');
+    }
+}
+
 function renderButton(container, id, data) {
     // If the board doesn't have an explicit icon string, guess color from categories
     let hexColor = '#009DE0';
@@ -851,6 +921,7 @@ function renderButton(container, id, data) {
         <a href="#" data-button-id="${id}" data-iframe="${data.iframeUrl || ''}" data-heading="${data.title}" data-access="${hasAccess}" data-new-tab="${!!data.openInNewTab}"
             class="obelisco-card dashboard-btn bg-white border border-obelisco-border rounded-xl p-6 flex flex-col h-full hover:bg-gray-50 transition drop-shadow-sm relative ${restrictedClass}">
             ${lockIcon}
+            ${getFavoriteStarHtml('tablero', id)}
             <div class="flex items-center mb-4 w-full">
                 <div class="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                     ${iconStr}
@@ -1082,6 +1153,7 @@ function renderInformeCard(container, informe) {
         <a href="#" data-informe-id="${informe.id}" data-informe-url="${informe.url || ''}" data-informe-type="${informe.fileType}" data-access="${hasAccess}"
             class="obelisco-card informe-btn bg-white border-2 rounded-xl p-5 flex flex-col h-full hover:bg-teal-50/40 hover:border-teal-300 transition drop-shadow-sm relative cursor-pointer ${restrictedClass}">
             ${lockIcon}
+            ${getFavoriteStarHtml('informe', informe.id)}
             <div class="flex items-center mb-3 w-full">
                 <div class="h-12 w-12 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center flex-shrink-0">
                     <svg class="h-6 w-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1113,6 +1185,7 @@ function renderInformeCard(container, informe) {
 
     const card = container.lastElementChild;
     card.addEventListener('click', (e) => {
+        if (e.target.closest('.favorite-star-btn')) return; // lo maneja la delegación global
         e.preventDefault();
         if (hasAccess) {
             recordUserActivity(informe.title, true);
@@ -1436,6 +1509,15 @@ logoutBtn?.addEventListener('click', handleLogout);
 
 // Modal Event Listeners
 document.addEventListener('click', (e) => {
+    // Toggle de favorito (no debe abrir el tablero/informe)
+    const favBtn = e.target.closest('.favorite-star-btn');
+    if (favBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFavorite(favBtn.getAttribute('data-fav-type'), favBtn.getAttribute('data-fav-id'));
+        return;
+    }
+
     // Click on dashboard button
     const btn = e.target.closest('.dashboard-btn');
     if (btn) {
