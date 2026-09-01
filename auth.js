@@ -3287,3 +3287,51 @@ document.addEventListener('DOMContentLoaded', () => {
         initSatisfaccionPage();
     }
 });
+
+// --- Sincronización periódica automática y al re-enfocar pestaña ---
+let autoRefreshTimer = null;
+let isRefreshingObservatorio = false;
+let lastAutoRefreshTime = Date.now();
+const AUTO_REFRESH_INTERVAL_MS = 60 * 1000; // 1 minuto
+
+async function refreshObservatorioSilencioso() {
+    if (!auth.currentUser) return; // Solo si el usuario está autenticado
+    if (document.hidden) return; // Si la pestaña no está visible, no gastar recursos
+    if (isRefreshingObservatorio) return; // Evitar llamadas concurrentes
+
+    // Si hay un modal interactivo abierto o el usuario está escribiendo, postergar
+    const isModalOpen = !!document.querySelector('#ogb-modal:not(.hidden), #evaluacion-modal:not(.hidden), #registration-modal:not(.hidden), #terms-modal:not(.hidden), #satisfaccion-modal:not(.hidden)');
+    const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+    if (isModalOpen || isEditing) return;
+
+    try {
+        isRefreshingObservatorio = true;
+        lastAutoRefreshTime = Date.now();
+        await loadUserPermissions(auth.currentUser);
+    } catch (err) {
+        console.warn("[Auto-Refresh] Error en actualización en segundo plano:", err);
+    } finally {
+        isRefreshingObservatorio = false;
+    }
+}
+
+function initAutoRefresh() {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = setInterval(refreshObservatorioSilencioso, AUTO_REFRESH_INTERVAL_MS);
+
+    // Revalidar al volver a la pestaña si pasaron al menos 30 segundos desde el último refresco
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && (Date.now() - lastAutoRefreshTime > 30000)) {
+            refreshObservatorioSilencioso();
+        }
+    });
+
+    window.addEventListener('focus', () => {
+        if (!document.hidden && (Date.now() - lastAutoRefreshTime > 30000)) {
+            refreshObservatorioSilencioso();
+        }
+    });
+}
+
+initAutoRefresh();
+
