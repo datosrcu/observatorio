@@ -2258,8 +2258,8 @@ function renderFeedbackTablerosStats(evaluaciones) {
 
     feedbackTablerosStats.innerHTML = `
         ${statCard('Promedio general', avgGeneral.toFixed(1) + ' <span class="text-sm text-gray-400 font-bold">/ 5</span>', renderStarsHtml(Math.round(avgGeneral)))}
-        ${statCard('¿Qué te pareció?', avgParecido.toFixed(1) + ' <span class="text-sm text-gray-400 font-bold">/ 5</span>', renderStarsHtml(Math.round(avgParecido)))}
-        ${statCard('¿Te resultó útil?', avgUtilidad.toFixed(1) + ' <span class="text-sm text-gray-400 font-bold">/ 5</span>', renderStarsHtml(Math.round(avgUtilidad)))}
+        ${statCard('1. Facilidad / Filtros', avgParecido.toFixed(1) + ' <span class="text-sm text-gray-400 font-bold">/ 5</span>', renderStarsHtml(Math.round(avgParecido)))}
+        ${statCard('2. Utilidad / Decisiones', avgUtilidad.toFixed(1) + ' <span class="text-sm text-gray-400 font-bold">/ 5</span>', renderStarsHtml(Math.round(avgUtilidad)))}
         <div class="col-span-full text-right text-xs text-gray-400 -mt-2">${evaluaciones.length} evaluacion${evaluaciones.length !== 1 ? 'es' : ''} recibida${evaluaciones.length !== 1 ? 's' : ''}</div>
     `;
 }
