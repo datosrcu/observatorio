@@ -560,6 +560,30 @@ app.use((req, res, next) => {
 // Servir archivos estáticos filtrados desde la raíz
 app.use(express.static(path.join(__dirname)));
 
+// Registro de accesos DENEGADOS (Anexo I Art. 16.3, Resolucion 73: la traza debe
+// cubrir los accesos permitidos y los denegados, con retencion minima de 2 anios).
+// Hasta ahora las guardias solo escribian en la rama de exito: quedaba constancia
+// de quien entro, no de a quien se le nego el paso.
+//
+// En una denegacion no hay usuario conocido — lo que fallo es justamente el token
+// firmado — asi que se usa un marcador de origen, igual que en la rama de exito, y
+// se vuelca en details lo que si se sabe. Escribe en segundo plano y nunca cambia
+// la respuesta al cliente: un fallo del log no debe convertir un 403 en un 500.
+function registrarAccesoDenegado(marcador, action, detalles, req) {
+    getDbConnection().then(async (connection) => {
+        try {
+            await connection.execute(
+                'INSERT INTO logs_actividad (user_uid, action, details, ip_address) VALUES (?, ?, ?, ?)',
+                [marcador, action, JSON.stringify(detalles), req.ip || req.headers['x-forwarded-for'] || null]
+            );
+        } catch (e) {
+            console.error('Error registrando acceso denegado:', e);
+        } finally {
+            await connection.end();
+        }
+    }).catch(() => {});
+}
+
 // Servir archivos de informes/tableros subidos, respetando require_login por recurso.
 // Los tableros/informes con require_login = 0 se sirven exactamente igual que antes
 // (sin consultar nada extra más allá de identificar a qué fila pertenecen). Los que
@@ -613,6 +637,12 @@ app.use('/uploads', async (req, res, next) => {
 
         const { t, exp } = req.query;
         if (!verifyTableroAccess(row.id, exp, t)) {
+            registrarAccesoDenegado('(token-uploads)', 'acceso_denegado_archivo', {
+                resourceId: row.id,
+                path: fullStoredPath,
+                motivo: !t ? 'sin_token' : 'token_invalido_o_vencido',
+                exp: exp || null
+            }, req);
             return res.status(403).send('Acceso no autorizado.');
         }
 
@@ -730,6 +760,34 @@ const limiter = rateLimit({
     validate: { trustProxy: false } // Desactivar advertencia permisiva sobre trust proxy en VPS
 });
 
+// Limitador propio del acuse de recibo del RCE (Anexo I Art. 14, Resolucion 73).
+// El limitador general (2000 peticiones / 15 min) esta calibrado para no trabar
+// el panel de administracion; no sirve para una ruta que envia correo, donde el
+// abuso no es scraping sino usar el Observatorio para bombardear una casilla.
+//
+// Se limita por USUARIO, no por IP: una jornada de altas desde una oficina
+// municipal sale toda detras de la misma IP publica, y un limite por IP le
+// habria negado el acuse a partir del sexto registrante — rompiendo justamente
+// lo que esta correccion viene a arreglar. Va montado despues de verifyToken,
+// asi que req.user.email ya esta disponible cuando corre keyGenerator; la IP
+// queda solo como respaldo. El flujo legitimo usa 1 de las 10 por hora.
+const bienvenidaLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hora
+    max: 10,
+    keyGenerator: (req) => (req.user && req.user.email)
+        ? String(req.user.email).toLowerCase()
+        : (req.ip || 'anonimo'),
+    message: {
+        error: 'Demasiados intentos de envio del acuse de recibo. Intente nuevamente mas tarde.',
+        code: 'TOO_MANY_REQUESTS'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Las validaciones internas de la libreria asumen una clave derivada de la
+    // IP y advierten sobre IPv6; aca la clave es el email verificado del token.
+    validate: false
+});
+
 // Servir handler de autenticacion de Firebase para cerrar popups al instante
 app.get('/__/auth/handler', (req, res) => {
     res.send(`<!DOCTYPE html>
@@ -765,6 +823,30 @@ const getDbConnection = async () => {
 };
 
 // Middleware para verificar el rol del usuario en la Base de Datos MySQL (RBAC)
+// Consulta el rol efectivo de un usuario contra usuarios_perfiles, la misma
+// fuente de verdad que usa requireRole. Se usa en rutas que no son puramente
+// administrativas pero que igual necesitan distinguir a un admin (por ejemplo,
+// permitirle actuar sobre otro usuario). No reemplaza a requireRole: para una
+// ruta que es solo de admin, sigue usandose requireRole.
+const getUserRole = async (email) => {
+    if (!email) return null;
+    let connection;
+    try {
+        connection = await getDbConnection();
+        const [rows] = await connection.query(
+            'SELECT role FROM usuarios_perfiles WHERE LOWER(email) = LOWER(?)',
+            [email]
+        );
+        await connection.end();
+        if (!rows || rows.length === 0) return null;
+        return (rows[0].role || 'usuario').toLowerCase();
+    } catch (error) {
+        if (connection) { try { await connection.end(); } catch (e) {} }
+        console.error('Error al consultar rol de usuario:', error);
+        return null;
+    }
+};
+
 const requireRole = (...allowedRoles) => {
     return async (req, res, next) => {
         if (!req.user || !req.user.email) {
@@ -1336,14 +1418,46 @@ app.post('/api/perfil', verifyToken, async (req, res) => {
 });
 
 // ── ENVÍO DE EMAIL DE BIENVENIDA (Resend) ──────────────────────────────────
-app.post('/api/enviar-bienvenida', verifyToken, requireRole('admin'), async (req, res) => {
-    const { full_name, email } = req.body;
+// Acuse de recibo del RCE (Anexo I Art. 14, Resolucion 73): completado el
+// registro, el sistema debe enviar automaticamente la constancia con version del
+// documento, fecha y hora de aceptacion y numero de registro.
+//
+// Esta ruta exigia requireRole('admin'), lo que la dejaba inalcanzable: su unico
+// llamador es el flujo de registro en auth.js, donde el usuario recien creado
+// tiene rol 'usuario'. La peticion devolvia 403 y el acuse obligatorio no se
+// enviaba nunca. Ahora cada usuario dispara el suyo y un admin puede disparar el
+// de cualquiera (reenvio manual). Un usuario comun no elige destinatario: se
+// ignora el email del body y se usa el del token verificado. Ver
+// docs/SECURITY_LOG.md.
+app.post('/api/enviar-bienvenida', verifyToken, bienvenidaLimiter, async (req, res) => {
+    const { full_name, registro_id, fecha_aceptacion, terms_version } = req.body;
+
+    const solicitante = req.user && req.user.email ? req.user.email : null;
+    const esAdmin = (await getUserRole(solicitante)) === 'admin';
+    const email = esAdmin ? (req.body.email || solicitante) : solicitante;
 
     if (!email) {
         return res.status(400).json({ error: 'El campo email es obligatorio.' });
     }
 
     const userName = full_name || email.split('@')[0];
+
+    // Datos de la constancia exigidos por el Anexo I Art. 14. Si el cliente no
+    // los manda, se envia igual pero dejando explicito que el dato no vino, en
+    // vez de inventarlo: una constancia con una fecha fabricada es peor que una
+    // que declara el faltante.
+    const fechaAceptacion = fecha_aceptacion ? new Date(fecha_aceptacion) : new Date();
+    const fechaLegible = isNaN(fechaAceptacion.getTime())
+        ? 'No disponible'
+        : fechaAceptacion.toLocaleString('es-AR', {
+            timeZone: 'America/Argentina/Cordoba',
+            dateStyle: 'long',
+            timeStyle: 'short'
+        });
+    const registroLegible = (registro_id !== undefined && registro_id !== null && registro_id !== '')
+        ? `N° ${registro_id}`
+        : 'No disponible';
+    const versionLegible = terms_version ? `v${String(terms_version).replace(/^v/i, '')}` : 'v1';
 
     try {
         // 1. Leer el documento de T&C para adjuntarlo
@@ -1383,7 +1497,13 @@ app.post('/api/enviar-bienvenida', verifyToken, requireRole('admin'), async (req
                 variables: {
                     userName: userName,
                     full_name: userName,
-                    name: userName
+                    name: userName,
+                    // Datos de constancia (Anexo I Art. 14). Si la plantilla
+                    // remota todavia no los usa, el correo sale igual pero sin
+                    // ellos: revisar la plantilla en Resend al desplegar.
+                    termsVersion: versionLegible,
+                    fechaAceptacion: fechaLegible,
+                    registroId: registroLegible
                 }
             };
         } else {
@@ -1394,6 +1514,9 @@ app.post('/api/enviar-bienvenida', verifyToken, requireRole('admin'), async (req
             // Reemplazar placeholders con el nombre del usuario
             htmlTemplate = htmlTemplate.replace(/\[Nombre del destinatario\]/g, userName);
             htmlTemplate = htmlTemplate.replace(/\{\{\{userName\}\}\}/g, userName);
+            htmlTemplate = htmlTemplate.replace(/\{\{\{termsVersion\}\}\}/g, versionLegible);
+            htmlTemplate = htmlTemplate.replace(/\{\{\{fechaAceptacion\}\}\}/g, fechaLegible);
+            htmlTemplate = htmlTemplate.replace(/\{\{\{registroId\}\}\}/g, registroLegible);
 
             // Convertir los enlaces a absolutos basados en el host de la petición
             const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
@@ -2339,12 +2462,29 @@ app.post('/api/rce', verifyToken, async (req, res) => {
 
     try {
         const connection = await getDbConnection();
-        await connection.execute(
+        // Se recupera el id autoincremental y la marca temporal de la fila recien
+        // insertada: son el "numero de registro" y la "fecha y hora de aceptacion"
+        // que el acuse de recibo debe informar (Anexo I Art. 14). No hace falta
+        // columna nueva, ya existian en la tabla.
+        const [insercion] = await connection.execute(
             'INSERT INTO rce_consentimientos (user_uid, user_email, user_name, dni, ip_address, terms_version) VALUES (?, ?, ?, ?, ?, ?)',
             [user_uid, user_email, user_name, dni, ip_address, terms_version]
         );
+        const registroId = insercion && insercion.insertId ? insercion.insertId : null;
+        let registroTimestamp = null;
+        if (registroId) {
+            const [[fila]] = await connection.execute(
+                'SELECT timestamp FROM rce_consentimientos WHERE id = ?',
+                [registroId]
+            );
+            registroTimestamp = fila && fila.timestamp ? fila.timestamp : null;
+        }
         await connection.end();
-        res.json({ message: 'Consentimiento registrado.' });
+        res.json({
+            message: 'Consentimiento registrado.',
+            registro_id: registroId,
+            fecha_aceptacion: registroTimestamp
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -2809,6 +2949,14 @@ async function githubProxyGuard(req, res, next) {
             return r || null;
         });
 
+        // Este 404 NO se registra en logs_actividad, y es deliberado. La traza que
+        // exige el Anexo I Art. 16.3 cubre accesos permitidos y denegados a un
+        // recurso: un prefijo que no matchea ningun tablero no es la denegacion de
+        // un acceso a una persona, es una ruta inexistente, y se dispara tambien
+        // con los recursos relativos (css, js, imagenes) que pide la pagina
+        // embebida. Registrarlo llenaria la tabla de ruido, y hoy no hay politica
+        // de purga que lo contenga. Si en algun momento hace falta, conviene
+        // deduplicar por prefijo owner/repo/branch antes de escribir.
         if (!row) {
             return res.status(404).send('Recurso no vinculado a ningún tablero activo.');
         }
@@ -2819,6 +2967,14 @@ async function githubProxyGuard(req, res, next) {
 
         const { t, exp } = req.query;
         if (!verifyTableroAccess(row.id, exp, t)) {
+            registrarAccesoDenegado('(token-github-proxy)', 'acceso_denegado_github', {
+                resourceId: row.id,
+                owner,
+                repo,
+                branch,
+                motivo: !t ? 'sin_token' : 'token_invalido_o_vencido',
+                exp: exp || null
+            }, req);
             return res.status(403).send('Acceso no autorizado.');
         }
 

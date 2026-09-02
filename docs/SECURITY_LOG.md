@@ -1,5 +1,33 @@
 # Bitácora de seguridad — Observatorio de Gestión Municipal (OGM)
 
+## [RESUELTO] Acuse de recibo del RCE inalcanzable por rol, y denegaciones de acceso sin registrar
+
+- **Severidad**: Media (incumplimiento normativo con impacto en trazabilidad; no exponía datos de más).
+- **Estado**: Resuelto en código. Pendiente de probar de punta a punta en un ambiente con `RESEND_API_KEY` configurada.
+- **Dónde**: `server.js` (`/api/enviar-bienvenida`, `/api/rce`, guardia de `/uploads`, `githubProxyGuard`, nuevos `getUserRole`, `bienvenidaLimiter`, `registrarAccesoDenegado`), `auth.js` (flujo de registro), `plantilla_bienvenida_ogm.html`.
+- **Origen**: revisión de consistencia entre el marco legal y la implementación. Detalle completo y hoja de ruta en `docs/CUMPLIMIENTO_NORMATIVO.md`.
+
+**Hallazgo 1 — el acuse de recibo obligatorio no se enviaba nunca.** El Anexo I Art. 14 de la Resolución 73 exige que, completado el registro, el sistema envíe automáticamente una constancia con la versión del documento aceptado, la fecha y hora de aceptación y el número de registro. `POST /api/enviar-bienvenida` exigía `requireRole('admin')`, pero su **único llamador** es el flujo de registro de `auth.js`, donde el usuario recién creado tiene rol `usuario`: la petición devolvía 403 y el error quedaba silenciado en un `.catch(console.warn)` del lado del cliente. La ruta era, en los hechos, código inalcanzable — no hay botón de reenvío en el panel de administración. Además, la plantilla no incluía ninguno de los tres datos que la constancia debe informar.
+
+**Hallazgo 2 — la traza registraba las concesiones pero no las denegaciones.** El Anexo I Art. 16.3 exige trazabilidad de los accesos permitidos **y denegados**, con retención mínima de 2 años. Las dos guardias de acceso a contenido protegido escribían en `logs_actividad` sólo en su rama de éxito. Quedaba constancia de quién entró, no de a quién se le negó el paso. Eran dos guardias, no una: la de `/uploads` y `githubProxyGuard`.
+
+**Remediación**:
+
+- `POST /api/enviar-bienvenida` deja de exigir `requireRole('admin')` y pasa a autorización propia: cada usuario autenticado puede disparar su propio acuse, y un admin puede disparar el de cualquiera (reenvío manual). **Un usuario común no puede elegir destinatario**: se ignora el `email` del cuerpo de la petición y se usa el del token verificado. El rol se consulta con `getUserRole()`, contra `usuarios_perfiles`, en el momento de la solicitud — misma fuente de verdad que `requireRole`, nunca un rol declarado por el cliente.
+- Se agregó `bienvenidaLimiter` (5 peticiones por hora y por IP) sobre esa ruta. El limitador general (2000 / 15 min) está calibrado para no trabar el panel de administración y no sirve para una ruta que envía correo: acá el abuso no es scraping, es usar el Observatorio para bombardear una casilla.
+- `POST /api/rce` ahora devuelve el `insertId` de la fila y su `timestamp`. Son el número de registro y la fecha de aceptación que la constancia debe informar. **No hizo falta columna nueva**: ambos campos ya existían en `rce_consentimientos`.
+- En `auth.js` las dos llamadas se encadenan (antes se disparaban en paralelo, las dos *fire-and-forget*): el acuse necesita el número de registro que produce `/api/rce`. Sigue sin bloquear el registro — si falla, el usuario queda registrado igual — pero el fallo se registra con `console.error` y mensaje explícito en vez de silenciarse.
+- `plantilla_bienvenida_ogm.html` incorpora un bloque "Constancia de registro" con documento, versión, fecha y hora de aceptación y número de registro. Si algún dato no llega, se imprime "No disponible" en lugar de fabricarlo.
+- Nueva función `registrarAccesoDenegado()`, que replica el patrón de escritura no bloqueante ya usado en las ramas de éxito. Se llama desde las dos ramas 403 (`acceso_denegado_archivo` en `/uploads`, `acceso_denegado_github` en el proxy), volcando en `details` el recurso, el motivo (`sin_token` / `token_invalido_o_vencido`) y el `exp` recibido. Un fallo del registro nunca convierte un 403 en un 500.
+
+**Decisión explícita — el 404 del proxy de GitHub no se registra.** "Prefijo no vinculado a ningún tablero" no es la denegación de un acceso a una persona: es una ruta inexistente, y se dispara también con los recursos relativos (css, js, imágenes) que pide la página embebida. Registrarlo llenaría `logs_actividad` de ruido, y hoy no existe política de purga que lo contenga. Queda comentado en el código; si en algún momento hace falta, conviene deduplicar por prefijo `owner/repo/branch` antes de escribir.
+
+**Cambio de comportamiento visible**: una ruta que antes era exclusiva de admin pasa a ser invocable por cualquier usuario autenticado, acotada a su propia dirección y con límite de tasa. No le quita capacidad a nadie — hoy nadie podía usarla.
+
+**Pendiente, fuera de esta corrección**: persistir la prueba de envío y de recepción del acuse (el `emailId` que devuelve Resend se registra en consola pero no se guarda), lo que exige columna o tabla nueva. El principio de no repudio de la Ordenanza 162/25 Art. 8°.g lo requiere. Ver `docs/CUMPLIMIENTO_NORMATIVO.md`, H-02 y H-01.
+
+---
+
 ## [RESUELTO] Archivos `.md` de todo el proyecto servidos públicamente sin filtro
 
 - **Severidad**: Alta.
