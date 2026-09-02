@@ -4,6 +4,8 @@
 **Fecha del análisis:** 2 de septiembre de 2026.
 **Repositorio analizado:** `/Users/germansayago/Projects/Gobierno/observatorio` (rama de trabajo local).
 
+> **Sobre los números de línea.** Las referencias `archivo:línea` de las secciones 2.1 y 2.2 (H-01 a N-12) corresponden al estado del código **anterior** al commit de la Tanda 1, que movió líneas en `server.js` y `auth.js`. Las de N-13 a N-16 son posteriores. Los nombres de función, endpoint y tabla citados son estables en ambos casos: buscar por esos, no por número de línea.
+
 ## 0. Fuentes normativas y estado de disponibilidad
 
 | Norma | Archivo | Estado |
@@ -11,9 +13,11 @@
 | Ordenanza N° 162/2025 — Modelo de Gobernanza de Datos Públicos | `normativas/Ordenanzas/Ordenanza-162_25.pdf` | Leída completa (24 artículos). Sancionada 3/4/2025. |
 | Resolución N° 64/2026 — Creación del OGM | `normativas/Decretos/Resolucion-N°-64-OGRCU.pdf` | Leída completa (11 artículos). Firmada 30/1/2026, Secretaría de Gestión y Participación Ciudadana. |
 | Resolución N° 73/2026 + Anexo I (T&C v1.0) | `normativas/Resoluciones/RESOLUCION 73.pdf` | Analizada en sesión previa. |
-| **Resolución N° 72/2026 (modificatoria de la 64)** | **No existe en el repositorio ni en el contexto del proyecto** | **NO LEÍDA.** |
+| Resolución N° 72/2026 (modificatoria de la 64) | `normativas/Resoluciones/Resolucion-72.pdf` | Leída completa (3 artículos). Firmada 11/5/2026. |
 
-> **Advertencia de alcance.** La Resolución N° 72 no está disponible en ninguna de las fuentes cargadas. Todo lo que sigue sobre la Resolución 64 se basa en su **texto original**. Si la 72 modificó artículos (categorías del Art. 3°, funciones del Art. 4°, registros de los Arts. 8° y 9°, o el encuadre institucional del Art. 1°), las brechas N-01 a N-09 pueden variar. **Conseguir la Res. 72 antes de ejecutar correcciones.**
+> **Alcance de la Resolución N° 72.** Es breve y de alcance estrecho. Hace dos cosas: renombra el Observatorio de Gestión Municipal (OGM) como **OG RCU** (Art. 1°) y designa autoridad de aplicación a la **Dirección de Estadística, Control de Calidad y Procesos**, con las facultades de la Resolución 64 (Art. 2°), porque la Subsecretaría de Estadística dejó de existir en la estructura funcional que fijó la Ordenanza 350/2026.
+>
+> **No toca** los artículos sustantivos de la Resolución 64: categorías de datos (Art. 3°), Gestor/a de Datos (Art. 4°), fuentes oficiales (Art. 5°), productos (Art. 6°), reglamentación (Art. 7°), RUF (Art. 8°) ni RUG (Art. 9°). Las brechas N-01 a N-09 quedan como están; lo único que cambia es quién es el sujeto obligado a cumplirlas. Queda además resuelta la discrepancia de dependencia entre la Res. 64 (Subsecretaría de Estadística) y la Res. 73 (Dirección de Estadística, Control de Calidad y Procesos): rige esta última.
 
 **Dato de exigibilidad:** el Art. 23° de la Ordenanza 162/25 fija entrada en vigencia "en un plazo no mayor a doce meses desde la fecha de su promulgación". Sancionada el 3/4/2025, sus disposiciones son exigibles a la fecha de este análisis.
 
@@ -198,8 +202,35 @@ Notación: **H-xx** = hallazgo confirmado en la sesión previa (Res. 73/Anexo I)
 #### N-12 · Resolución N° 72 no publicada en el portal
 
 - **Norma:** Ord. 162/2025 Art. 24° (comuníquese, publíquese) y Res. 64/2026 Art. 11° (protocolícese, notifíquese). Concordante con el principio de publicidad de los actos.
-- **Hoy:** el desplegable de normativa del portal (`observatorio-gestion.html:247`, `:266`, `:279`) enlaza la Ordenanza 162/25, la Resolución 64 y la Resolución 73. La Resolución 72 no está enlazada, no existe como archivo en `normativas/` y no aparece mencionada en ningún archivo del repositorio.
-- **Brecha:** la norma que modifica el acto de creación del Observatorio no está publicada en el propio Observatorio. La Resolución 64 se ofrece al público en su versión original, sin la modificatoria.
+- **Hoy:** el desplegable de normativa del portal enlazaba la Ordenanza 162/25, la Resolución 64 y la Resolución 73, pero no la Resolución 72 — que no existía como archivo en el repositorio. La Resolución 64 se ofrecía al público en su versión original, sin la modificatoria.
+- **Estado: CORREGIDO.** Incorporado `normativas/Resoluciones/Resolucion-72.pdf` y enlazado en el desplegable (`observatorio-gestion.html:279`), entre la Res. 64 y la Res. 73. El prefijo `/normativas/` ya está en `PUBLIC_STATIC_PREFIXES` y `.pdf` no está bloqueado, así que se sirve sin tocar el filtro de estáticos.
+
+---
+
+#### N-13 · Sin procedimiento de notificación de incidentes de seguridad
+
+- **Norma:** Res. 73/2026, **Art. 4°.e** — instruye a la autoridad ejecutiva a mantener operativas las medidas de seguridad del Art. 16° del Anexo I, "informando a esta Secretaría ante cualquier incidente de seguridad que afecte la integridad, confidencialidad o disponibilidad del sistema". Concordante con el Considerando de la misma Resolución, que menciona expresamente "la obligación de notificar incidentes de seguridad".
+- **Hoy:** existe `docs/SECURITY_LOG.md`, una bitácora interna con el historial de hallazgos y remediaciones. No hay procedimiento definido de notificación a la Secretaría: ni destinatario, ni plazo, ni criterio de qué constituye un incidente reportable, ni registro de notificaciones cursadas. El sistema tampoco emite alerta alguna ante un evento de seguridad.
+- **Brecha:** la obligación es de informar a un tercero (la Secretaría); lo que existe es documentación para uso propio. Son cosas distintas. Ante un incidente, hoy no hay a quién avisar por un canal definido ni cómo acreditar que se avisó.
+
+#### N-14 · El cambio de versión de los T&C no es el acto jurídico que la norma exige
+
+- **Norma:** Res. 73/2026, **Art. 3°** — "Las modificaciones futuras a los Términos y Condiciones aprobados por el Artículo 1° de la presente deberán ser aprobadas mediante nueva Resolución de esta Secretaría, con indicación del número de versión actualizada y su fecha de entrada en vigor, respetando el plazo de notificación a usuarios/as activos/as establecido en el Artículo 11° del Anexo I."
+- **Hoy:** la versión vigente vive en `config_sistema` bajo la clave `terms_version`, inicializada en `'1'` (`server.js:1115-1121`). Se cambia con `POST /api/config/:key` (`server.js:2603`), un endpoint genérico de administración que acepta cualquier valor de texto. No pide número de resolución, ni fecha de entrada en vigor, ni registra quién hizo el cambio, ni dispara notificación alguna a los usuarios activos.
+- **Brecha:** subir la versión de los T&C es un acto jurídico con tres requisitos formales, y el sistema lo ejecuta como una edición de configuración sin ninguno de ellos. Es la otra mitad de H-04: la Res. 73 Art. 5° exige suspender a quien no reacepte en 5 días hábiles, pero el sistema tampoco registra cuándo entró en vigor la versión nueva, que es la fecha desde la cual se cuentan esos días. Sin fecha de vigencia almacenada, el plazo del Art. 5° no es computable ni siquiera a mano.
+
+#### N-15 · Medios de contacto oficiales no publicados
+
+- **Norma:** Res. 73/2026, **Art. 4°.c** — "Publicar y mantener actualizados los medios de contacto oficiales del OG RCU conforme al Artículo 15° del Anexo I."
+- **Hoy:** el portal tiene un formulario de contacto que escribe en `mensajes_contacto` (`server.js:1082-1092`, `POST /api/contactos` en `server.js:1684`). No hay publicada una dirección de correo oficial, ni un responsable, ni el contacto del Delegado de Datos de la Ord. 162 Art. 17° ("delegado" tiene cero ocurrencias en todo el frontend).
+- **Brecha:** un formulario web no es un medio de contacto oficial publicado: no permite al ciudadano conservar constancia de su envío ni dirigirse a un responsable identificable. Se solapa con N-06 (canal de reclamo) y con H-06 (responsable del tratamiento).
+- **Verificar contra el Anexo I:** el Art. 15° del Anexo I enumera cuáles son esos medios. El Anexo I no está en el PDF de la Res. 73 — vive en `normativas/Terminos/Terminos_y_Condiciones_OGM_RioCuarto_v1.htm`. Confirmar allí el listado exacto antes de implementar.
+
+#### N-16 · El sistema usa la denominación anterior a la Resolución 72
+
+- **Norma:** Res. 72/2026, **Art. 1°** — "Modifícase el nombre del Observatorio de Gestión Municipal (OGM) por Observatorio de Gestión Municipal (OG RCU)". Vigente desde el 11/5/2026.
+- **Hoy:** la sigla `OGM` aparece 18 veces en el frontend y `OG RCU` una sola. Alcanza a texto visible al usuario y a nombres de archivo: el asunto del correo de bienvenida ("Bienvenido/a al Observatorio de Gestión Municipal – RCU"), `plantilla_bienvenida_ogm.html`, y el documento de T&C adjunto a ese correo, `Terminos_y_Condiciones_OGM_RioCuarto_v1.htm`.
+- **Brecha:** menor, pero real: la denominación oficial cambió por acto administrativo y el sistema sigue usando la anterior, incluso en el correo que sirve de constancia formal de aceptación. El renombre de archivos toca rutas referenciadas en `server.js` y en el filtro de estáticos — no es un find-and-replace ciego.
 
 ---
 
@@ -240,11 +271,14 @@ Se registran para separar lo que corresponde a desarrollo de lo que corresponde 
 | N-09 | Aprobación de acceso sin autor ni fecha de decisión; sin notificación | Res. 64 Art. 2°.2 + Ord. 162 Art. 8°.g | Alta |
 | N-10 | Sin calendario de actualización; fecha hardcodeada en HTML | Res. 64 Art. 7° + Ord. 162 Art. 8°.b | Media |
 | N-11 | Sin capacidad de producir evidencia de auditoría | Ord. 162 Art. 20° | Media |
-| N-12 | Resolución 72 no publicada en el portal | Ord. 162 Art. 24° / Res. 64 Art. 11° | Media |
+| N-12 | Resolución 72 no publicada en el portal | Ord. 162 Art. 24° / Res. 64 Art. 11° | ~~Media~~ — **corregida** |
+| N-13 | Sin procedimiento de notificación de incidentes a la Secretaría | Res. 73 Art. 4°.e | Media |
+| N-14 | El cambio de versión de los T&C carece de resolución, fecha de vigencia y notificación | Res. 73 Art. 3° | Alta |
+| N-15 | Medios de contacto oficiales no publicados | Res. 73 Art. 4°.c | Media |
+| N-16 | El sistema usa la denominación anterior a la Res. 72 | Res. 72 Art. 1° | Baja |
 
-**Antes de ejecutar correcciones, dos insumos pendientes:**
+**Insumo pendiente:** el contenido real de la tabla `categorias` en producción, necesario para cerrar N-04. No se resuelve leyendo el código.
 
-1. **Resolución N° 72/2026** — no disponible. Puede alterar N-01 a N-09.
-2. **Contenido real de la tabla `categorias`** en producción — necesario para cerrar N-04.
+**Ya no bloquea:** la Resolución N° 72 fue incorporada y leída. Su alcance es estrecho y no altera N-01 a N-09 (ver sección 0).
 
 **Decisión normativa previa al código:** el conflicto entre el derecho de supresión (N-06) y la retención obligatoria del RCE por 5 años (Anexo I Art. 13) debe resolverse en sede normativa antes de implementarse.
