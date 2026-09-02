@@ -498,7 +498,8 @@ const PUBLIC_STATIC_ALLOWLIST = new Set([
     '/robots.txt',
     '/flujo_de_trabajo_observatorio.svg',
     '/flujo_de_trabajo_observatorio.html',
-    '/brief_agente_auditoria_ogm.md'
+    '/brief_agente_auditoria_ogm.md',
+    '/seguridad.html'
 ]);
 
 const PUBLIC_STATIC_PREFIXES = [
@@ -534,7 +535,7 @@ app.use((req, res, next) => {
     const BLOCKED_EXTENSIONS = [
         '.js', '.py', '.sh', '.sql', '.php', '.rb', '.pl', '.cgi',
         '.bak', '.backup', '.old', '.log', '.yml', '.yaml', '.ini',
-        '.conf', '.config', '.pem', '.key', '.crt', '.swp'
+        '.conf', '.config', '.pem', '.key', '.crt', '.swp', '.md'
     ];
     if (BLOCKED_EXTENSIONS.some(ext => reqPathLower.endsWith(ext)) && !PUBLIC_STATIC_ALLOWLIST.has(reqPathLower)) {
         return res.status(404).send('Not Found');
@@ -2916,6 +2917,18 @@ app.get('/api/github/proxy/:owner/:repo/:branch/*', githubProxyGuard, async (req
     } catch (err) {
         console.error("Error en GitHub proxy:", err);
         res.status(500).send("Error interno en proxy de GitHub: " + err.message);
+    }
+});
+
+// Informe de seguridad — solo para rol admin, vía panel (docs/*.md ya no se
+// sirve público desde la raíz, ver Sección 5 de SECURITY_POLICY.md).
+app.get('/api/seguridad/informe', verifyToken, requireRole('admin'), (req, res) => {
+    try {
+        const content = fs.readFileSync(path.join(__dirname, 'docs', 'INFORME_SEGURIDAD.md'), 'utf-8');
+        res.json({ content });
+    } catch (e) {
+        console.error('Error leyendo informe de seguridad:', e);
+        res.status(500).json({ error: 'No se pudo leer el informe de seguridad.' });
     }
 });
 

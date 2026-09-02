@@ -180,6 +180,11 @@
                             <span id="contacto-badge"
                                 class="ml-2 hidden bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">New</span>
                         </button>
+                        <button
+                            class="nav-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                            data-target="tab-seguridad">
+                            Seguridad
+                        </button>
                     </nav>
                 </div>
             </div>
@@ -678,6 +683,19 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- CONTENIDO SEGURIDAD -->
+                <div id="tab-seguridad" class="tab-pane hidden text-sm">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold mb-1">Informe de Seguridad</h2>
+                        <p class="text-obelisco-gray text-sm">Estado vigente de los controles de seguridad del sistema. Visible solo para administradores.</p>
+                    </div>
+                    <div id="seguridad-informe-wrap" class="bg-white border border-obelisco-border rounded-xl shadow-sm p-6 sm:p-8 max-w-3xl">
+                        <p id="seguridad-informe-status" class="text-obelisco-gray text-sm">Cargando informe...</p>
+                        <div id="seguridad-informe-content" class="prose prose-sm max-w-none"></div>
+                    </div>
+                </div>
+
                 <!-- CONTENIDO INFORMES -->
                 <div id="tab-informes" class="tab-pane hidden text-sm">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4">
@@ -1281,8 +1299,9 @@
     </div>
 
     <!-- Application Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
     <script type="module" src="firebase-config.js"></script>
-    <script type="module" src="admin.js?v=1.5.0"></script>
+    <script type="module" src="admin.js?v=1.6.0"></script>
     <!-- Modal Selección de Duración Acceso -->
     <div id="duration-modal" class="fixed inset-0 hidden items-center justify-center z-[1000] p-4">
         <div class="absolute inset-0 bg-obelisco-dark/60 backdrop-blur-sm" id="close-duration-overlay"></div>

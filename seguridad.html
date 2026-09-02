@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compromiso de seguridad — Observatorio de Gestión Municipal</title>
+<style>
+  :root {
+    --azul: #0b5ea8;
+    --azul-oscuro: #0a2e4d;
+    --gris-texto: #3a3f47;
+    --gris-claro: #f4f6f8;
+    --borde: #e2e6ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--gris-texto);
+    background: #ffffff;
+    line-height: 1.6;
+  }
+  header {
+    background: var(--azul-oscuro);
+    color: #fff;
+    padding: 48px 24px 40px;
+    text-align: center;
+  }
+  header .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 13px;
+    color: #9fc4e8;
+    margin-bottom: 10px;
+  }
+  header h1 {
+    margin: 0 0 12px;
+    font-size: 28px;
+    font-weight: 700;
+  }
+  header p {
+    max-width: 640px;
+    margin: 0 auto;
+    color: #d7e6f5;
+    font-size: 15px;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+  }
+  .intro {
+    font-size: 16px;
+    color: var(--gris-texto);
+    margin-bottom: 36px;
+  }
+  .pilar {
+    display: flex;
+    gap: 18px;
+    padding: 22px 0;
+    border-top: 1px solid var(--borde);
+  }
+  .pilar:last-of-type {
+    border-bottom: 1px solid var(--borde);
+  }
+  .pilar-icono {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: var(--gris-claro);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+  .pilar h2 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    color: var(--azul-oscuro);
+  }
+  .pilar p {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--gris-texto);
+  }
+  .franja {
+    background: var(--gris-claro);
+    border-radius: 12px;
+    padding: 24px 26px;
+    margin: 40px 0;
+  }
+  .franja h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: var(--azul-oscuro);
+  }
+  .franja p {
+    margin: 0;
+    font-size: 14.5px;
+  }
+  .franja a {
+    color: var(--azul);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .franja a:hover { text-decoration: underline; }
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 12.5px;
+    color: #8a919b;
+  }
+  .volver {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #9fc4e8;
+    text-decoration: none;
+  }
+  .volver:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Observatorio de Gestión Municipal · Río Cuarto</div>
+  <h1>Cómo protegemos la información</h1>
+  <p>El Observatorio reúne indicadores de gestión pública, algunos de acceso abierto y otros con información sensible que requiere resguardo. Así es como cuidamos ese acceso.</p>
+  <a class="volver" href="/">← Volver al Observatorio</a>
+</header>
+
+<main>
+  <p class="intro">
+    Trabajamos de forma continua para que el acceso a la información esté protegido de acuerdo a su nivel de sensibilidad,
+    y para que cada persona vea únicamente lo que le corresponde ver.
+  </p>
+
+  <div class="pilar">
+    <div class="pilar-icono">🔐</div>
+    <div>
+      <h2>Autenticación segura</h2>
+      <p>El ingreso al sistema requiere una cuenta verificada. Las cuentas con mayores privilegios cuentan, además, con doble factor de autenticación.</p>
+    </div>
+  </div>
+
+  <div class="pilar">
+    <div class="pilar-icono">🧭</div>
+    <div>
+      <h2>Acceso según el rol de cada persona</h2>
+      <p>No todas las cuentas tienen los mismos permisos. Las tareas administrativas están reservadas a perfiles autorizados, y ese permiso se verifica en cada acción, no solo al iniciar sesión.</p>
+    </div>
+  </div>
+
+  <div class="pilar">
+    <div class="pilar-icono">📋</div>
+    <div>
+      <h2>Acceso a datos sensibles por solicitud</h2>
+      <p>La información de mayor sensibilidad no está disponible de forma abierta: se accede mediante una solicitud formal, que queda registrada y requiere aprobación. Los permisos otorgados tienen fecha de vencimiento.</p>
+    </div>
+  </div>
+
+  <div class="pilar">
+    <div class="pilar-icono">🗂️</div>
+    <div>
+      <h2>Protección de datos personales</h2>
+      <p>La información personal de las personas registradas en el sistema (documentación de identidad, datos de contacto) está restringida exclusivamente a personal autorizado.</p>
+    </div>
+  </div>
+
+  <div class="pilar">
+    <div class="pilar-icono">🔄</div>
+    <div>
+      <h2>Revisión permanente</h2>
+      <p>Los controles de seguridad del sistema se revisan y actualizan de forma periódica, a medida que se incorporan nuevas funcionalidades.</p>
+    </div>
+  </div>
+
+  <div class="franja">
+    <h2>¿Encontraste un problema de seguridad?</h2>
+    <p>
+      Si detectaste algo que te parece una vulnerabilidad o un comportamiento indebido en el sistema, escribinos a
+      <a href="mailto:datos@riocuarto.gov.ar">datos@riocuarto.gov.ar</a>. Agradecemos los reportes responsables.
+    </p>
+  </div>
+</main>
+
+<footer>
+  Última actualización: septiembre de 2026 · Municipalidad de Río Cuarto
+</footer>
+
+</body>
+</html>
