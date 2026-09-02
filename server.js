@@ -498,7 +498,8 @@ const PUBLIC_STATIC_ALLOWLIST = new Set([
     '/robots.txt',
     '/flujo_de_trabajo_observatorio.svg',
     '/flujo_de_trabajo_observatorio.html',
-    '/brief_agente_auditoria_ogm.md'
+    '/brief_agente_auditoria_ogm.md',
+    '/seguridad.html'
 ]);
 
 const PUBLIC_STATIC_PREFIXES = [
