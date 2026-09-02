@@ -165,6 +165,29 @@ async function callApi(endpoint, method = 'POST', body = null) {
     return text ? JSON.parse(text) : {};
 }
 
+// --- Informe de seguridad (solo admin) ---
+let securityReportLoaded = false;
+async function loadSecurityReport() {
+    if (securityReportLoaded) return;
+    const statusEl = document.getElementById('seguridad-informe-status');
+    const contentEl = document.getElementById('seguridad-informe-content');
+    if (!statusEl || !contentEl) return;
+
+    try {
+        const data = await callApi('/api/seguridad/informe', 'GET');
+        statusEl.classList.add('hidden');
+        const html = (typeof marked !== 'undefined')
+            ? marked.parse(data.content || '')
+            : `<pre class="whitespace-pre-wrap">${(data.content || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</pre>`;
+        contentEl.innerHTML = html;
+        securityReportLoaded = true;
+    } catch (err) {
+        statusEl.textContent = 'No se pudo cargar el informe: ' + err.message;
+        statusEl.classList.remove('hidden', 'text-obelisco-gray');
+        statusEl.classList.add('text-red-600');
+    }
+}
+
 // --- Initialization & Auth ---
 onAuthStateChanged(auth, async (user) => {
     if (loader) loader.classList.add('hidden');
@@ -296,6 +319,7 @@ navTabs?.forEach(tab => {
         if (target === 'tab-solicitudes') loadRequests();
         if (target === 'tab-pedidos') loadStatisticalRequests();
         if (target === 'tab-tracking') loadUserTracking();
+        if (target === 'tab-seguridad') loadSecurityReport();
         if (target === 'tab-feedback') {
             loadFeedback();
             loadFeedbackTableros();

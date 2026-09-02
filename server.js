@@ -2920,6 +2920,18 @@ app.get('/api/github/proxy/:owner/:repo/:branch/*', githubProxyGuard, async (req
     }
 });
 
+// Informe de seguridad — solo para rol admin, vía panel (docs/*.md ya no se
+// sirve público desde la raíz, ver Sección 5 de SECURITY_POLICY.md).
+app.get('/api/seguridad/informe', verifyToken, requireRole('admin'), (req, res) => {
+    try {
+        const content = fs.readFileSync(path.join(__dirname, 'docs', 'INFORME_SEGURIDAD.md'), 'utf-8');
+        res.json({ content });
+    } catch (e) {
+        console.error('Error leyendo informe de seguridad:', e);
+        res.status(500).json({ error: 'No se pudo leer el informe de seguridad.' });
+    }
+});
+
 // Ruta para el Admin
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));
