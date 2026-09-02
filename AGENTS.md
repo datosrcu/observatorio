@@ -11,6 +11,19 @@ Hay un trabajo de seguridad en curso, con su propia bitácora y política docume
 - `docs/SECURITY_POLICY.md` — el estado vigente: qué controles existen hoy y qué falta.
 - `docs/SECURITY_LOG.md` — la bitácora: qué se encontró, cuándo, y cómo se resolvió.
 
+## Marco normativo — este sistema tiene obligaciones legales
+
+El Observatorio no es sólo software: su funcionamiento está regulado por normas municipales concretas, y varias de ellas se cumplen (o se incumplen) **en el código**. El registro de consentimiento, el acuse de recibo, la traza de accesos, los plazos de conservación y los metadatos de los tableros son requisitos normativos, no decisiones de producto.
+
+- `docs/CUMPLIMIENTO_NORMATIVO.md` — el análisis: cada brecha con el artículo que la exige, qué hace el sistema hoy y cuál es la diferencia concreta. **Leelo antes de tocar** el RCE, los Términos y Condiciones, el circuito de consentimiento, el registro de actividad, la política de privacidad o los metadatos de tableros e informes.
+- `docs/ESTADO_Y_PENDIENTES.md` — qué se corrigió, qué falta, y con qué insumo está bloqueado cada pendiente.
+- `normativas/` — los PDF originales y su transcripción a markdown (los PDF son escaneos sin capa de texto; para buscar o citar, usar los `.md`).
+
+Dos consecuencias prácticas:
+
+1. **Antes de "simplificar" algo de esas áreas, fijate si no lo exige una norma.** Campos que parecen redundantes (el DNI duplicado, la IP en el consentimiento, la versión del documento aceptado) están ahí porque el Anexo I de la Resolución 73 los enumera como obligatorios.
+2. **Si tu cambio cierra una brecha listada, actualizá su entrada** en `CUMPLIMIENTO_NORMATIVO.md` y en `ESTADO_Y_PENDIENTES.md`, en el mismo commit. Un documento de cumplimiento desactualizado es peor que no tenerlo: se sigue usando como si fuera cierto.
+
 ## Regla de oro
 
 Este sistema está en producción, con usuarios reales. **No cambies el comportamiento actual salvo que ese comportamiento sea exactamente la falla que estás corrigiendo.**

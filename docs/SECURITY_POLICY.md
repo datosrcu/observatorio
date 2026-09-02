@@ -35,6 +35,8 @@ Rutas protegidas por rol (no exhaustivo, ver `server.js` para el listado complet
 
 Antes de este control, cualquier cuenta registrada podía, entre otras cosas, otorgarse a sí misma el rol de administrador con una sola solicitud HTTP. Detalle completo en `SECURITY_LOG.md`. Una corrección posterior extendió el mismo control a las rutas de `/api/informes`, que se habían quedado afuera del barrido original.
 
+**Excepción documentada — `POST /api/enviar-bienvenida`.** Es la única ruta que no usa `requireRole` y aun así distingue por rol. Envía el acuse de recibo del RCE, que por norma debe llegarle al propio usuario apenas se registra: exigir rol `admin` la dejaba inalcanzable. Autoriza por cuenta propia — un usuario autenticado sólo puede disparar el acuse hacia **su propia dirección**, tomada del token verificado, nunca del cuerpo de la petición; un admin puede disparar el de cualquiera. El rol se resuelve con `getUserRole()`, que consulta `usuarios_perfiles` en el momento de la solicitud, igual que `requireRole`. La ruta tiene además su propio límite de tasa (`bienvenidaLimiter`, 5/hora por IP). Detalle en `SECURITY_LOG.md`.
+
 ## 4. Circuito de autorización de acceso a tableros — ✅ Implementado (pendiente de configurar variable de entorno antes de desplegar)
 
 Cada tablero (o informe) tiene, en la base de datos: `require_login`, `allowed_users` (correos autorizados), `access_expirations` (vencimientos por usuario) y `sensitivity_level` (Bajo, Medio, Alto, Confidencial).
@@ -91,11 +93,15 @@ Detalle de la corrección en `SECURITY_LOG.md`. Queda como nota, no como excepci
 
 `usuarios_perfiles` contiene DNI, CUIT y enlaces a documentación legal de cada persona registrada. El acceso de lectura a esa tabla (`GET /api/usuarios`) está restringido a rol `admin` desde la implementación de RBAC (Sección 3).
 
-## 9. Registro y auditoría — 🔲 Pendiente
+## 9. Registro y auditoría — 🔄 Parcialmente implementado
 
 Existe una tabla `logs_actividad` que registra navegación, clics y recursos abiertos, asociados a usuario y timestamp. **Verificado**: estos eventos los reporta el propio navegador del cliente (`POST /api/log-actividad`, con `action` y `details` provistos por el cliente) — no son un registro autoritativo del servidor. Un usuario puede evitar que se registre una acción simplemente no llamando a ese endpoint. Hoy, `logs_actividad` sirve como métrica de uso, no como evidencia de auditoría ante un incidente.
 
-La trazabilidad real de accesos a tableros protegidos quedará resuelta cuando se implemente la ruta guardada de la Sección 4: ese es el punto natural para que el propio servidor registre, de forma autoritativa, cada concesión de acceso.
+La trazabilidad autoritativa de accesos a contenido protegido **ya está implementada** en las dos guardias de la Sección 4: la de `/uploads` y `githubProxyGuard`. Ambas registran, del lado del servidor, tanto las concesiones (`acceso_archivo_protegido`, `acceso_tablero_github`) como las denegaciones (`acceso_denegado_archivo`, `acceso_denegado_github`). El registro de denegaciones se agregó para cumplir el Anexo I Art. 16.3 de la Resolución 73, que exige traza de accesos permitidos y denegados con retención mínima de 2 años.
+
+Excepción deliberada: el 404 del proxy de GitHub ("prefijo no vinculado a ningún tablero") no se registra — es una ruta inexistente, no la denegación de un acceso, y se dispara con los recursos relativos de la página embebida. Ver `SECURITY_LOG.md`.
+
+**Sigue pendiente** (ver `docs/CUMPLIMIENTO_NORMATIVO.md`): no hay plazo máximo de conservación ni purga programada para `logs_actividad`, y la única vía de consulta (`GET /api/logs`) devuelve los últimos 500 eventos sin paginación, filtro por fecha ni exportación — insuficiente para la auditoría externa anual que exige la Ordenanza 162/25 Art. 20°.
 
 ## 10. Integración con GitHub como fuente de tableros — ⚠️ Implementado con excepción conocida, importante
 

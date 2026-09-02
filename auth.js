@@ -2335,19 +2335,48 @@ if (registrationForm) {
                 terms_accepted_date: registrationData.acceptedTCTimestamp
             });
 
-            // Audit Log in consent_logs (non-blocking background call)
-            callApi('/api/rce', 'POST', {
-                user_email: userEmail,
-                user_name: registrationData.name,
-                dni: dni,
-                terms_version: currentTCVersion
-            }).catch(auditErr => console.warn("Audit log failed", auditErr));
+            // Registro de Consentimiento Electronico (RCE) y acuse de recibo.
+            //
+            // El acuse (Anexo I Art. 14) tiene que informar version del documento,
+            // fecha y hora de aceptacion y numero de registro. Los dos ultimos los
+            // produce /api/rce al insertar la fila, asi que el acuse se encadena a
+            // su respuesta en lugar de dispararse en paralelo como antes.
+            //
+            // Sigue sin bloquear el registro: si algo de esto falla, el usuario
+            // queda registrado igual. Pero el fallo se registra con detalle en vez
+            // de silenciarse — un acuse que no sale es un incumplimiento normativo,
+            // no un warning cosmetico.
+            (async () => {
+                let registroId = null;
+                let fechaAceptacion = null;
 
-            // Enviar email de bienvenida con T&C adjuntos (non-blocking background call)
-            callApi('/api/enviar-bienvenida', 'POST', {
-                full_name: registrationData.name,
-                email: userEmail
-            }).catch(emailErr => console.warn('[Email] No se pudo enviar el correo de bienvenida:', emailErr));
+                try {
+                    const rce = await callApi('/api/rce', 'POST', {
+                        user_email: userEmail,
+                        user_name: registrationData.name,
+                        dni: dni,
+                        terms_version: currentTCVersion
+                    });
+                    registroId = rce && rce.registro_id != null ? rce.registro_id : null;
+                    fechaAceptacion = rce && rce.fecha_aceptacion ? rce.fecha_aceptacion : null;
+                } catch (auditErr) {
+                    console.error('[RCE] No se pudo registrar el consentimiento electronico:', auditErr);
+                }
+
+                try {
+                    // El destinatario no viaja en el body: el servidor lo toma del
+                    // token verificado. Un usuario no puede dirigir el acuse a otra
+                    // casilla.
+                    await callApi('/api/enviar-bienvenida', 'POST', {
+                        full_name: registrationData.name,
+                        registro_id: registroId,
+                        fecha_aceptacion: fechaAceptacion,
+                        terms_version: currentTCVersion
+                    });
+                } catch (emailErr) {
+                    console.error('[Acuse] No se pudo enviar el acuse de recibo del RCE:', emailErr);
+                }
+            })();
 
             // Ocultar completamente el modal de registro
             const modalEl = registrationModal || document.getElementById('registration-modal');
