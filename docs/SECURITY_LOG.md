@@ -1,5 +1,21 @@
 # Bitácora de seguridad — Observatorio de Gestión Municipal (OGM)
 
+## [RESUELTO] Archivos `.md` de todo el proyecto servidos públicamente sin filtro
+
+- **Severidad**: Alta.
+- **Estado**: Resuelto.
+- **Dónde**: `server.js`, filtro de estáticos de la raíz (`BLOCKED_EXTENSIONS`, Sección 5 de `SECURITY_POLICY.md`).
+
+**Hallazgo**: al armar la página pública `/seguridad.html` se revisó de nuevo el filtro que restringe qué se sirve desde la raíz del proyecto, y se encontró que `.md` nunca estuvo en `BLOCKED_EXTENSIONS`. Como `docs/` tampoco está cubierto por ningún archivo bloqueado explícito ni requiere estar en la lista blanca (solo los `.html`/`.htm` no cubiertos se bloquean por defecto — regla 4 del filtro), cualquier archivo `.md` del proyecto, en cualquier carpeta, se servía igual que un recurso público: `docs/INFORME_SEGURIDAD.md`, `docs/SECURITY_POLICY.md`, `docs/SECURITY_LOG.md` (este mismo archivo, con el historial completo de vulnerabilidades y remediaciones), `AGENTS.md` y `CLAUDE.md` eran descargables por cualquiera, sin sesión, conociendo la URL exacta.
+
+Particularmente sensible: `docs/INFORME_SEGURIDAD.md` nombra la cuenta administradora maestra con acceso total, y este archivo detalla —con propósito interno— hallazgos de seguridad ya corregidos pero con nivel de detalle técnico que no debería estar expuesto.
+
+**Remediación**: se agregó `.md` a `BLOCKED_EXTENSIONS`. El único archivo `.md` que debía seguir siendo público (`/brief_agente_auditoria_ogm.md`) sigue accesible porque ya estaba en `PUBLIC_STATIC_ALLOWLIST`, que tiene prioridad sobre el bloqueo por extensión — no se tocó nada más.
+
+**Sin confirmar todavía**: si estos archivos llegaron a indexarse en algún buscador o fueron accedidos por terceros mientras estuvo expuesto. No hay forma de saberlo con el registro de actividad actual (ver limitación en `SECURITY_POLICY.md`, Sección 9) — el filtro de estáticos no registra accesos, a diferencia del circuito de tableros protegidos.
+
+---
+
 ## [RESUELTO PARCIALMENTE — CREDENCIAL YA SANEADA, REDISEÑO PENDIENTE] Integración GitHub sin control de acceso y token de GitHub persistido en la base
 
 - **Severidad**: Crítica.

@@ -535,7 +535,7 @@ app.use((req, res, next) => {
     const BLOCKED_EXTENSIONS = [
         '.js', '.py', '.sh', '.sql', '.php', '.rb', '.pl', '.cgi',
         '.bak', '.backup', '.old', '.log', '.yml', '.yaml', '.ini',
-        '.conf', '.config', '.pem', '.key', '.crt', '.swp'
+        '.conf', '.config', '.pem', '.key', '.crt', '.swp', '.md'
     ];
     if (BLOCKED_EXTENSIONS.some(ext => reqPathLower.endsWith(ext)) && !PUBLIC_STATIC_ALLOWLIST.has(reqPathLower)) {
         return res.status(404).send('Not Found');

@@ -64,7 +64,8 @@ Se agregó un filtro previo que:
 - Bloquea por defecto cualquier archivo `.js`, `.py`, `.sh` o `.sql` que no esté en la lista explícita de archivos públicos permitidos (`admin.js`, `auth.js`, `firebase-config.js`, `requests.js`, entre otros — confirmados como scripts de cliente, referenciados con `<script src>` desde las páginas HTML).
 - Permite explícitamente los prefijos `recursos/` y `normativas/`. (El prefijo `atlas y monitor/` existió hasta la migración del Atlas Estadístico y el Monitor RCU al mecanismo de tableros con control de acceso — ver `SECURITY_LOG.md`; hoy esa ruta está cerrada.)
 - Bloquea, además, cualquier `.html`/`.htm` que no esté cubierto por la lista blanca o por un prefijo público (cerrado — antes se permitía cualquier `.html` sin verificar).
-- La lista de extensiones bloqueadas por defecto cubre veinte tipos de archivo (lenguajes de servidor, backups, configuración y credenciales), no solo cuatro.
+- La lista de extensiones bloqueadas por defecto cubre veintiún tipos de archivo (lenguajes de servidor, backups, configuración, credenciales y documentación en Markdown), no solo cuatro.
+- `.md` se agregó a la lista el 2026-09-02: hasta esa fecha, cualquier archivo `.md` del proyecto —incluidos los de `docs/`, como este mismo documento— se servía públicamente sin restricción. Ver `SECURITY_LOG.md` para el detalle.
 
 Detalle de la corrección en `SECURITY_LOG.md`. Queda como nota, no como excepción de seguridad, que algunos archivos sueltos sin uso en la aplicación (`2.png`, `formulario.md`, etc.) siguen siendo servidos — no son sensibles, es una cuestión de prolijidad pendiente.
 
