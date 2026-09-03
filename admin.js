@@ -816,6 +816,7 @@ async function processApproval(type) {
 
         closeDurationModal();
         await loadRequests();
+        await loadBoards();
     } catch (error) {
         console.error("Error approving request:", error);
         alert("Error al procesar la aprobación: " + (error.message || "Error desconocido"));
@@ -878,6 +879,33 @@ function renderUserChecklist(filterText = '') {
                 if (!currentlySelectedUsers.includes(email)) currentlySelectedUsers.push(email);
             } else {
                 currentlySelectedUsers = currentlySelectedUsers.filter(e => e.toLowerCase() !== email);
+            }
+        });
+        usersChecklist.appendChild(div);
+    });
+
+    // Mostrar también usuarios autorizados que no figuren en allUsersFetched (ej. autorizados por solicitud)
+    const extraSelected = currentlySelectedUsers.filter(email =>
+        !allUsersFetched.some(u => u.email.toLowerCase() === email.toLowerCase()) &&
+        (filterText === '' || email.toLowerCase().includes(filterText.toLowerCase()))
+    );
+    extraSelected.forEach(email => {
+        const div = document.createElement('div');
+        div.className = `flex items-center space-x-2 p-2 hover:bg-gray-50 rounded border border-transparent hover:border-gray-200 cursor-pointer transition`;
+        div.innerHTML = `
+            <input type="checkbox" id="user-${email}" value="${email}" class="user-checkbox w-4 h-4 text-obelisco-blue rounded border-gray-300 pointer-events-none" checked>
+            <label for="user-${email}" class="text-sm font-medium cursor-pointer flex-grow pointer-events-none flex items-center">
+                <span class="block truncate max-w-[200px]">${email}</span>
+                <span class="ml-auto text-[9px] bg-blue-100 text-blue-700 px-1 rounded font-bold uppercase">Autorizado</span>
+            </label>
+        `;
+        div.addEventListener('click', () => {
+            const cb = div.querySelector('input');
+            cb.checked = !cb.checked;
+            if (cb.checked) {
+                if (!currentlySelectedUsers.map(e => e.toLowerCase()).includes(email.toLowerCase())) currentlySelectedUsers.push(email);
+            } else {
+                currentlySelectedUsers = currentlySelectedUsers.filter(e => e.toLowerCase() !== email.toLowerCase());
             }
         });
         usersChecklist.appendChild(div);
@@ -1393,7 +1421,8 @@ function filterAndRenderBoards() {
             fieldBoardNewTab.checked = data.openInNewTab === true;
             currentlySelectedUsers = (data.allowedUsers || []).map(u => u.toLowerCase()).filter(email =>
                 allUsersFetched.some(u => u.email.toLowerCase() === email) ||
-                ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email)
+                ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email) ||
+                /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
             );
             userSearchInput.value = '';
             categorySearchInput.value = '';
@@ -1569,7 +1598,8 @@ boardForm?.addEventListener('submit', async (e) => {
         
         const allowedUsersList = currentlySelectedUsers.filter(email =>
             allUsersFetched.some(u => u.email.toLowerCase() === email.toLowerCase()) ||
-            ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email.toLowerCase())
+            ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email.toLowerCase()) ||
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
         );
 
         // Preservar expiraciones de accesos previas que sigan autorizadas

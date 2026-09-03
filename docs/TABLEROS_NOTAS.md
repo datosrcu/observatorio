@@ -29,3 +29,14 @@ En abril de 2026 Google revirtió el nombre de Looker Studio a Data Studio. `loo
 `auth.js` tiene una función (`ogbFixLookerUrl`) que corrige automáticamente URLs de reporte a formato embebido (`/reporting/` → `/embed/reporting/`) — reconoce el hostname `lookerstudio.google.com`. Si se decide soportar explícitamente el dominio nuevo (`datastudio.google.com`) en esa misma función, hacerlo ahí.
 
 **Para insertar cualquier reporte de Data Studio como tablero**: el link normal de "Compartir" no alcanza — Google bloquea el embebido por defecto (`frame-ancestors 'none'` o `'self'`, según el caso) salvo que se habilite explícitamente. Pasos: abrir el reporte → Archivo → **Insertar informe** → tildar **"Habilitar la inserción"** → usar el link que aparece ahí (no el de compartir).
+
+---
+
+## Persistencia acumulativa de `allowed_users` y `access_expirations` en tableros e informes
+
+**Corregido**: 2026-09-03, endpoints `/api/solicitudes/:id/aprobar` y `PATCH /api/tableros/:id`.
+
+- **Problema previo**: En MySQL la columna es de tipo `JSON`, por lo que el driver `mysql2` devuelve directamente un `Array` u `Object` de JavaScript. En el endpoint de aprobación de solicitudes se intentaba hacer `(tablero.allowed_users || '').trim()`, lo cual causaba una excepción `TypeError: .trim is not a function`, cayendo en el `catch` y reseteando `allowed = []`. Cada nueva aprobación borraba a los usuarios previamente autorizados para ese tablero o informe.
+- **Solución implementada**: Lectura tolerante a tipos (`Array`/`Object` nativos y strings JSON) en `server.js`. La lista de usuarios autorizados ahora es acumulativa y preserva intactos a todos los autorizados previos.
+- **Sincronización en el panel de administración**: `admin.js` ahora invoca `await loadBoards()` tras cada aprobación para mantener actualizada la variable en memoria `allBoardsFetched`, evitando que ediciones posteriores sobrescriban la base de datos con estados viejos. Adicionalmente, el filtro del modal de tableros preserva cualquier dirección de correo válida existente.
+

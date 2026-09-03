@@ -248,3 +248,20 @@ Cada entrada indica: qué se encontró, por qué importa, qué se hizo (o qué f
 - **Estado**: Verificado. La versión en uso está protegida.
 
 **Verificación realizada**: se instaló `adm-zip@0.5.17` (versión exacta resuelta en `package-lock.json`) en un entorno aislado y se inspeccionó el código fuente de `extractAllTo`. Cada entrada del ZIP pasa por `Utils.canonical()` (elimina segmentos `../`) y luego por `Utils.sanitize(prefix, name)`, que resuelve la ruta final y, si el resultado queda fuera del directorio destino, la recorta progresivamente hasta que vuelve a quedar contenida en `prefix` — con `path.basename()` como última red de contención. No es una versión vulnerable a Zip Slip. No se requiere ninguna acción adicional sobre este punto.
+
+---
+
+## [RESUELTO] Vaciado involuntario de listas de usuarios autorizados al aprobar solicitudes
+
+- **Severidad**: Alta (afectaba la integridad y disponibilidad del control de acceso a tableros e informes protegidos).
+- **Estado**: Resuelto (2026-09-03).
+- **Dónde**: `server.js` (`POST /api/solicitudes/:id/aprobar`), `admin.js` (`processApproval` y modal de edición de tableros).
+
+**Hallazgo**: Cada vez que se aprobaba una solicitud de acceso para un tablero o informe, los usuarios previamente autorizados para ese recurso eran eliminados de `allowed_users` en la base de datos MySQL. Esto ocurría porque la columna MySQL es tipo `JSON` y el driver `mysql2` devuelve un `Array` u `Object` nativo de JavaScript; el código intentaba invocar `(tablero.allowed_users || '').trim()`, lo cual lanzaba `TypeError: ...trim is not a function`, cayendo en el `catch` que reinicializaba `allowed = []` y guardaba únicamente al solicitante recién aprobado. Adicionalmente, `admin.js` no refrescaba `allBoardsFetched` tras aprobar una solicitud, provocando que ediciones posteriores de tableros sobrescribieran la base de datos con listas viejas en memoria.
+
+**Remediación**:
+1. Se normalizó la lectura de `allowed_users` y `access_expirations` en `server.js` para admitir de forma tolerante y segura tipos nativos (`Array` / `Object`) y cadenas `string`, preservando el array acumulativo de usuarios preexistentes.
+2. Se consolidó la ruta `PATCH /api/tableros/:id` bajo `requireRole('admin')` con serialización JSON adecuada y se eliminó la definición duplicada inalcanzable.
+3. Se incorporó `await loadBoards()` en `processApproval` de `admin.js` para sincronizar de inmediato la caché del panel de administración.
+4. Se blindó el filtro de selección de usuarios en `admin.js` para no descartar direcciones de correo válidas autorizadas.
+

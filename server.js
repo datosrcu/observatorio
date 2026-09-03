@@ -1606,8 +1606,12 @@ app.post('/api/solicitudes/:id/aprobar', verifyToken, requireRole('admin', 'fisc
         if (tablero) {
             let allowed = [];
             try {
-                const val = (tablero.allowed_users || '').trim();
-                allowed = val ? JSON.parse(val) : [];
+                const rawAllowed = tablero.allowed_users;
+                if (Array.isArray(rawAllowed)) {
+                    allowed = rawAllowed;
+                } else if (typeof rawAllowed === 'string' && rawAllowed.trim() !== '') {
+                    allowed = JSON.parse(rawAllowed);
+                }
             } catch (jsonErr) {
                 console.error("Error parsing allowed_users:", jsonErr);
                 allowed = [];
@@ -1615,18 +1619,27 @@ app.post('/api/solicitudes/:id/aprobar', verifyToken, requireRole('admin', 'fisc
 
             let expirations = {};
             try {
-                const val = (tablero.access_expirations || '').trim();
-                expirations = val ? JSON.parse(val) : {};
+                const rawExp = tablero.access_expirations;
+                if (typeof rawExp === 'object' && rawExp !== null && !Array.isArray(rawExp)) {
+                    expirations = rawExp;
+                } else if (typeof rawExp === 'string' && rawExp.trim() !== '') {
+                    expirations = JSON.parse(rawExp);
+                }
             } catch (jsonErr) {
                 console.error("Error parsing access_expirations:", jsonErr);
                 expirations = {};
             }
 
             if (!Array.isArray(allowed)) allowed = [];
-            if (typeof expirations !== 'object' || expirations === null) expirations = {};
+            if (typeof expirations !== 'object' || expirations === null || Array.isArray(expirations)) expirations = {};
 
-            if (!allowed.map(u => u.toLowerCase()).includes(email.toLowerCase())) allowed.push(email);
-            if (expiry_iso) expirations[email.toLowerCase()] = expiry_iso;
+            const lowerEmail = email.toLowerCase();
+            if (!allowed.map(u => String(u).toLowerCase()).includes(lowerEmail)) {
+                allowed.push(email);
+            }
+            if (expiry_iso) {
+                expirations[lowerEmail] = expiry_iso;
+            }
             await connection.execute(
                 'UPDATE tableros SET allowed_users = ?, access_expirations = ? WHERE id = ?',
                 [JSON.stringify(allowed), JSON.stringify(expirations), tablero.id]
@@ -1640,8 +1653,12 @@ app.post('/api/solicitudes/:id/aprobar', verifyToken, requireRole('admin', 'fisc
             if (informe) {
                 let allowed = [];
                 try {
-                    const val = (informe.allowed_users || '').trim();
-                    allowed = val ? JSON.parse(val) : [];
+                    const rawAllowed = informe.allowed_users;
+                    if (Array.isArray(rawAllowed)) {
+                        allowed = rawAllowed;
+                    } else if (typeof rawAllowed === 'string' && rawAllowed.trim() !== '') {
+                        allowed = JSON.parse(rawAllowed);
+                    }
                 } catch (jsonErr) {
                     console.error("Error parsing allowed_users for informe:", jsonErr);
                     allowed = [];
@@ -1649,18 +1666,27 @@ app.post('/api/solicitudes/:id/aprobar', verifyToken, requireRole('admin', 'fisc
 
                 let expirations = {};
                 try {
-                    const val = (informe.access_expirations || '').trim();
-                    expirations = val ? JSON.parse(val) : {};
+                    const rawExp = informe.access_expirations;
+                    if (typeof rawExp === 'object' && rawExp !== null && !Array.isArray(rawExp)) {
+                        expirations = rawExp;
+                    } else if (typeof rawExp === 'string' && rawExp.trim() !== '') {
+                        expirations = JSON.parse(rawExp);
+                    }
                 } catch (jsonErr) {
                     console.error("Error parsing access_expirations for informe:", jsonErr);
                     expirations = {};
                 }
 
                 if (!Array.isArray(allowed)) allowed = [];
-                if (typeof expirations !== 'object' || expirations === null) expirations = {};
+                if (typeof expirations !== 'object' || expirations === null || Array.isArray(expirations)) expirations = {};
 
-                if (!allowed.map(u => u.toLowerCase()).includes(email.toLowerCase())) allowed.push(email);
-                if (expiry_iso) expirations[email.toLowerCase()] = expiry_iso;
+                const lowerEmail = email.toLowerCase();
+                if (!allowed.map(u => String(u).toLowerCase()).includes(lowerEmail)) {
+                    allowed.push(email);
+                }
+                if (expiry_iso) {
+                    expirations[lowerEmail] = expiry_iso;
+                }
                 await connection.execute(
                     'UPDATE informes SET allowed_users = ?, access_expirations = ? WHERE id = ?',
                     [JSON.stringify(allowed), JSON.stringify(expirations), informe.id]
@@ -1743,14 +1769,30 @@ app.delete('/api/categorias/:id', verifyToken, requireRole('admin'), async (req,
 
 app.patch('/api/tableros/:id', verifyToken, requireRole('admin'), async (req, res) => {
     try {
-        const fields = req.body;
+        const { id } = req.params;
+        const fields = { ...req.body };
+
+        Object.keys(fields).forEach(k => { if (fields[k] === undefined || fields[k] === '') delete fields[k]; });
+
+        if (Object.keys(fields).length === 0) return res.json({ success: true });
+
+        if ('enabled' in fields) fields.enabled = (fields.enabled === 'true' || fields.enabled === true || fields.enabled === 1) ? 1 : 0;
+        if ('require_login' in fields) fields.require_login = (fields.require_login === 'true' || fields.require_login === true || fields.require_login === 1) ? 1 : 0;
+        if ('open_in_new_tab' in fields) fields.open_in_new_tab = (fields.open_in_new_tab === 'true' || fields.open_in_new_tab === true || fields.open_in_new_tab === 1) ? 1 : 0;
+        if ('allowed_users' in fields && typeof fields.allowed_users !== 'string') fields.allowed_users = JSON.stringify(fields.allowed_users);
+        if ('access_expirations' in fields && typeof fields.access_expirations !== 'string') fields.access_expirations = JSON.stringify(fields.access_expirations);
+
         const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
-        const vals = [...Object.values(fields), req.params.id];
+        const vals = [...Object.values(fields), id];
+
         const connection = await getDbConnection();
         await connection.execute(`UPDATE tableros SET ${sets} WHERE id = ?`, vals);
         await connection.end();
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        console.error('Error updating board:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.delete('/api/tableros/:id', verifyToken, requireRole('admin'), async (req, res) => {
@@ -2175,34 +2217,7 @@ app.post('/api/tableros/migrate-github', verifyToken, requireRole('admin'), asyn
     }
 });
 
-// Editar tablero parcialmente (Admin)
-app.patch('/api/tableros/:id', verifyToken, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const fields = { ...req.body };
 
-        Object.keys(fields).forEach(k => { if (fields[k] === undefined || fields[k] === '') delete fields[k]; });
-
-        if (Object.keys(fields).length === 0) return res.json({ success: true });
-
-        if ('enabled' in fields) fields.enabled = (fields.enabled === 'true' || fields.enabled === true || fields.enabled === 1) ? 1 : 0;
-        if ('require_login' in fields) fields.require_login = (fields.require_login === 'true' || fields.require_login === true || fields.require_login === 1) ? 1 : 0;
-        if ('open_in_new_tab' in fields) fields.open_in_new_tab = (fields.open_in_new_tab === 'true' || fields.open_in_new_tab === true || fields.open_in_new_tab === 1) ? 1 : 0;
-        if ('allowed_users' in fields && typeof fields.allowed_users !== 'string') fields.allowed_users = JSON.stringify(fields.allowed_users);
-        if ('access_expirations' in fields && typeof fields.access_expirations !== 'string') fields.access_expirations = JSON.stringify(fields.access_expirations);
-
-        const sets = Object.keys(fields).map(k => `${k} = ?`).join(', ');
-        const vals = [...Object.values(fields), id];
-
-        const connection = await getDbConnection();
-        await connection.execute(`UPDATE tableros SET ${sets} WHERE id = ?`, vals);
-        await connection.end();
-        res.json({ success: true });
-    } catch (e) {
-        console.error('Error updating board:', e);
-        res.status(500).json({ error: e.message });
-    }
-});
 
 // ── INFORMES ───────────────────────────────────────────────────────────────
 
