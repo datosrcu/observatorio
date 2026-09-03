@@ -126,6 +126,7 @@ let allBoardsFetched = [];
 let boardSearchQuery = "";
 let boardCategoryFilter = "all";
 let boardStatusFilter = "all";
+let boardTitleSort = "none"; // "none" | "asc" | "desc"
 let allTrackingFetched = [];
 let trackingSearchQuery = "";
 let trackingStatusFilter = "all";
@@ -325,6 +326,10 @@ navTabs?.forEach(tab => {
             loadFeedbackTableros();
             localStorage.setItem('ogb_last_seen_feedback', new Date().toISOString());
             if (feedbackBadge) feedbackBadge.classList.add('hidden');
+            const subWebBadge = document.getElementById('sub-feedback-web-badge');
+            const subTablerosBadge = document.getElementById('sub-feedback-tableros-badge');
+            if (subWebBadge) subWebBadge.classList.add('hidden');
+            if (subTablerosBadge) subTablerosBadge.classList.add('hidden');
         }
         if (target === 'tab-contacto') {
             loadContacts();
@@ -361,8 +366,16 @@ subNavTabs?.forEach(t => {
         if (target === 'sub-tracking') loadUserTracking();
         if (target === 'sub-directorio') loadUsers();
         if (target === 'sub-atlas-monitores') loadAtlasAndMonitoresPermissions();
-        if (target === 'sub-feedback-web') loadFeedback();
-        if (target === 'sub-feedback-tableros') loadFeedbackTableros();
+        if (target === 'sub-feedback-web') {
+            loadFeedback();
+            const subWebBadge = document.getElementById('sub-feedback-web-badge');
+            if (subWebBadge) subWebBadge.classList.add('hidden');
+        }
+        if (target === 'sub-feedback-tableros') {
+            loadFeedbackTableros();
+            const subTablerosBadge = document.getElementById('sub-feedback-tableros-badge');
+            if (subTablerosBadge) subTablerosBadge.classList.add('hidden');
+        }
     });
 });
 
@@ -1363,8 +1376,14 @@ function filterAndRenderBoards() {
         boardsTbody.innerHTML = `<tr><td colspan="6" class="py-12 text-center text-obelisco-gray bg-gray-50">No hay tableros en esta sección.</td></tr>`;
         return;
     }
-    // Sort by order field
-    filtered.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+    // Sort logic: by title A-Z/Z-A or by order field (default)
+    if (boardTitleSort === 'asc') {
+        filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
+    } else if (boardTitleSort === 'desc') {
+        filtered.sort((a, b) => (b.title || '').localeCompare(a.title || '', 'es', { sensitivity: 'base' }));
+    } else {
+        filtered.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+    }
     filtered.forEach((data) => {
         const id = data.id;
         const allowedCount = (data.allowedUsers || []).length;
@@ -1549,6 +1568,31 @@ filterBoardCategory?.addEventListener('change', (e) => {
 
 filterBoardStatus?.addEventListener('change', (e) => {
     boardStatusFilter = e.target.value;
+    filterAndRenderBoards();
+});
+
+const thSortBoardTitle = document.getElementById('th-sort-board-title');
+const iconSortBoardTitle = document.getElementById('icon-sort-board-title');
+thSortBoardTitle?.addEventListener('click', () => {
+    if (boardTitleSort === 'none') {
+        boardTitleSort = 'asc';
+        if (iconSortBoardTitle) {
+            iconSortBoardTitle.textContent = '↑ A-Z';
+            iconSortBoardTitle.className = 'text-obelisco-blue text-xs font-bold font-mono';
+        }
+    } else if (boardTitleSort === 'asc') {
+        boardTitleSort = 'desc';
+        if (iconSortBoardTitle) {
+            iconSortBoardTitle.textContent = '↓ Z-A';
+            iconSortBoardTitle.className = 'text-obelisco-blue text-xs font-bold font-mono';
+        }
+    } else {
+        boardTitleSort = 'none';
+        if (iconSortBoardTitle) {
+            iconSortBoardTitle.textContent = '↕';
+            iconSortBoardTitle.className = 'text-gray-400 group-hover:text-obelisco-blue text-xs font-mono';
+        }
+    }
     filterAndRenderBoards();
 });
 
@@ -2387,24 +2431,51 @@ async function checkBackgroundNotifications() {
             return !lastSeen || d.getTime() > new Date(lastSeen).getTime();
         };
 
-        const [users, feedback, contacts] = await Promise.all([
+        const [users, feedback, feedbackTableros, contacts] = await Promise.all([
             callApi('/api/usuarios', 'GET').catch(() => []),
             callApi('/api/feedback', 'GET').catch(() => []),
+            callApi('/api/feedback-tableros', 'GET').catch(() => []),
             callApi('/api/contactos', 'GET').catch(() => [])
         ]);
 
         const usersBadge = document.getElementById('users-badge');
-        if (usersBadge && currentTarget !== 'tab-usuarios') {
+        if (usersBadge && currentTarget !== 'tab-usuarios' && currentTarget !== 'tab-usuarios-main') {
             const hasNew = users.some(u => isNewer(u.created_at, lastSeenUsers));
             if (hasNew) usersBadge.classList.remove('hidden');
         }
 
         const feedbackBadge = document.getElementById('feedback-badge');
-        if (feedbackBadge && currentTarget !== 'tab-feedback') {
-            const newCount = feedback.filter(f => isNewer(f.created_at, lastSeenFeedback)).length;
-            if (newCount > 0) {
-                feedbackBadge.textContent = newCount;
+        const subFeedbackWebBadge = document.getElementById('sub-feedback-web-badge');
+        const subFeedbackTablerosBadge = document.getElementById('sub-feedback-tableros-badge');
+
+        const newWebCount = (Array.isArray(feedback) ? feedback : []).filter(f => isNewer(f.created_at, lastSeenFeedback)).length;
+        const newTablerosCount = (Array.isArray(feedbackTableros) ? feedbackTableros : []).filter(f => isNewer(f.created_at, lastSeenFeedback)).length;
+        const totalFeedbackNew = newWebCount + newTablerosCount;
+
+        if (feedbackBadge) {
+            if (totalFeedbackNew > 0 && currentTarget !== 'tab-feedback') {
+                feedbackBadge.textContent = totalFeedbackNew > 99 ? '99+' : totalFeedbackNew;
                 feedbackBadge.classList.remove('hidden');
+            } else if (currentTarget === 'tab-feedback') {
+                feedbackBadge.classList.add('hidden');
+            }
+        }
+
+        if (subFeedbackWebBadge) {
+            if (newWebCount > 0 && currentTarget !== 'tab-feedback') {
+                subFeedbackWebBadge.textContent = newWebCount > 99 ? '99+' : newWebCount;
+                subFeedbackWebBadge.classList.remove('hidden');
+            } else if (currentTarget === 'tab-feedback') {
+                subFeedbackWebBadge.classList.add('hidden');
+            }
+        }
+
+        if (subFeedbackTablerosBadge) {
+            if (newTablerosCount > 0 && currentTarget !== 'tab-feedback') {
+                subFeedbackTablerosBadge.textContent = newTablerosCount > 99 ? '99+' : newTablerosCount;
+                subFeedbackTablerosBadge.classList.remove('hidden');
+            } else if (currentTarget === 'tab-feedback') {
+                subFeedbackTablerosBadge.classList.add('hidden');
             }
         }
 
@@ -2623,6 +2694,8 @@ function renderRCE() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 let allInformesAdmin = [];
+let informeSearchQuery = '';
+let informeTitleSort = 'none'; // 'none' | 'asc' | 'desc'
 let editingInformeId = null;
 let informeSelectedUsers = [];
 
@@ -2633,12 +2706,48 @@ async function loadInformes() {
 
     try {
         const data = await callApi('/api/informes', 'GET');
-        allInformesAdmin = data;
-        renderInformesTable(data);
+        allInformesAdmin = data || [];
+        filterAndRenderInformes();
     } catch (e) {
         console.error('Error cargando informes admin:', e);
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-500">Error: ${e.message}</td></tr>`;
     }
+}
+
+function filterAndRenderInformes() {
+    const tbody = document.getElementById('informes-tbody');
+    if (!tbody) return;
+
+    let filtered = (allInformesAdmin || []).slice();
+
+    if (informeSearchQuery.trim() !== '') {
+        const q = informeSearchQuery.toLowerCase().trim();
+        filtered = filtered.filter(inf => {
+            const titleMatch = (inf.title || '').toLowerCase().includes(q);
+            const descMatch = (inf.description || '').toLowerCase().includes(q);
+            const periodMatch = (inf.period || '').toLowerCase().includes(q);
+            const yearMatch = String(inf.year || '').toLowerCase().includes(q);
+            const cats = (() => { try { return typeof inf.categories === 'string' ? JSON.parse(inf.categories) : (Array.isArray(inf.categories) ? inf.categories : []); } catch(e) { return []; } })();
+            const catMatch = cats.some(id => {
+                const c = globalCategories?.find(gc => gc.id === id);
+                return (c?.name || id).toLowerCase().includes(q);
+            }) || (inf.category_legacy || '').toLowerCase().includes(q);
+            return titleMatch || descMatch || periodMatch || yearMatch || catMatch;
+        });
+    }
+
+    if (informeTitleSort === 'asc') {
+        filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
+    } else if (informeTitleSort === 'desc') {
+        filtered.sort((a, b) => (b.title || '').localeCompare(a.title || '', 'es', { sensitivity: 'base' }));
+    } else {
+        filtered.sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0));
+    }
+
+    const countEl = document.getElementById('count-informes-total');
+    if (countEl) countEl.textContent = filtered.length;
+
+    renderInformesTable(filtered);
 }
 
 function renderInformesTable(informes) {
@@ -2952,7 +3061,8 @@ async function saveInforme() {
         formData.append('require_login', requireLogin ? 'true' : 'false');
         formData.append('allowed_users', JSON.stringify(informeSelectedUsers.filter(email =>
             allUsersFetched.some(u => u.email.toLowerCase() === email.toLowerCase()) ||
-            ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email.toLowerCase())
+            ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email.toLowerCase()) ||
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
         )));
 
         if (sourceType === 'url') {
@@ -3011,6 +3121,39 @@ async function getCurrentUserToken() {
 
 // Event listeners para el módulo de informes (sin DOMContentLoaded porque type="module" es diferido)
 document.getElementById('add-informe-btn')?.addEventListener('click', () => openInformeModal(null));
+
+// Búsqueda en tiempo real de informes
+const filterInformeSearch = document.getElementById('filter-informe-search');
+filterInformeSearch?.addEventListener('input', (e) => {
+    informeSearchQuery = e.target.value;
+    filterAndRenderInformes();
+});
+
+// Ordenar informes por título A-Z / Z-A
+const thSortInformeTitle = document.getElementById('th-sort-informe-title');
+const iconSortInformeTitle = document.getElementById('icon-sort-informe-title');
+thSortInformeTitle?.addEventListener('click', () => {
+    if (informeTitleSort === 'none') {
+        informeTitleSort = 'asc';
+        if (iconSortInformeTitle) {
+            iconSortInformeTitle.textContent = '↑ A-Z';
+            iconSortInformeTitle.className = 'text-teal-600 text-xs font-bold font-mono';
+        }
+    } else if (informeTitleSort === 'asc') {
+        informeTitleSort = 'desc';
+        if (iconSortInformeTitle) {
+            iconSortInformeTitle.textContent = '↓ Z-A';
+            iconSortInformeTitle.className = 'text-teal-600 text-xs font-bold font-mono';
+        }
+    } else {
+        informeTitleSort = 'none';
+        if (iconSortInformeTitle) {
+            iconSortInformeTitle.textContent = '↕';
+            iconSortInformeTitle.className = 'text-gray-400 group-hover:text-teal-600 text-xs font-mono';
+        }
+    }
+    filterAndRenderInformes();
+});
 
 // Guardar informe
 document.getElementById('save-informe-btn')?.addEventListener('click', saveInforme);

@@ -297,7 +297,12 @@
                             <thead>
                                 <tr class="bg-obelisco-light border-b border-obelisco-border text-obelisco-gray">
                                     <th class="py-3 px-4 font-semibold w-12">Estado</th>
-                                    <th class="py-3 px-4 font-semibold">Título</th>
+                                    <th class="py-3 px-4 font-semibold">
+                                        <button type="button" id="th-sort-board-title" class="group flex items-center gap-1.5 hover:text-obelisco-blue transition font-semibold focus:outline-none">
+                                            <span>Título</span>
+                                            <span id="icon-sort-board-title" class="text-gray-400 group-hover:text-obelisco-blue text-xs font-mono">↕</span>
+                                        </button>
+                                    </th>
                                     <th class="py-3 px-4 font-semibold">Categoría</th>
                                     <th class="py-3 px-4 font-semibold">Permisos</th>
                                     <th class="py-3 px-4 font-semibold w-20">Orden</th>
@@ -573,11 +578,13 @@
                         <div class="lg:w-64 flex-shrink-0">
                             <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                                 <nav class="flex flex-col">
-                                    <button class="sub-nav-tab active-sub-tab p-4 text-left font-bold text-sm border-l-4 border-obelisco-blue bg-blue-50 text-obelisco-blue transition" data-sub="sub-feedback-web">
-                                        Web
+                                    <button class="sub-nav-tab active-sub-tab p-4 text-left font-bold text-sm border-l-4 border-obelisco-blue bg-blue-50 text-obelisco-blue transition flex items-center justify-between" data-sub="sub-feedback-web">
+                                        <span>Web</span>
+                                        <span id="sub-feedback-web-badge" class="hidden bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">0</span>
                                     </button>
-                                    <button class="sub-nav-tab p-4 text-left font-bold text-sm border-l-4 border-transparent text-gray-600 hover:bg-gray-50 transition" data-sub="sub-feedback-tableros">
-                                        Tableros e Informes
+                                    <button class="sub-nav-tab p-4 text-left font-bold text-sm border-l-4 border-transparent text-gray-600 hover:bg-gray-50 transition flex items-center justify-between" data-sub="sub-feedback-tableros">
+                                        <span>Tableros e Informes</span>
+                                        <span id="sub-feedback-tableros-badge" class="hidden bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">0</span>
                                     </button>
                                 </nav>
                             </div>
@@ -711,13 +718,36 @@
                             Nuevo Informe
                         </button>
                     </div>
+ 
+                    <!-- Filtros y Búsqueda de Informes -->
+                    <div class="bg-white p-4 rounded-xl border border-obelisco-border shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="relative w-full md:w-96">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </span>
+                            <input type="text" id="filter-informe-search" placeholder="Buscar por título, descripción, período o categoría..."
+                                class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none transition text-sm">
+                        </div>
+
+                        <div class="flex items-center space-x-3 w-full md:w-auto justify-end">
+                            <span class="text-xs text-gray-500 font-medium"><span id="count-informes-total" class="font-bold text-gray-700">0</span> informe(s)</span>
+                        </div>
+                    </div>
 
                     <div class="bg-white border text-sm border-obelisco-border rounded-xl shadow-sm overflow-hidden">
                         <table class="w-full text-left border-collapse min-w-[700px]">
                             <thead>
                                 <tr class="bg-obelisco-light border-b border-obelisco-border text-obelisco-gray">
                                     <th class="py-3 px-4 font-semibold w-12">Estado</th>
-                                    <th class="py-3 px-4 font-semibold">Título del Informe</th>
+                                    <th class="py-3 px-4 font-semibold">
+                                        <button type="button" id="th-sort-informe-title" class="group flex items-center gap-1.5 hover:text-teal-700 transition font-semibold focus:outline-none">
+                                            <span>Título del Informe</span>
+                                            <span id="icon-sort-informe-title" class="text-gray-400 group-hover:text-teal-600 text-xs font-mono">↕</span>
+                                        </button>
+                                    </th>
                                     <th class="py-3 px-4 font-semibold">Categorías</th>
                                     <th class="py-3 px-4 font-semibold">Período</th>
                                     <th class="py-3 px-4 font-semibold">Tipo</th>

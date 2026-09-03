@@ -332,7 +332,8 @@ async function loadUserPermissions(user) {
                     };
                     const hasAccess = checkUserAccess(user, informeObj);
                     return { ...informeObj, hasAccess };
-                });
+                })
+                .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
         } catch (e) {
             console.warn('Error cargando informes:', e.message);
             allInformes = [];
@@ -411,6 +412,7 @@ async function loadUserPermissions(user) {
                 allAccessibleBoards.push({ ...boardObj, hasAccess });
             }
         });
+        allAccessibleBoards.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
 
         // Cargar favoritos del usuario (no bloquea el render si falla)
         try {
@@ -609,7 +611,9 @@ function renderDashboard() {
         });
 
         // Render boards for this category
-        const boardsToRender = allAccessibleBoards.filter(b => b.categories && b.categories.includes(currentSelectedCategory));
+        const boardsToRender = allAccessibleBoards
+            .filter(b => b.categories && b.categories.includes(currentSelectedCategory))
+            .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
         let renderedCount = 0;
         boardsToRender.forEach(board => {
             renderButton(gridContainer, board.id, board);
@@ -617,7 +621,9 @@ function renderDashboard() {
         });
 
         // Render informes for this category
-        const informesToRender = allInformes.filter(i => i.categories && i.categories.includes(currentSelectedCategory));
+        const informesToRender = allInformes
+            .filter(i => i.categories && i.categories.includes(currentSelectedCategory))
+            .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
         if (informesToRender.length > 0) {
             if (renderedCount > 0) {
                 // Divider between tableros and informes
@@ -713,12 +719,12 @@ function renderDashboard() {
         if (renderedCount === 0) {
             // Fallback for old boards/informes that don't have categories IDs but have string group name? 
             // Better to show them matching group directly if they have no category array
-            const boardsWithoutCatInGroup = allAccessibleBoards.filter(b =>
-                b.category === currentFilterGroup
-            );
-            const informesWithoutCatInGroup = allInformes.filter(i =>
-                i.category === currentFilterGroup
-            );
+            const boardsWithoutCatInGroup = allAccessibleBoards
+                .filter(b => b.category === currentFilterGroup)
+                .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
+            const informesWithoutCatInGroup = allInformes
+                .filter(i => i.category === currentFilterGroup)
+                .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
 
             if (boardsWithoutCatInGroup.length > 0 || informesWithoutCatInGroup.length > 0) {
                 boardsWithoutCatInGroup.forEach(board => renderButton(gridContainer, board.id, board));
@@ -3119,7 +3125,8 @@ async function initSatisfaccionPage() {
                 };
                 const hasAccess = user ? checkUserAccess(user, informeObj) : !informeObj.requireLogin;
                 return { ...informeObj, hasAccess };
-            });
+            })
+            .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
 
         allAccessibleBoards = [];
         (boardsData || []).forEach(data => {
@@ -3160,6 +3167,7 @@ async function initSatisfaccionPage() {
                 allAccessibleBoards.push({ ...boardObj, hasAccess });
             }
         });
+        allAccessibleBoards.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
 
         renderSatisfaccionPageContent(currentSatisfaccionPageTab || 'all');
     } catch (err) {

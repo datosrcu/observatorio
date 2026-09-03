@@ -40,3 +40,25 @@ En abril de 2026 Google revirtió el nombre de Looker Studio a Data Studio. `loo
 - **Solución implementada**: Lectura tolerante a tipos (`Array`/`Object` nativos y strings JSON) en `server.js`. La lista de usuarios autorizados ahora es acumulativa y preserva intactos a todos los autorizados previos.
 - **Sincronización en el panel de administración**: `admin.js` ahora invoca `await loadBoards()` tras cada aprobación para mantener actualizada la variable en memoria `allBoardsFetched`, evitando que ediciones posteriores sobrescriban la base de datos con estados viejos. Adicionalmente, el filtro del modal de tableros preserva cualquier dirección de correo válida existente.
 
+---
+
+## Buscador, ordenamiento alfabético A-Z y notificaciones de Feedback
+
+**Implementado**: 2026-09-03, en `admin.html`, `admin.js` y `auth.js`.
+
+1. **Buscador y orden A-Z de Informes (Admin)**:
+   - Se añadió un buscador de texto en tiempo real (`#filter-informe-search`) en la pestaña Informes para filtrar por título, descripción, categorías, período o año.
+   - La cabecera *"Título del Informe"* incluye un botón interactivo (`#th-sort-informe-title`) que alterna cíclicamente entre orden por defecto, A-Z (↑) y Z-A (↓).
+
+2. **Orden A-Z de Tableros (Admin)**:
+   - La cabecera *"Título"* de la tabla de tableros cuenta con un botón interactivo (`#th-sort-board-title`) para alternar entre orden numérico manual (`sort_order`), A-Z (↑) y Z-A (↓).
+
+3. **Orden A-Z en el Observatorio (Portal público)**:
+   - Tanto `allAccessibleBoards` como `allInformes` se ordenan alfabéticamente de A a Z por defecto (`localeCompare`), garantizando que al ingresar a cualquier categoría los tableros e informes se presenten en orden alfabético.
+
+4. **Notificación activa en pestaña Feedback**:
+   - `checkBackgroundNotifications()` en `admin.js` consulta tanto `/api/feedback` (comentarios web) como `/api/feedback-tableros` (evaluaciones de satisfacción de tableros e informes).
+   - Se compara la fecha de creación contra `ogb_last_seen_feedback` almacenado en `localStorage`.
+   - Se añadió el badge numérico principal en la pestaña *"Feedback"* (`#feedback-badge`) y badges individuales en las sub-pestañas *"Web"* (`#sub-feedback-web-badge`) y *"Tableros e Informes"* (`#sub-feedback-tableros-badge`), permitiendo distinguir de inmediato de dónde proviene la nueva retroalimentación.
+
+
