@@ -53,8 +53,12 @@ En abril de 2026 Google revirtió el nombre de Looker Studio a Data Studio. `loo
 2. **Orden A-Z de Tableros (Admin)**:
    - La cabecera *"Título"* de la tabla de tableros cuenta con un botón interactivo (`#th-sort-board-title`) para alternar entre orden numérico manual (`sort_order`), A-Z (↑) y Z-A (↓).
 
-3. **Orden A-Z en el Observatorio (Portal público)**:
-   - Tanto `allAccessibleBoards` como `allInformes` se ordenan alfabéticamente de A a Z por defecto (`localeCompare`), garantizando que al ingresar a cualquier categoría los tableros e informes se presenten en orden alfabético.
+3. **Orden A-Z en el Observatorio (`observatorio-gestion.html` y portal)**:
+   - Tanto `allAccessibleBoards` como `allInformes` se entregan ordenados alfabéticamente de A a Z desde el backend (`ORDER BY title ASC` en `server.js`) y se reordenan por `localeCompare` en `auth.js`.
+   - Al ingresar a cualquier categoría, los tableros creados y los informes se presentan en estricto orden alfabético A-Z.
+   - Las categorías temáticas conservan su orden manual asignado (`sort_order`).
+   - Se aplicó también a favoritos y a la sección de encuestas de satisfacción.
+   - Se actualizó el versionado de caché de `auth.js` y `requests.js` a `v=1.6.0` en los archivos HTML.
 
 4. **Notificación activa en pestaña Feedback**:
    - `checkBackgroundNotifications()` en `admin.js` consulta tanto `/api/feedback` (comentarios web) como `/api/feedback-tableros` (evaluaciones de satisfacción de tableros e informes).

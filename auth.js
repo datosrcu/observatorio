@@ -645,8 +645,12 @@ function renderDashboard() {
     } else {
         // Sección de Favoritos del usuario (entre los filtros y las categorías)
         if (userFavorites.size > 0) {
-            const favBoards = allAccessibleBoards.filter(b => isFavorite('tablero', b.id));
-            const favInformes = allInformes.filter(i => isFavorite('informe', i.id));
+            const favBoards = allAccessibleBoards
+                .filter(b => isFavorite('tablero', b.id))
+                .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
+            const favInformes = allInformes
+                .filter(i => isFavorite('informe', i.id))
+                .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
 
             if (favBoards.length > 0 || favInformes.length > 0) {
                 gridContainer.insertAdjacentHTML('beforeend', `
@@ -2849,10 +2853,18 @@ function renderSatisfaccionModalContent(filterTab = 'all') {
     if (!body) return;
     body.innerHTML = '';
 
-    const clBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cl'));
-    const clInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cl'));
-    const ccBoards = allAccessibleBoards.filter(b => b.categories && b.categories.includes('_monitor_cc'));
-    const ccInformes = allInformes.filter(i => i.categories && i.categories.includes('_monitor_cc'));
+    const clBoards = allAccessibleBoards
+        .filter(b => b.categories && b.categories.includes('_monitor_cl'))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
+    const clInformes = allInformes
+        .filter(i => i.categories && i.categories.includes('_monitor_cl'))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
+    const ccBoards = allAccessibleBoards
+        .filter(b => b.categories && b.categories.includes('_monitor_cc'))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
+    const ccInformes = allInformes
+        .filter(i => i.categories && i.categories.includes('_monitor_cc'))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
 
     // Update tab counters
     const countCl = clBoards.length + clInformes.length;
@@ -3190,10 +3202,18 @@ function renderSatisfaccionPageContent(filterTab = 'all') {
 
     container.innerHTML = '';
 
-    const clBoards = allAccessibleBoards.filter(b => itemHasCategory(b, '_monitor_cl'));
-    const clInformes = allInformes.filter(i => itemHasCategory(i, '_monitor_cl'));
-    const ccBoards = allAccessibleBoards.filter(b => itemHasCategory(b, '_monitor_cc'));
-    const ccInformes = allInformes.filter(i => itemHasCategory(i, '_monitor_cc'));
+    const clBoards = allAccessibleBoards
+        .filter(b => itemHasCategory(b, '_monitor_cl'))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
+    const clInformes = allInformes
+        .filter(i => itemHasCategory(i, '_monitor_cl'))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
+    const ccBoards = allAccessibleBoards
+        .filter(b => itemHasCategory(b, '_monitor_cc'))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
+    const ccInformes = allInformes
+        .filter(i => itemHasCategory(i, '_monitor_cc'))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' }));
 
     // Update page tab counters
     const countCl = clBoards.length + clInformes.length;

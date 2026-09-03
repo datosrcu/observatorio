@@ -1952,7 +1952,7 @@ app.get('/api/tableros', async (req, res) => {
     try {
         const requesterEmail = await getOptionalUserEmail(req);
         const connection = await getDbConnection();
-        const [rows] = await connection.query('SELECT * FROM tableros ORDER BY sort_order ASC');
+        const [rows] = await connection.query('SELECT * FROM tableros ORDER BY title ASC');
         const blanketAccess = await hasBlanketAccess(connection, requesterEmail);
         await connection.end();
         const withTokens = rows.map(row => {
@@ -2226,7 +2226,7 @@ app.get('/api/informes', async (req, res) => {
     try {
         const requesterEmail = await getOptionalUserEmail(req);
         const connection = await getDbConnection();
-        const [rows] = await connection.query('SELECT * FROM informes ORDER BY year DESC, sort_order ASC');
+        const [rows] = await connection.query('SELECT * FROM informes ORDER BY title ASC');
         const blanketAccess = await hasBlanketAccess(connection, requesterEmail);
         await connection.end();
         const withTokens = rows.map(row => {
